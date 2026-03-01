@@ -1,0 +1,20 @@
+[package]
+name = "bootloader"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uefi = "0.36.1"
+
+[profile.dev]
+panic = "abort"
+
+
+[profile.release]
+panic = "abort"
+
+
+[[bin]]
+name = "bootloader"
+test=false
+bench=false
