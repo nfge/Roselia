@@ -13,11 +13,11 @@ use uefi::{
         MemoryType, allocate_pages, exit_boot_services, get_handle_for_protocol,
         get_image_file_system, image_handle, open_protocol_exclusive, stall,
     }, prelude::*, println, proto::{
-        console::gop::GraphicsOutput, loaded_image::LoadedImage, media::file::{self, File, FileAttribute, FileInfo, FileMode}
+        console::gop::GraphicsOutput, loaded_image::LoadedImage, media::{file::{self, File, FileAttribute, FileInfo, FileMode}, fs::SimpleFileSystem}
     }
 };
 
-use crate::systable::{gop_table::gop_table, reset::reset_fn, time::get_uefi_time};
+use crate::systable::{fat32_table::FAT32, gop_table::gop_table, reset::reset_fn, time::get_uefi_time};
 
 #[entry]
 fn main() -> Status {
@@ -134,9 +134,11 @@ fn main() -> Status {
 
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
+    // let fs_handle = get_handle_for_protocol::<SimpleFileSystem>().unwrap();
     let g_handle = get_handle_for_protocol::<GraphicsOutput>().unwrap();
     println!("Starting kernel and exiting from boot...");
     let mut gop = open_protocol_exclusive::<GraphicsOutput>(g_handle).unwrap();
+    // let mut fat32_fs = open_protocol_exclusive::<SimpleFileSystem>(fs_handle).unwrap();
     let gop_info = gop.current_mode_info();
     let mut fb = gop.frame_buffer();
 
@@ -148,6 +150,11 @@ fn main() -> Status {
         stride: gop_info.stride(),
         mode_info: gop_info,
     };
+    
+    // let fat32 = FAT32 {
+    //     open_volume: fat32_fs.open_volume(),
+    //     open_params: fat32_fs.open_params()
+    // };
 
     let bootinfo = BootInfo {
         gop: framebuffer,

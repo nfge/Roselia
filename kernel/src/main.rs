@@ -15,7 +15,7 @@ use crate::{
     gop::{color::Color, graphics::Graphics},
     terminal::Terminal
 };
-use uefi::{Error, runtime::{Time, TimeCapabilities}};
+use uefi::{Error, cstr16, proto::media::file::{File, FileAttribute}, runtime::{Time, TimeCapabilities}};
 
 static mut RESET_FN: Option<
     fn(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: Option<&[u8]>) -> !,
@@ -24,11 +24,12 @@ static mut TIME_FN: Option<fn() -> Result<(Time,TimeCapabilities), Error<()>>> =
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
-    let info = unsafe { &*boot_ptr };
-    unsafe { 
+    let info = unsafe { &mut *(boot_ptr as *mut BootInfo) };
+    unsafe {
         RESET_FN = Some(info.reset);
         TIME_FN = Some(info.time)
     };
+
     let graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
     let mut terminal = Terminal::new(graphics, 0, 0, 1);
     terminal.run();
