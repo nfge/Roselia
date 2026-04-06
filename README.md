@@ -1,0 +1,1 @@
+Roselia kernel + own bootloader
