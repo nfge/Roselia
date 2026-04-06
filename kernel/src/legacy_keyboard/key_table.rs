@@ -1,4 +1,5 @@
-use super::{scancode_table::SCANCODE_TABLE, KeyState};
+use crate::{keyboard::{key, key_state::{self, KeyState}}, vga::writer::Writer};
+use super::scancode_table::SCANCODE_TABLE;
 pub(super) struct Key {
     pub(super) scancode: u8,
     pub(super) letter: char,
@@ -7,7 +8,7 @@ pub struct KeyTable;
 
 
 impl KeyTable {
-    pub fn get_letter(scancode: u8, state: &mut KeyState) -> char {
+    pub fn get_letter(writer: &mut Writer,scancode: u8, state: &mut KeyState) -> char {
         for key in SCANCODE_TABLE {
             if key.scancode == scancode {
                 if state.shift {

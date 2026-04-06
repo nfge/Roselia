@@ -1,8 +1,9 @@
-use crate::ColorCode;
-use crate::vga::buffer::{Buffer,BUFFER_HEIGHT,BUFFER_WIDTH};
-use crate::vga::vga_buffer::ScreenChar;
+use super::colors::ColorCode;
+use super::buffer::{Buffer,BUFFER_WIDTH,BUFFER_HEIGHT};
+use super::screenchar::ScreenChar;
 use x86_64::instructions::port::Port;
 use core::fmt;
+
 pub struct Writer {
     pub(crate) row: usize,
     pub(crate) col: usize,
@@ -23,6 +24,9 @@ impl Writer {
             byte => {
                 if self.col >= BUFFER_WIDTH {
                     self.new_line();
+                }
+                if self.row >= BUFFER_HEIGHT {
+                    self.scroll();
                 }
 
                 let row = self.row;
@@ -47,7 +51,6 @@ impl Writer {
                 self.buffer.chars[row][col].write(character);
             }
         }
-        // self.clear_row(BUFFER_HEIGHT);
         self.row = self.row + 1;
         self.col = 0;
         self.set_cursor(self.row, self.col);
@@ -84,15 +87,18 @@ impl Writer {
 
         }
     }
-    fn clear_row(&mut self, row: usize) {
-        let blank = ScreenChar {
-            ascii_character: b' ',
-            color_code: self.color_code,
-        };
-        for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
-        }
+    fn scroll(&mut self){
+        
     }
+    // fn clear_row(&mut self, row: usize) {
+    //     let blank = ScreenChar {
+    //         ascii_character: b' ',
+    //         color_code: self.color_code,
+    //     };
+    //     for col in 0..BUFFER_WIDTH {
+    //         self.buffer.chars[row][col].write(blank);
+    //     }
+    // }
 
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {

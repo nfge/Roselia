@@ -2,18 +2,11 @@
 name = "bootloader"
 version = "0.1.0"
 edition = "2024"
+authors = ["nfge Github: <https://github.com/nfge>"]
 
 [dependencies]
-uefi = "0.36.1"
-
-[profile.dev]
-panic = "abort"
-
-
-[profile.release]
-panic = "abort"
-
-
+uefi = "0.37.0"
+uefi-raw = "0.13.0"
 [[bin]]
 name = "bootloader"
 test=false

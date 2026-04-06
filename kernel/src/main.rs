@@ -1,50 +1,49 @@
 #![no_std]
 #![no_main]
 
-mod vga;
-mod keyboard;
-use core::panic::PanicInfo;
-use core::fmt::Write;
+// extern crate alloc;
 
-use crate::keyboard::key::KeyBoard;
-use crate::vga::buffer::Buffer;
-use crate::vga::writer::Writer;
-use crate::vga::colors::{Color, ColorCode};
+mod bootinfo;
+mod gop;
+mod keyboard;
+mod terminal;
+mod timer;
+use core::panic::PanicInfo;
+
+use crate::{
+    bootinfo::bootinfo::BootInfo,
+    gop::{color::Color, graphics::Graphics},
+    terminal::Terminal
+};
+use uefi::{Error, runtime::{Time, TimeCapabilities}};
+
+static mut RESET_FN: Option<
+    fn(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: Option<&[u8]>) -> !,
+> = None;
+static mut TIME_FN: Option<fn() -> Result<(Time,TimeCapabilities), Error<()>>> = None;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn  _start() -> ! {
-    
-    // writer.write_string("Hello\n");
-    // // for i in 0..81 {
-    // //     writer.write_string("+");
-    // // }
-    // // writer.write_string("Privet Privet Privet Privet Privet Privet Privet Privet Privet Privet Privet Privet Privet Privet");
-    // writer.write_string("Privet");
-    let mut writer = Writer {
-        row: 0,
-        col: 0,
-        color_code: ColorCode::new(Color::White, Color::Black),
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer)}
+pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
+    let info = unsafe { &*boot_ptr };
+    unsafe { 
+        RESET_FN = Some(info.reset);
+        TIME_FN = Some(info.time)
     };
-    let mut state = keyboard::key_state::KeyState {shift: false};
+    let graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
+    let mut terminal = Terminal::new(graphics, 0, 0, 1);
+    terminal.run();
     loop {
-        KeyBoard::get_key(&mut writer, &mut state);
+        x86_64::instructions::hlt();
     }
 }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    let mut krnlwriter = Writer {
-        row: 0,
-        col: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Red),
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer)}
-    };
-    krnlwriter.write_string("KERNEL PANIC!!!\n");
-    let _ = write!(krnlwriter, "Error code: {}", _info);
-    
-    x86_64::instructions::interrupts::disable();
-    loop {
-        x86_64::instructions::hlt();
+    let fb = 0x80000000 as *mut u32;
+    for i in 0..1000000 {
+        unsafe {
+            fb.add(i).write_volatile(Color::Red as u32);
+        }
     }
+    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, uefi::Status::SUCCESS, None) };
 }

@@ -11,6 +11,10 @@
     "linker": "rust-lld",
     "panic-strategy": "abort",
     "disable-redzone": true,
-    "features": "-mmx,-sse,+soft-float",
-    "rustc-abi": "x86-softfloat"
+    "features": "-mmx,-sse,-sse2,+soft-float",
+    "rustc-abi": "x86-softfloat",
+    "relocation-model": "static",
+    "pre-link-args": {
+        "ld.lld": ["-Tkernel/linker.ld"]
+    }
 }

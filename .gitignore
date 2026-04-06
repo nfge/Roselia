@@ -1,1 +1,7 @@
 /target
+*.img
+*.iso
+*.log
+*.tmp
+*.vhd
+/os

@@ -1,12 +1,10 @@
 [workspace]
-members = [
-    "kernel",
-    "bootloader"
-]
+members = ["kernel","bootloader"]
+resolver = "3"
+
 
 [profile.dev]
 panic = "abort"
 
 [profile.release]
 panic = "abort"
-

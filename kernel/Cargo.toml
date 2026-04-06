@@ -2,17 +2,19 @@
 name = "kernel"
 version = "0.1.0"
 edition = "2024"
+authors = ["nfge Github: <https://github.com/nfge>"]
 
 
 [dependencies]
-bootloader = "0.9"
+# bootloader = "0.9"
 x86_64 = "0.15.4"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
+uefi = "0.37.0"
+raw-cpuid = "11.6.0"
+itoa = "1.0.18"
+heapless = "=0.9.2"
+# rusttype = {version = "0.9.3",default-features = false, features = ["libm-math"]}
+# linked_list_allocator = "0.10.5"
+# libm = "0.2.16"
 
 [[bin]]
 name = "kernel"
