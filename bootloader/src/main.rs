@@ -3,6 +3,7 @@
 
 mod elf_loader;
 mod systable;
+mod init;
 use elf_loader::{PT_LOAD, elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
 
 use systable::bootinfo::BootInfo;
@@ -10,14 +11,14 @@ use systable::bootinfo::BootInfo;
 use core::{panic::PanicInfo, time::Duration};
 use uefi::{
     CStr16, boot::{
-        MemoryType, allocate_pages, exit_boot_services, get_handle_for_protocol,
-        get_image_file_system, image_handle, open_protocol_exclusive, stall,
+        MemoryType, OpenProtocolAttributes, OpenProtocolParams, allocate_pages, exit_boot_services, get_handle_for_protocol, get_image_file_system, image_handle, open_protocol, open_protocol_exclusive, stall
     }, prelude::*, println, proto::{
         console::gop::GraphicsOutput, loaded_image::LoadedImage, media::{file::{self, File, FileAttribute, FileInfo, FileMode}, fs::SimpleFileSystem}
     }
 };
 
-use crate::systable::{fat32_table::FAT32, gop_table::gop_table, reset::reset_fn, time::get_uefi_time};
+use crate::{init::init_gop::init_gop,systable::{gop_table::gop_table, reset::reset_fn, time::get_uefi_time}};
+
 
 #[entry]
 fn main() -> Status {
@@ -134,27 +135,8 @@ fn main() -> Status {
 
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
-    // let fs_handle = get_handle_for_protocol::<SimpleFileSystem>().unwrap();
-    let g_handle = get_handle_for_protocol::<GraphicsOutput>().unwrap();
-    println!("Starting kernel and exiting from boot...");
-    let mut gop = open_protocol_exclusive::<GraphicsOutput>(g_handle).unwrap();
-    // let mut fat32_fs = open_protocol_exclusive::<SimpleFileSystem>(fs_handle).unwrap();
-    let gop_info = gop.current_mode_info();
-    let mut fb = gop.frame_buffer();
 
-    let framebuffer = gop_table {
-        framebuffer_ptr: fb.as_mut_ptr(),
-        size: fb.size(),
-        width: gop_info.resolution().0,
-        height: gop_info.resolution().1,
-        stride: gop_info.stride(),
-        mode_info: gop_info,
-    };
-    
-    // let fat32 = FAT32 {
-    //     open_volume: fat32_fs.open_volume(),
-    //     open_params: fat32_fs.open_params()
-    // };
+    let framebuffer = init_gop();
 
     let bootinfo = BootInfo {
         gop: framebuffer,
@@ -163,9 +145,7 @@ fn main() -> Status {
     };
     
     stall(Duration::from_secs(3));
-    unsafe {
-        core::ptr::write_bytes(fb.as_mut_ptr(), 0, fb.size());
-    }
+    
     let _ = unsafe { exit_boot_services(None) };
     
     kernel_entry(&bootinfo as *const BootInfo);

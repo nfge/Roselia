@@ -15,7 +15,7 @@ use crate::{
     gop::{color::Color, graphics::Graphics},
     terminal::Terminal
 };
-use uefi::{Error, cstr16, proto::media::file::{File, FileAttribute}, runtime::{Time, TimeCapabilities}};
+use uefi::{Error,proto::media::file::{File, FileAttribute}, runtime::{Time, TimeCapabilities}};
 
 static mut RESET_FN: Option<
     fn(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: Option<&[u8]>) -> !,
@@ -29,10 +29,11 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         RESET_FN = Some(info.reset);
         TIME_FN = Some(info.time)
     };
-
-    let graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
+    let mut graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
+    graphics.flush();
     let mut terminal = Terminal::new(graphics, 0, 0, 1);
     terminal.run();
+    
     loop {
         x86_64::instructions::hlt();
     }

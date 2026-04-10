@@ -37,4 +37,11 @@ impl Graphics {
             }
         }
     }
+    pub fn flush(&mut self){
+        for y in 0..self.mode_info.resolution().1 {
+            for x in 0..self.mode_info.resolution().0 {
+                self.draw_pixel(x, y, Color::Black as u32);
+            }
+        }
+    }
 }
