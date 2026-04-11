@@ -1,13 +1,15 @@
 pub mod key_table;
 pub mod key_state;
 pub mod scancode_table;
-
+mod irq;
+mod ringbuffer;
 
 use x86_64::instructions::port::Port;
 
-
 use key_state::KeyState;
 use key_table::KeyTable;
+pub static KEYBOARD_BUFFER: spin::Mutex<ringbuffer::RingBuffer> = spin::Mutex::new(ringbuffer::RingBuffer::new());
+
 
 pub struct KeyBoard {
     pub key_state: KeyState,
@@ -43,8 +45,9 @@ impl KeyBoard {
             let released = (keycode & 0x80) != 0;
             if !released && key != '\0' {
                 return Some(key);
-            }   
+            } 
         }
         None
     }
+    
 }

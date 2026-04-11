@@ -1,11 +1,9 @@
 use crate::{
-    RESET_FN, TIME_FN,
-    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
-    keyboard::KeyBoard,
-    timer::sleep,
+    RESET_FN, TIME_FN, cpu, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, timer::sleep
 };
 use heapless::String;
 use uefi::Status;
+
 
 pub struct Terminal {
     graphics: Graphics,
@@ -32,7 +30,7 @@ impl Terminal {
             char_buffer: [[' '; 64]; 64],
             buf_x: 0,
             buf_y: 0,
-            running: true,
+            running: false,
         }
     }
     pub fn print_char(&mut self, char: char) {
@@ -61,6 +59,10 @@ impl Terminal {
         if text.contains("\n") {
             self.new_line();
         }
+    }
+    pub fn print_string_ln(&mut self, text: &str) {
+        self.print_string(text);
+        self.new_line();
     }
     fn push(&mut self, c: char) {
         if self.buf_y >= 64 {
@@ -136,13 +138,16 @@ impl Terminal {
             }
         }
     }
+    #[allow(dead_code)]
     pub fn run(&mut self) {
-        if self.running == true { self.print_char('>'); }
+        self.running = true;
+        self.print_char('>');
         while self.running {
             if let Some(key) = self.keyboard.get_key() {
                 self.handle_keyboard(key);
             }
         }
+        
     }
     fn handle_command(&mut self) {
         let mut cmd: String<64> = String::new();
@@ -153,7 +158,7 @@ impl Terminal {
 
         if cmd == "help" {
             self.print_string(
-                "Commands: help, info, reset, flush, exit, time\n",
+                "Commands: help, info, reset, flush, exit, time, cpu, therm\n",
             );
         } else if cmd == "info" {
             self.print_string("Kernel 0.2. Made by nfge\n");
@@ -187,7 +192,17 @@ impl Terminal {
             self.print_char('\n', );
         } else if cmd == "flashback" {
             self.flashback();
-        } else {
+        } else if cmd == "cpu" {
+            let cpu = cpu::cpuinfo::get_cpu();
+            self.print_string_ln(cpu.0.unwrap().as_str());
+            self.print_string_ln(cpu.1.unwrap().as_str());
+        } else if cmd == "therm" {
+            let therm = cpu::cpuinfo::get_cpu_therm();
+            let mut buf = itoa::Buffer::new();
+            self.print_string("CPU: ");
+            self.print_string_ln(buf.format(therm.unwrap()));
+        }
+        else {
             self.print_string("Command not found\n");
         }
     }

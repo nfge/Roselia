@@ -146,7 +146,7 @@ fn main() -> Status {
 
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
-
+        
     let framebuffer = init_gop();
 
     let bootinfo = BootInfo {
@@ -154,7 +154,7 @@ fn main() -> Status {
         reset: reset_fn,
         time: get_uefi_time,
     };
-
+    
     stall(Duration::from_secs(3));
 
     let _ = unsafe { exit_boot_services(None) };
