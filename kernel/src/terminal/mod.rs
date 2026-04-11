@@ -13,6 +13,7 @@ pub struct Terminal {
     x: usize,
     y: usize,
     scale: usize,
+    color: Color,
     char_buffer: [[char; 64]; 64],
     buf_x: usize,
     buf_y: usize,
@@ -20,39 +21,40 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    pub fn new(graphics: Graphics, x: usize, y: usize, scale: usize) -> Self {
+    pub fn new(graphics: Graphics, x: usize, y: usize, scale: usize, color: Color) -> Self {
         Self {
             graphics: graphics,
             keyboard: KeyBoard::new(),
             x: x,
             y: y,
             scale: scale,
+            color: color,
             char_buffer: [[' '; 64]; 64],
             buf_x: 0,
             buf_y: 0,
             running: true,
         }
     }
-    pub fn print_char(&mut self, char: char, color: Color) {
+    pub fn print_char(&mut self, char: char) {
         match char {
             '\n' => self.new_line(),
             '>' => {
                 self.graphics
-                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, color);
+                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
                 self.x += 8 * self.scale;
             }
             _ => {
                 self.graphics
-                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, color);
+                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
                 self.x += 8 * self.scale;
                 self.push(char);
             }
         }
     }
-    pub fn print_string(&mut self, text: &str, color: Color) {
+    pub fn print_string(&mut self, text: &str) {
         for c in text.chars() {
             self.graphics
-                .draw_char(c, FONT8X16, self.x, self.y, self.scale, color);
+                .draw_char(c, FONT8X16, self.x, self.y, self.scale, self.color);
             self.x += 8 * self.scale;
             self.push(c);
         }
@@ -135,7 +137,7 @@ impl Terminal {
         }
     }
     pub fn run(&mut self) {
-        if self.running == true {self.print_char('>', Color::White);}
+        if self.running == true { self.print_char('>'); }
         while self.running {
             if let Some(key) = self.keyboard.get_key() {
                 self.handle_keyboard(key);
@@ -152,12 +154,11 @@ impl Terminal {
         if cmd == "help" {
             self.print_string(
                 "Commands: help, info, reset, flush, exit, time\n",
-                Color::White,
             );
         } else if cmd == "info" {
-            self.print_string("Kernel 0.2. Made by nfge\n", Color::White);
+            self.print_string("Kernel 0.2. Made by nfge\n");
         } else if cmd == "reset" {
-            self.print_string("Shutdown...\n", Color::White);
+            self.print_string("Shutdown...\n");
             sleep(900);
             unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None) };
         } else if cmd == "flush" {
@@ -169,25 +170,25 @@ impl Terminal {
             let mut buf = itoa::Buffer::new();
             let t = unsafe { TIME_FN.unwrap()() };
             let time = t.unwrap().0;
-            self.print_string("Year: ", Color::White);
-            self.print_string(buf.format(time.year()), Color::White);
-            self.print_char('\n', Color::White);
-            self.print_string("Month: ", Color::White);
-            self.print_string(buf.format(time.month()), Color::White);
-            self.print_char('\n', Color::White);
-            self.print_string("Day: ", Color::White);
-            self.print_string(buf.format(time.day()), Color::White);
-            self.print_char('\n', Color::White);
-            self.print_string("Hour: ", Color::White);
-            self.print_string(buf.format(time.hour()), Color::White);
-            self.print_char('\n', Color::White);
-            self.print_string("Seconds: ", Color::White);
-            self.print_string(buf.format(time.second()), Color::White);
-            self.print_char('\n', Color::White);
+            self.print_string("Year: ");
+            self.print_string(buf.format(time.year()));
+            self.print_char('\n');
+            self.print_string("Month: ");
+            self.print_string(buf.format(time.month()));
+            self.print_char('\n', );
+            self.print_string("Day: ");
+            self.print_string(buf.format(time.day()));
+            self.print_char('\n', );
+            self.print_string("Hour: ");
+            self.print_string(buf.format(time.hour()));
+            self.print_char('\n', );
+            self.print_string("Seconds: ");
+            self.print_string(buf.format(time.second()));
+            self.print_char('\n', );
         } else if cmd == "flashback" {
             self.flashback();
         } else {
-            self.print_string("Command not found\n", Color::White);
+            self.print_string("Command not found\n");
         }
     }
     fn handle_keyboard(&mut self, char: char) {
@@ -195,7 +196,7 @@ impl Terminal {
             '\n' => {
                 if !self.keyboard.key_state.get_shift() {
                     self.handle_command();
-                    self.print_char('>', Color::White);
+                    self.print_char('>');
                 } else {
                     self.new_line();
                 }
@@ -204,7 +205,7 @@ impl Terminal {
                 self.backspace();
             }
             _ => {
-                self.print_char(char, Color::White);
+                self.print_char(char);
             }
         }
     }

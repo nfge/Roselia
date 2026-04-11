@@ -2,23 +2,34 @@
 #![no_main]
 
 mod elf_loader;
-mod systable;
 mod init;
+mod systable;
 use elf_loader::{PT_LOAD, elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
 
 use systable::bootinfo::BootInfo;
 
 use core::{panic::PanicInfo, time::Duration};
 use uefi::{
-    CStr16, boot::{
-        MemoryType, OpenProtocolAttributes, OpenProtocolParams, allocate_pages, exit_boot_services, get_handle_for_protocol, get_image_file_system, image_handle, open_protocol, open_protocol_exclusive, stall
-    }, prelude::*, println, proto::{
-        console::gop::GraphicsOutput, loaded_image::LoadedImage, media::{file::{self, File, FileAttribute, FileInfo, FileMode}, fs::SimpleFileSystem}
-    }
+    CStr16,
+    boot::{
+        MemoryType, allocate_pages, exit_boot_services,
+        get_image_file_system, image_handle,
+        open_protocol_exclusive, stall,
+    },
+    prelude::*,
+    println,
+    proto::{
+        loaded_image::LoadedImage,
+        media::{
+            file::{self, File, FileAttribute, FileInfo, FileMode},
+        },
+    },
 };
 
-use crate::{init::init_gop::init_gop,systable::{gop_table::gop_table, reset::reset_fn, time::get_uefi_time}};
-
+use crate::{
+    init::init_gop::init_gop,
+    systable::{reset::reset_fn, time::get_uefi_time},
+};
 
 #[entry]
 fn main() -> Status {
@@ -143,14 +154,12 @@ fn main() -> Status {
         reset: reset_fn,
         time: get_uefi_time,
     };
-    
+
     stall(Duration::from_secs(3));
-    
+
     let _ = unsafe { exit_boot_services(None) };
     
     kernel_entry(&bootinfo as *const BootInfo);
-    
-    
 }
 
 #[panic_handler]
