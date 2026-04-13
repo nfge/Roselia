@@ -1,7 +1,7 @@
 pub mod key_table;
 pub mod key_state;
 pub mod scancode_table;
-mod irq;
+pub mod irq;
 mod ringbuffer;
 
 use x86_64::instructions::port::Port;
