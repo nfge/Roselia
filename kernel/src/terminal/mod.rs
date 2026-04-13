@@ -228,3 +228,10 @@ impl Terminal {
 
     // }
 }
+
+impl core::fmt::Write for Terminal {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        self.print_string(s);
+        Ok(())
+    }
+}

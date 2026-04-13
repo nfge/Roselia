@@ -2,8 +2,6 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
-// extern crate alloc;
-
 mod bootinfo;
 mod gop;
 mod keyboard;
@@ -11,6 +9,7 @@ mod terminal;
 mod timer;
 mod cpu;
 use core::panic::PanicInfo;
+use core::fmt::Write;
 
 use crate::{
     bootinfo::bootinfo::BootInfo,
@@ -31,10 +30,12 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         RESET_FN = Some(info.reset);
         TIME_FN = Some(info.time)
     };
+
     let mut graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
     graphics.flush();
     let mut terminal = Terminal::new(graphics, 0, 0, 1, Color::White);
     terminal.run();
+    
     loop {
         x86_64::instructions::hlt();
     }
