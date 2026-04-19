@@ -6,9 +6,10 @@ use crate::{cpu::apic, keyboard, timer};
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
-        idt[0xFF].set_handler_fn(spurious_handler);
+        
         idt[32].set_handler_fn(timer::irq::timer_handler);
         idt[33].set_handler_fn(keyboard::irq::keyboard_irq);
+        idt[0xFF].set_handler_fn(spurious_handler);
         idt
     };
 }
@@ -18,5 +19,7 @@ pub fn init_idt() {
 }
 
 extern "x86-interrupt" fn spurious_handler(_: InterruptStackFrame) {
-    apic::send_eoi();
+}
+extern "x86-interrupt" fn default_handler(_:InterruptStackFrame){
+    loop {}
 }

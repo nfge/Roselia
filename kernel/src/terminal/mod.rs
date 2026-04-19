@@ -202,6 +202,26 @@ impl Terminal {
             self.print_string("CPU: ");
             self.print_string_ln(buf.format(therm.unwrap()));
         }
+        else if cmd == "features" {
+            self.print_string_ln("1)CPU:");
+            self.print_string("  1.APIC:");
+            self.print_string_ln(
+                if cpu::cpuinfo::cpu_features().0 {
+                    "true"
+                } else { 
+                    "false" 
+                }
+            );
+            self.print_string(" 2.ACPI:");
+            self.print_string_ln(
+                if cpu::cpuinfo::cpu_features().1 {
+                    "true"
+                } else { 
+                    "false" 
+                }
+            );
+            
+        }
         else {
             self.print_string("Command not found\n");
         }

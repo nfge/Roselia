@@ -30,6 +30,9 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         RESET_FN = Some(info.reset);
         TIME_FN = Some(info.time)
     };
+    cpu::interrupts::init_idt();
+    cpu::pic::disable_pic();
+    cpu::apic::init_apic();
 
     let mut graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
     graphics.flush();
