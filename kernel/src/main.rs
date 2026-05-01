@@ -38,7 +38,6 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     graphics.flush();
     let mut terminal = Terminal::new(graphics, 0, 0, 1, Color::White);
     terminal.run();
-    
     loop {
         x86_64::instructions::hlt();
     }

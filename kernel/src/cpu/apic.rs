@@ -1,23 +1,17 @@
 use core::cell::UnsafeCell;
 
 use x86::{
-    apic::{ApicControl, x2apic::X2APIC},
+    apic::{ApicControl,ioapic::IoApic, x2apic::X2APIC},
     msr::{IA32_APIC_BASE, rdmsr, wrmsr},
 };
-// pub struct X2Apic(UnsafeCell<X2APIC>);
-// unsafe impl Sync for X2Apic {}
-
-// static X2APIC: X2Apic = X2Apic(UnsafeCell::new(X2APIC::new()));
-
-// fn x2apic() -> &'static mut X2APIC {
-//     unsafe { &mut *X2APIC.0.get() }
-// }
 
 pub fn init_x2apic() {
     unsafe {
-        wrmsr(0x80F, 0xFF);
+        wrmsr(0x80F, 0x1FF);
         wrmsr(0x832, 1 << 16);
-        wrmsr(0x833, 1 << 16)
+        wrmsr(0x833, 1 << 16);
+
+        wrmsr(0x808, 0)
     }
 }
 
@@ -30,7 +24,14 @@ pub fn init_apic() {
         wrmsr(IA32_APIC_BASE, apic_base);
     }
     init_x2apic();
+    init_ioapic();
     x86_64::instructions::interrupts::enable();
+}
+pub fn init_ioapic(){
+    unsafe {
+        let mut ioapic = IoApic::new(0xFEC00000);
+        ioapic.enable(1, rdmsr(0x802) as u8);
+    }
 }
 
 pub fn send_eoi() {

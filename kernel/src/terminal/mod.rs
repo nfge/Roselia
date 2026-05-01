@@ -1,9 +1,12 @@
 use crate::{
-    RESET_FN, TIME_FN, cpu, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, timer::sleep
+    RESET_FN, TIME_FN, cpu,
+    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
+    keyboard::{KEYBOARD_BUFFER, KeyBoard},
+    timer::sleep,
 };
 use heapless::String;
 use uefi::Status;
-
+use core::fmt::Write;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -147,7 +150,6 @@ impl Terminal {
                 self.handle_keyboard(key);
             }
         }
-        
     }
     fn handle_command(&mut self) {
         let mut cmd: String<64> = String::new();
@@ -155,11 +157,8 @@ impl Terminal {
             cmd.push(self.char_buffer[self.buf_y][i]).ok();
         }
         self.new_line();
-
         if cmd == "help" {
-            self.print_string(
-                "Commands: help, info, reset, flush, exit, time, cpu, therm\n",
-            );
+            self.print_string("Commands: help, info, reset, flush, exit, time, cpu, therm\n");
         } else if cmd == "info" {
             self.print_string("Kernel 0.2. Made by nfge\n");
         } else if cmd == "reset" {
@@ -180,16 +179,16 @@ impl Terminal {
             self.print_char('\n');
             self.print_string("Month: ");
             self.print_string(buf.format(time.month()));
-            self.print_char('\n', );
+            self.print_char('\n');
             self.print_string("Day: ");
             self.print_string(buf.format(time.day()));
-            self.print_char('\n', );
+            self.print_char('\n');
             self.print_string("Hour: ");
             self.print_string(buf.format(time.hour()));
-            self.print_char('\n', );
+            self.print_char('\n');
             self.print_string("Seconds: ");
             self.print_string(buf.format(time.second()));
-            self.print_char('\n', );
+            self.print_char('\n');
         } else if cmd == "flashback" {
             self.flashback();
         } else if cmd == "cpu" {
@@ -201,28 +200,24 @@ impl Terminal {
             let mut buf = itoa::Buffer::new();
             self.print_string("CPU: ");
             self.print_string_ln(buf.format(therm.unwrap()));
-        }
-        else if cmd == "features" {
+        } else if cmd == "features" {
             self.print_string_ln("1)CPU:");
             self.print_string("  1.APIC:");
-            self.print_string_ln(
-                if cpu::cpuinfo::cpu_features().0 {
-                    "true"
-                } else { 
-                    "false" 
-                }
-            );
+            self.print_string_ln(if cpu::cpuinfo::cpu_features().0 {
+                "true"
+            } else {
+                "false"
+            });
             self.print_string(" 2.ACPI:");
-            self.print_string_ln(
-                if cpu::cpuinfo::cpu_features().1 {
-                    "true"
-                } else { 
-                    "false" 
-                }
-            );
-            
-        }
-        else {
+            self.print_string_ln(if cpu::cpuinfo::cpu_features().1 {
+                "true"
+            } else {
+                "false"
+            });
+        } else if cmd == "keybuf" {
+            let _ = write!(self, "KeyBuf {:?}", KEYBOARD_BUFFER.lock().pop());
+            self.new_line();
+        } else {
             self.print_string("Command not found\n");
         }
     }
@@ -244,9 +239,6 @@ impl Terminal {
             }
         }
     }
-    // fn runner(&mut self) {
-
-    // }
 }
 
 impl core::fmt::Write for Terminal {
