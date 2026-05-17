@@ -9,7 +9,6 @@ mod terminal;
 mod timer;
 mod cpu;
 use core::panic::PanicInfo;
-use core::fmt::Write;
 
 use crate::{
     bootinfo::bootinfo::BootInfo,
@@ -25,7 +24,7 @@ static mut TIME_FN: Option<fn() -> Result<(Time,TimeCapabilities), Error<()>>> =
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
-    let info = unsafe { &mut *(boot_ptr as *mut BootInfo) };
+    let info = unsafe { &*boot_ptr };
     unsafe {
         RESET_FN = Some(info.reset);
         TIME_FN = Some(info.time)

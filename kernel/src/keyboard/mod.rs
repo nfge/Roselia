@@ -30,7 +30,7 @@ impl KeyBoard {
         let mut scan_port: Port<u8> = Port::new(0x60);
         unsafe { scan_port.read() }
     }
-    fn check_port() -> bool{
+    fn check_port() -> bool {
         let kport = Self::get_checkport();
         if (kport & 1) == 0 {
             return false;

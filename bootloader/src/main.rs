@@ -7,23 +7,20 @@ mod systable;
 use elf_loader::{PT_LOAD, elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
 
 use systable::bootinfo::BootInfo;
+// use uefi_raw::protocol::acpi::AcpiTableProtocol;
 
 use core::{panic::PanicInfo, time::Duration};
 use uefi::{
     CStr16,
     boot::{
-        MemoryType, allocate_pages, exit_boot_services,
-        get_image_file_system, image_handle,
-        open_protocol_exclusive, stall,
+        MemoryType, allocate_pages, exit_boot_services, get_image_file_system, image_handle, open_protocol_exclusive, stall
     },
     prelude::*,
     println,
     proto::{
         loaded_image::LoadedImage,
-        media::{
-            file::{self, File, FileAttribute, FileInfo, FileMode},
-        },
-    },
+        media::file::{self, File, FileAttribute, FileInfo, FileMode},
+    }, runtime::ResetType,
 };
 
 use crate::{
@@ -146,6 +143,11 @@ fn main() -> Status {
 
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
+    
+    // let acpi_handle = get_handle_for_protocol::<uefi::proto::acpi::AcpiTable>().unwrap();
+    // let acpi = open_protocol_exclusive::<uefi::proto::acpi::AcpiTable>(acpi_handle).unwrap();
+    // unsafe {let t = acpi.install_acpi_table(internal_system_table, 1000);}
+    // println!("{:#?}",acpi.open_params().handle.component_name().unwrap().supported_languages());
         
     let framebuffer = init_gop();
 
@@ -165,5 +167,5 @@ fn main() -> Status {
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     println!("Paniced on: {}", _info);
-    loop {}
+    uefi::runtime::reset(ResetType::COLD, Status::LOAD_ERROR, None);
 }
