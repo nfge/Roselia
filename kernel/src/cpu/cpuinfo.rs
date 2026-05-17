@@ -1,13 +1,9 @@
-use raw_cpuid::{CpuId, HypervisorInfo, ProcessorBrandString, VendorInfo};
+use raw_cpuid::{CpuId, ProcessorBrandString, VendorInfo};
 use x86::msr::IA32_THERM_STATUS;
 
-pub fn get_frequency() -> Option<u64> {
+pub fn get_frequency() -> Option<u16> {
     let cpuid = CpuId::new();
-    if let Some(cpu_info) = cpuid.get_processor_frequency_info() {
-        Some(cpu_info.processor_base_frequency() as u64 * 1_000_000)
-    } else {
-        None
-    }
+    return Some(cpuid.get_processor_frequency_info().unwrap().processor_base_frequency());
 }
 pub fn get_cpu_vendor() -> Option<VendorInfo> {
     let cpuid = CpuId::new();
@@ -38,6 +34,6 @@ pub fn cpu_features() -> (bool, bool) {
     return (cpu_apic(), cpu_acpi());
 }
 
-pub fn get_cpu() -> (Option<VendorInfo>, Option<ProcessorBrandString>) {
-    return (get_cpu_vendor(), get_cpu_brand_name());
+pub fn get_cpu() -> (Option<VendorInfo>, Option<ProcessorBrandString>, Option<u16>) {
+    return (get_cpu_vendor(), get_cpu_brand_name(), get_frequency());
 }

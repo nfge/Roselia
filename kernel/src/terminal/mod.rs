@@ -156,15 +156,32 @@ impl Terminal {
         for i in 0..self.buf_x {
             cmd.push(self.char_buffer[self.buf_y][i]).ok();
         }
+        let mut args = cmd.as_str().split_whitespace();
         self.new_line();
         if cmd == "help" {
             self.print_string("Commands: help, info, reset, flush, exit, time, cpu, therm\n");
         } else if cmd == "info" {
             self.print_string("Kernel 0.2. Made by nfge\n");
-        } else if cmd == "reset" {
+        } else if args.next().unwrap() == "reset" {
             self.print_string("Shutdown...\n");
             sleep(900);
-            unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None) };
+            let typeofreset = args.next().unwrap();
+            if typeofreset.is_empty() == true {return}
+            match typeofreset {
+                "cold" => {
+                    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, Status::SUCCESS, None) };
+                },
+                "warm" => {
+                    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::WARM, Status::SUCCESS, None) };
+                },
+                "shutdown" => {
+                    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None) };
+                },
+                _ => {
+                    self.print_string_ln("Error");
+                }
+            }
+            
         } else if cmd == "flush" {
             self.flush_screen();
         } else if cmd == "exit" {
@@ -217,6 +234,9 @@ impl Terminal {
         } else if cmd == "keybuf" {
             let _ = write!(self, "KeyBuf {:?}", KEYBOARD_BUFFER.lock().pop());
             self.new_line();
+        } else if args.next().unwrap() == "print" {
+            let text = args.next();
+            self.print_string_ln(text.unwrap());
         } else {
             self.print_string("Command not found\n");
         }
