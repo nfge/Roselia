@@ -157,116 +157,137 @@ impl Terminal {
         }
         let mut args = line.as_str().split_whitespace();
         self.new_line();
-        match args.next().unwrap() {
-            "help" => {
-                self.print_string("Commands: help, info, reset, flush, exit, time, cpu, therm\n")
-            }
-            "info" => self.print_string("Kernel 0.2. Made by nfge\n"),
-            "reset" => {
-                let typeofreset = match args.next() {
-                    Some(v) => v,
-                    None => {
-                        self.print_string_ln("Usage: reset [shutdown || cold || warm]");
-                        return;
-                    }
-                };
-                self.print_string("Shutdown...\n");
-                sleep(900);
-                match typeofreset {
-                    "cold" => {
-                        unsafe {
-                            RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, Status::SUCCESS, None)
-                        };
-                    }
-                    "warm" => {
-                        unsafe {
-                            RESET_FN.unwrap()(uefi::runtime::ResetType::WARM, Status::SUCCESS, None)
-                        };
-                    }
-                    "shutdown" => {
-                        unsafe {
-                            RESET_FN.unwrap()(
-                                uefi::runtime::ResetType::SHUTDOWN,
-                                Status::SUCCESS,
-                                None,
-                            )
-                        };
-                    }
-                    _ => {
-                        self.print_string_ln("Error");
+
+        match args.next() {
+            Some(v) => match v {
+                "help" => self.print_string("Commands: help, info, reset, flush,time\n"),
+                "info" => self.print_string("Kernel 0.2. Made by nfge\n"),
+                "reset" => {
+                    let typeofreset = match args.next() {
+                        Some(v) => v,
+                        None => {
+                            self.print_string_ln("Usage: reset [shutdown || cold || warm]");
+                            return;
+                        }
+                    };
+                    self.print_string("Shutdown...\n");
+                    sleep(900);
+                    match typeofreset {
+                        "cold" => {
+                            unsafe {
+                                RESET_FN.unwrap()(
+                                    uefi::runtime::ResetType::COLD,
+                                    Status::SUCCESS,
+                                    None,
+                                )
+                            };
+                        }
+                        "warm" => {
+                            unsafe {
+                                RESET_FN.unwrap()(
+                                    uefi::runtime::ResetType::WARM,
+                                    Status::SUCCESS,
+                                    None,
+                                )
+                            };
+                        }
+                        "shutdown" => {
+                            unsafe {
+                                RESET_FN.unwrap()(
+                                    uefi::runtime::ResetType::SHUTDOWN,
+                                    Status::SUCCESS,
+                                    None,
+                                )
+                            };
+                        }
+                        _ => {
+                            self.print_string_ln("Error");
+                        }
                     }
                 }
-            }
-            "flush" => self.flush_screen(),
-            "cpu" => {
-                let cpu = cpu::cpuinfo::get_cpu();
-                self.print_string_ln(cpu.0.unwrap().as_str());
-                self.print_string_ln(cpu.1.unwrap().as_str());
-            }
-            "print" => {
-                let text = match args.next() {
-                    Some(v) => v,
-                    None => {
-                        self.print_string_ln("Usage: print [str]");
-                        return;
-                    }
-                };
-                self.print_string_ln(text);
-            }
-            "time" => {
-                let mut buf = itoa::Buffer::new();
-                let t = unsafe { TIME_FN.unwrap()() };
-                let time = t.unwrap().0;
-                self.print_string("Year: ");
-                self.print_string_ln(buf.format(time.year()));
-                self.print_string("Month: ");
-                self.print_string_ln(buf.format(time.month()));
-                self.print_string("Day: ");
-                self.print_string_ln(buf.format(time.day()));
-                self.print_string("Hour: ");
-                self.print_string_ln(buf.format(time.hour()));
-                self.print_string("Seconds: ");
-                self.print_string_ln(buf.format(time.second()));
-            },
-            "scale" => {
-                let scale = match args.next() {
-                    Some(v) => v,
-                    None => {
-                        self.print_string_ln("Usage: scale [value]");
-                        return;
-                    }
-                };
-                if scale.parse::<usize>().unwrap() <= 0 { self.print_string_ln("Scale must not be less than or equal to 0"); return;}
-                self.scale = scale.parse::<usize>().unwrap();
-            },
-            "color" => {
-                let color = match args.next() {
-                    Some(v) => v,
-                    None => {
-                        self.print_string_ln("Usage: color [value]");
-                        return;
-                    }
-                };
-                match color {
-                    "white" => self.color = Color::White,
-                    "red" => self.color = Color::Red,
-                    "green" => self.color = Color::Green,
-                    "blue" => self.color = Color::Blue,
-                    "black" => self.color = Color::Black,
-                    _ => self.print_string_ln("Color not found"),
+                "flush" => self.flush_screen(),
+                "cpu" => {
+                    let cpu = cpu::cpuinfo::get_cpu();
+                    self.print_string_ln(cpu.0.unwrap().as_str());
+                    self.print_string_ln(cpu.1.unwrap().as_str());
                 }
-            },
-            "sleep" => {
-                let time = match args.next() {
-                    Some(v) => v,
-                    None => {
-                        self.print_string_ln("Usage: sleep [value in ms]");
+                "print" => {
+                    let text = match args.next() {
+                        Some(v) => v,
+                        None => {
+                            self.print_string_ln("Usage: print [str]");
+                            return;
+                        }
+                    };
+                    self.print_string_ln(text);
+                }
+                "time" => {
+                    let mut buf = itoa::Buffer::new();
+                    let t = unsafe { TIME_FN.unwrap()() };
+                    let time = t.unwrap().0;
+                    self.print_string("Year: ");
+                    self.print_string_ln(buf.format(time.year()));
+                    self.print_string("Month: ");
+                    self.print_string_ln(buf.format(time.month()));
+                    self.print_string("Day: ");
+                    self.print_string_ln(buf.format(time.day()));
+                    self.print_string("Hour: ");
+                    self.print_string_ln(buf.format(time.hour()));
+                    self.print_string("Seconds: ");
+                    self.print_string_ln(buf.format(time.second()));
+                }
+                "scale" => {
+                    let scale = match args.next() {
+                        Some(v) => v,
+                        None => {
+                            self.print_string_ln("Usage: scale [value]");
+                            return;
+                        }
+                    };
+                    if scale.parse::<usize>().unwrap() <= 0 {
+                        self.print_string_ln("Scale must not be less than or equal to 0");
                         return;
                     }
-                };
-                sleep(time.parse::<u64>().unwrap())
+                    self.scale = scale.parse::<usize>().unwrap();
+                }
+                "color" => {
+                    let color = match args.next() {
+                        Some(v) => v,
+                        None => {
+                            self.print_string_ln("Usage: color [value]");
+                            return;
+                        }
+                    };
+                    match color {
+                        "white" => self.color = Color::White,
+                        "red" => self.color = Color::Red,
+                        "green" => self.color = Color::Green,
+                        "blue" => self.color = Color::Blue,
+                        "black" => self.color = Color::Black,
+                        _ => self.print_string_ln("Color not found"),
+                    }
+                }
+                "sleep" => {
+                    let time = match args.next() {
+                        Some(v) => v,
+                        None => {
+                            self.print_string_ln("Usage: sleep [value in ms]");
+                            return;
+                        }
+                    };
+                    sleep(time.parse::<u64>().unwrap())
+                }
+                "prompt" => {
+                    self.print_string_ln("Mango Fonk");
+                    for _ in 0..10 {
+                        self.print_string("Mango ");
+                    }
+                }
+                _ => self.print_string("Command not found\n"),
+            },
+            None => {
+                return;
             }
-            _ => self.print_string("Shutdown...\n"),
         }
     }
     fn handle_keyboard(&mut self, char: char) {
