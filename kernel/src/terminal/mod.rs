@@ -1,12 +1,11 @@
 use crate::{
     RESET_FN, TIME_FN, cpu,
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
-    keyboard::{KEYBOARD_BUFFER, KeyBoard},
+    keyboard::KeyBoard,
     timer::sleep,
 };
 use heapless::String;
 use uefi::Status;
-use core::fmt::Write;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -98,15 +97,15 @@ impl Terminal {
         self.x = 0;
         self.y = 0;
     }
-    fn flashback(&mut self) {
-        for y in 0..self.graphics.mode_info.resolution().1 {
-            for x in 0..self.graphics.mode_info.resolution().0 {
-                self.graphics.draw_pixel(x, y, Color::White as u32);
-            }
-        }
-        sleep(700);
-        self.flush_screen();
-    }
+    // fn flashback(&mut self) {
+    //     for y in 0..self.graphics.mode_info.resolution().1 {
+    //         for x in 0..self.graphics.mode_info.resolution().0 {
+    //             self.graphics.draw_pixel(x, y, Color::White as u32);
+    //         }
+    //     }
+    //     sleep(700);
+    //     self.flush_screen();
+    // }
     fn new_line(&mut self) {
         self.y += 16 * self.scale;
         self.x = 0;
@@ -152,93 +151,75 @@ impl Terminal {
         }
     }
     fn handle_command(&mut self) {
-        let mut cmd: String<64> = String::new();
+        let mut line: String<64> = String::new();
         for i in 0..self.buf_x {
-            cmd.push(self.char_buffer[self.buf_y][i]).ok();
+            line.push(self.char_buffer[self.buf_y][i]).ok();
         }
-        let mut args = cmd.as_str().split_whitespace();
+        let mut args = line.as_str().split_whitespace();
         self.new_line();
-        if cmd == "help" {
-            self.print_string("Commands: help, info, reset, flush, exit, time, cpu, therm\n");
-        } else if cmd == "info" {
-            self.print_string("Kernel 0.2. Made by nfge\n");
-        } else if args.next().unwrap() == "reset" {
-            self.print_string("Shutdown...\n");
-            sleep(900);
-            let typeofreset = args.next().unwrap();
-            if typeofreset.is_empty() == true {return}
-            match typeofreset {
-                "cold" => {
-                    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, Status::SUCCESS, None) };
-                },
-                "warm" => {
-                    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::WARM, Status::SUCCESS, None) };
-                },
-                "shutdown" => {
-                    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None) };
-                },
-                _ => {
-                    self.print_string_ln("Error");
+        match args.next().unwrap() {
+            "help" => {
+                self.print_string("Commands: help, info, reset, flush, exit, time, cpu, therm\n")
+            }
+            "info" => self.print_string("Kernel 0.2. Made by nfge\n"),
+            "reset" => {
+                self.print_string("Shutdown...\n");
+                sleep(900);
+                let typeofreset = args.next().unwrap();
+                if typeofreset.is_empty() {
+                    return;
+                }
+                match typeofreset {
+                    "cold" => {
+                        unsafe {
+                            RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, Status::SUCCESS, None)
+                        };
+                    }
+                    "warm" => {
+                        unsafe {
+                            RESET_FN.unwrap()(uefi::runtime::ResetType::WARM, Status::SUCCESS, None)
+                        };
+                    }
+                    "shutdown" => {
+                        unsafe {
+                            RESET_FN.unwrap()(
+                                uefi::runtime::ResetType::SHUTDOWN,
+                                Status::SUCCESS,
+                                None,
+                            )
+                        };
+                    }
+                    _ => {
+                        self.print_string_ln("Error");
+                    }
                 }
             }
-            
-        } else if cmd == "flush" {
-            self.flush_screen();
-        } else if cmd == "exit" {
-            self.running = false;
-            self.flush_screen();
-        } else if cmd == "time" {
-            let mut buf = itoa::Buffer::new();
-            let t = unsafe { TIME_FN.unwrap()() };
-            let time = t.unwrap().0;
-            self.print_string("Year: ");
-            self.print_string(buf.format(time.year()));
-            self.print_char('\n');
-            self.print_string("Month: ");
-            self.print_string(buf.format(time.month()));
-            self.print_char('\n');
-            self.print_string("Day: ");
-            self.print_string(buf.format(time.day()));
-            self.print_char('\n');
-            self.print_string("Hour: ");
-            self.print_string(buf.format(time.hour()));
-            self.print_char('\n');
-            self.print_string("Seconds: ");
-            self.print_string(buf.format(time.second()));
-            self.print_char('\n');
-        } else if cmd == "flashback" {
-            self.flashback();
-        } else if cmd == "cpu" {
-            let cpu = cpu::cpuinfo::get_cpu();
-            self.print_string_ln(cpu.0.unwrap().as_str());
-            self.print_string_ln(cpu.1.unwrap().as_str());
-        } else if cmd == "therm" {
-            let therm = cpu::cpuinfo::get_cpu_therm();
-            let mut buf = itoa::Buffer::new();
-            self.print_string("CPU: ");
-            self.print_string_ln(buf.format(therm.unwrap()));
-        } else if cmd == "features" {
-            self.print_string_ln("1)CPU:");
-            self.print_string("  1.APIC:");
-            self.print_string_ln(if cpu::cpuinfo::cpu_features().0 {
-                "true"
-            } else {
-                "false"
-            });
-            self.print_string(" 2.ACPI:");
-            self.print_string_ln(if cpu::cpuinfo::cpu_features().1 {
-                "true"
-            } else {
-                "false"
-            });
-        } else if cmd == "keybuf" {
-            let _ = write!(self, "KeyBuf {:?}", KEYBOARD_BUFFER.lock().pop());
-            self.new_line();
-        } else if args.next().unwrap() == "print" {
-            let text = args.next();
-            self.print_string_ln(text.unwrap());
-        } else {
-            self.print_string("Command not found\n");
+            "flush" => self.flush_screen(),
+            "cpu" => {
+                let cpu = cpu::cpuinfo::get_cpu();
+                self.print_string_ln(cpu.0.unwrap().as_str());
+                self.print_string_ln(cpu.1.unwrap().as_str());
+            }
+            "print" => {
+                let text = args.next().unwrap();
+                self.print_string_ln(text);
+            }
+            "time" => {
+                let mut buf = itoa::Buffer::new();
+                let t = unsafe { TIME_FN.unwrap()() };
+                let time = t.unwrap().0;
+                self.print_string("Year: ");
+                self.print_string_ln(buf.format(time.year()));
+                self.print_string("Month: ");
+                self.print_string_ln(buf.format(time.month()));
+                self.print_string("Day: ");
+                self.print_string_ln(buf.format(time.day()));
+                self.print_string("Hour: ");
+                self.print_string_ln(buf.format(time.hour()));
+                self.print_string("Seconds: ");
+                self.print_string_ln(buf.format(time.second()));
+            }
+            _ => self.print_string("Shutdown...\n"),
         }
     }
     fn handle_keyboard(&mut self, char: char) {

@@ -1,7 +1,5 @@
-use core::cell::UnsafeCell;
-
 use x86::{
-    apic::{ApicControl,ioapic::IoApic, x2apic::X2APIC},
+    apic::{ioapic::IoApic},
     msr::{IA32_APIC_BASE, rdmsr, wrmsr},
 };
 
