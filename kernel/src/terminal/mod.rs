@@ -277,12 +277,6 @@ impl Terminal {
                     };
                     sleep(time.parse::<u64>().unwrap())
                 }
-                "prompt" => {
-                    self.print_string_ln("Mango Fonk");
-                    for _ in 0..10 {
-                        self.print_string("Mango ");
-                    }
-                }
                 _ => self.print_string("Command not found\n"),
             },
             None => {
