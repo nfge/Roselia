@@ -163,12 +163,15 @@ impl Terminal {
             }
             "info" => self.print_string("Kernel 0.2. Made by nfge\n"),
             "reset" => {
+                let typeofreset = match args.next() {
+                    Some(v) => v,
+                    None => {
+                        self.print_string_ln("Usage: reset [shutdown || cold || warm]");
+                        return;
+                    }
+                };
                 self.print_string("Shutdown...\n");
                 sleep(900);
-                let typeofreset = args.next().unwrap();
-                if typeofreset.is_empty() {
-                    return;
-                }
                 match typeofreset {
                     "cold" => {
                         unsafe {
@@ -201,7 +204,13 @@ impl Terminal {
                 self.print_string_ln(cpu.1.unwrap().as_str());
             }
             "print" => {
-                let text = args.next().unwrap();
+                let text = match args.next() {
+                    Some(v) => v,
+                    None => {
+                        self.print_string_ln("Usage: print [str]");
+                        return;
+                    }
+                };
                 self.print_string_ln(text);
             }
             "time" => {
@@ -218,6 +227,44 @@ impl Terminal {
                 self.print_string_ln(buf.format(time.hour()));
                 self.print_string("Seconds: ");
                 self.print_string_ln(buf.format(time.second()));
+            },
+            "scale" => {
+                let scale = match args.next() {
+                    Some(v) => v,
+                    None => {
+                        self.print_string_ln("Usage: scale [value]");
+                        return;
+                    }
+                };
+                if scale.parse::<usize>().unwrap() <= 0 { self.print_string_ln("Scale must not be less than or equal to 0"); return;}
+                self.scale = scale.parse::<usize>().unwrap();
+            },
+            "color" => {
+                let color = match args.next() {
+                    Some(v) => v,
+                    None => {
+                        self.print_string_ln("Usage: color [value]");
+                        return;
+                    }
+                };
+                match color {
+                    "white" => self.color = Color::White,
+                    "red" => self.color = Color::Red,
+                    "green" => self.color = Color::Green,
+                    "blue" => self.color = Color::Blue,
+                    "black" => self.color = Color::Black,
+                    _ => self.print_string_ln("Color not found"),
+                }
+            },
+            "sleep" => {
+                let time = match args.next() {
+                    Some(v) => v,
+                    None => {
+                        self.print_string_ln("Usage: sleep [value in ms]");
+                        return;
+                    }
+                };
+                sleep(time.parse::<u64>().unwrap())
             }
             _ => self.print_string("Shutdown...\n"),
         }
