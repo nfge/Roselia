@@ -6,21 +6,32 @@ use x86::{
 pub fn init_x2apic() {
     unsafe {
         wrmsr(0x80F, 0x1FF);
-        wrmsr(0x832, 1 << 16);
-        wrmsr(0x833, 1 << 16);
-
-        wrmsr(0x808, 0)
     }
 }
 
 pub fn init_apic() {
     x86_64::instructions::interrupts::disable();
+    // let mut apic_base = unsafe { rdmsr(IA32_APIC_BASE) };
+    // apic_base |= 1 << 11;
+    // apic_base |= 1 << 10;
+    // unsafe {
+    //     wrmsr(IA32_APIC_BASE, apic_base);
+    // }
+    // init_x2apic();
+    // init_ioapic();
+    // x86_64::instructions::interrupts::enable();
+    x86_64::instructions::interrupts::disable();
+
     let mut apic_base = unsafe { rdmsr(IA32_APIC_BASE) };
+
     apic_base |= 1 << 11;
+
     apic_base |= 1 << 10;
+
     unsafe {
         wrmsr(IA32_APIC_BASE, apic_base);
     }
+
     init_x2apic();
     init_ioapic();
     x86_64::instructions::interrupts::enable();

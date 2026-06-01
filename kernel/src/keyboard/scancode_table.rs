@@ -49,4 +49,5 @@ pub(super) static SCANCODE_TABLE: &[Key] = &[
     Key { scancode: 0x0D, letter: '='},
     Key { scancode: 0x33, letter: ','},
     Key { scancode: 0x34, letter: '.'},
+    Key { scancode: 0x28, letter: '\''}
 ];

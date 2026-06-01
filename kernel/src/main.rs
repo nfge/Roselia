@@ -13,7 +13,7 @@ use core::panic::PanicInfo;
 use crate::{
     bootinfo::bootinfo::BootInfo,
     gop::{color::Color, graphics::Graphics},
-    terminal::Terminal
+    terminal::Terminal, timer::sleep
 };
 use uefi::{Error, runtime::{Time, TimeCapabilities}};
 
@@ -50,5 +50,6 @@ fn panic(_info: &PanicInfo) -> ! {
             fb.add(i).write_volatile(Color::Red as u32);
         }
     }
+    sleep(2000);
     unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, uefi::Status::SUCCESS, None) };
 }

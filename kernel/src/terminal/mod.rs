@@ -39,9 +39,13 @@ impl Terminal {
         match char {
             '\n' => self.new_line(),
             '>' => {
-                self.graphics
-                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
-                self.x += 8 * self.scale;
+                if self.running {
+                    self.graphics
+                        .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
+                    self.x += 8 * self.scale;
+                } else {
+                    return;
+                }
             }
             _ => {
                 self.graphics
@@ -246,6 +250,10 @@ impl Terminal {
                     };
                     if scale.parse::<usize>().unwrap() <= 0 {
                         self.print_string_ln("Scale must not be less than or equal to 0");
+                        return;
+                    }
+                    if scale.parse::<usize>().unwrap() == 1 {
+                        panic!();
                         return;
                     }
                     self.scale = scale.parse::<usize>().unwrap();

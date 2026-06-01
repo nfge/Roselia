@@ -5,3 +5,4 @@
 *.tmp
 *.vhd
 /os
+qemu.log
