@@ -2,10 +2,11 @@ use crate::{
     RESET_FN, TIME_FN, cpu,
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::KeyBoard,
-    timer::sleep,
+    timer::{self, sleep},
 };
 use heapless::String;
 use uefi::Status;
+use core::fmt::Write;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -39,13 +40,9 @@ impl Terminal {
         match char {
             '\n' => self.new_line(),
             '>' => {
-                if self.running {
-                    self.graphics
-                        .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
-                    self.x += 8 * self.scale;
-                } else {
-                    return;
-                }
+                self.graphics
+                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
+                self.x += 8 * self.scale;
             }
             _ => {
                 self.graphics
@@ -252,10 +249,6 @@ impl Terminal {
                         self.print_string_ln("Scale must not be less than or equal to 0");
                         return;
                     }
-                    if scale.parse::<usize>().unwrap() == 1 {
-                        panic!();
-                        return;
-                    }
                     self.scale = scale.parse::<usize>().unwrap();
                 }
                 "color" => {
@@ -284,6 +277,10 @@ impl Terminal {
                         }
                     };
                     sleep(time.parse::<u64>().unwrap())
+                },
+                "ticks" => {
+                    let time = super::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
+                    let _ = write!(self, "{:?}", time);
                 }
                 _ => self.print_string("Command not found\n"),
             },
@@ -297,7 +294,11 @@ impl Terminal {
             '\n' => {
                 if !self.keyboard.key_state.get_shift() {
                     self.handle_command();
-                    self.print_char('>');
+                    if self.running {
+                        self.print_char('>');
+                    } else {
+                        return;
+                    }
                 } else {
                     self.new_line();
                 }
@@ -314,7 +315,7 @@ impl Terminal {
 
 impl core::fmt::Write for Terminal {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        self.print_string(s);
+        self.print_string_ln(s);
         Ok(())
     }
 }
