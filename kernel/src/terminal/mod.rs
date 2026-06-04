@@ -4,7 +4,7 @@ use crate::{
     keyboard::KeyBoard,
     timer::{self, sleep},
 };
-use core::fmt::{Write, write};
+use core::fmt::{self, Write};
 use heapless::String;
 use uefi::{
     Status,
@@ -170,7 +170,7 @@ impl Terminal {
                     let typeofreset = match args.next() {
                         Some(v) => v,
                         None => {
-                            self.print_string_ln("Usage: reset [shutdown || cold || warm || uefi]");
+                            self.print_string_ln("Usage: reset [shutdown || cold || warm]");
                             return;
                         }
                     };
@@ -273,16 +273,11 @@ impl Terminal {
                     let mut buf = itoa::Buffer::new();
                     let t = unsafe { TIME_FN.unwrap()() };
                     let time = t.unwrap().0;
-                    self.print_string("Year: ");
-                    self.print_string_ln(buf.format(time.year()));
-                    self.print_string("Month: ");
-                    self.print_string_ln(buf.format(time.month()));
-                    self.print_string("Day: ");
-                    self.print_string_ln(buf.format(time.day()));
-                    self.print_string("Hour: ");
-                    self.print_string_ln(buf.format(time.hour()));
-                    self.print_string("Seconds: ");
-                    self.print_string_ln(buf.format(time.second()));
+                    self.print_string_ln(format_args!("Year: {}", buf.format(time.year())).as_str().unwrap());
+                    self.print_string_ln(format_args!("Month: {}", buf.format(time.month())).as_str().unwrap());
+                    self.print_string_ln(format_args!("Day: {}", buf.format(time.day())).as_str().unwrap());
+                    self.print_string_ln(format_args!("Hour: {}", buf.format(time.hour())).as_str().unwrap());
+                    self.print_string_ln(format_args!("Seconds: {}", buf.format(time.second())).as_str().unwrap());
                 }
                 "scale" => {
                     let scale = match args.next() {
