@@ -155,17 +155,17 @@ impl Terminal {
         }
     }
     fn handle_command(&mut self) {
-        let mut line: String<64> = String::new();
+        let mut lines: String<64> = String::new();
         for i in 0..self.buf_x {
-            line.push(self.char_buffer[self.buf_y][i]).ok();
+            lines.push(self.char_buffer[self.buf_y][i]).ok();
         }
-        let mut args = line.as_str().split_whitespace();
+        let mut args = lines.as_str().split_whitespace();
         self.new_line();
 
         match args.next() {
             Some(v) => match v {
                 "help" => self.print_string("Commands: help, info, reset, flush,time\n"),
-                "info" => self.print_string("Kernel 0.2. Made by nfge\n"),
+                "info" => self.print_string("Roselia Kernel 0.3.0. Made by nfge\n"),
                 "reset" => {
                     let typeofreset = match args.next() {
                         Some(v) => v,
@@ -203,7 +203,7 @@ impl Terminal {
                                     None,
                                 )
                             };
-                        },
+                        }
                         // "uefi" => {
                         //     let mut current: [u8; 8] = [0; 8];
                         //     let get_result = unsafe {
