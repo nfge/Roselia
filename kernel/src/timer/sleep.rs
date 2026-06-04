@@ -1,3 +1,5 @@
+use core::arch::x86_64::_rdtsc;
+
 // use crate::{cpu::{cpuinfo::get_frequency,read_pit}};
 use x86_64::{instructions::nop};
 
@@ -13,10 +15,20 @@ use crate::timer::time_ms;
 // }
 
 
-pub fn sleep(ms:u64){
-    let start = time_ms();
+// pub fn sleep(ms:u64){
+//     let start = time_ms();
 
-    while time_ms() - start < ms {
+//     while time_ms() - start < ms {
+//         nop();
+//     } 
+// }
+pub fn sleep(ms:u64){
+    const CYCLES:u64 = 2_100_000;
+
+    let start =unsafe {_rdtsc()};
+    let target = start + ms * CYCLES;
+
+    while unsafe { _rdtsc() } < target {
         nop();
     } 
 }

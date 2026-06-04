@@ -1,12 +1,9 @@
 use crate::{
-    RESET_FN, TIME_FN, cpu,
-    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
-    keyboard::KeyBoard,
-    timer::{self, sleep},
+    GET_VAR_FN, RESET_FN, SET_VAR_FN, TIME_FN, cpu, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, timer::{self, sleep}
 };
 use heapless::String;
-use uefi::Status;
-use core::fmt::Write;
+use uefi::{Status, runtime::{VariableAttributes, VariableVendor}};
+use core::fmt::{Write, write};
 
 pub struct Terminal {
     graphics: Graphics,
@@ -167,7 +164,7 @@ impl Terminal {
                     let typeofreset = match args.next() {
                         Some(v) => v,
                         None => {
-                            self.print_string_ln("Usage: reset [shutdown || cold || warm]");
+                            self.print_string_ln("Usage: reset [shutdown || cold || warm || uefi]");
                             return;
                         }
                     };
@@ -200,6 +197,15 @@ impl Terminal {
                                     None,
                                 )
                             };
+                        },
+                        "uefi" => {
+                            let mut current: [u8; 8] = [0;8];
+                            let _ = unsafe {GET_VAR_FN.unwrap()(uefi::cstr16!("OsIndications"),&VariableVendor::GLOBAL_VARIABLE,&mut current)};
+                            let mut new = current;
+                            new[0] |= 0x0000000000000001;
+                            let _ = unsafe {SET_VAR_FN.unwrap()(uefi::cstr16!("OsIndications"), &VariableVendor::GLOBAL_VARIABLE,VariableAttributes::NON_VOLATILE | VariableAttributes::BOOTSERVICE_ACCESS | VariableAttributes::RUNTIME_ACCESS, &mut new)};
+                            sleep(1000);
+                            unsafe {RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, Status::SUCCESS,None)};
                         }
                         _ => {
                             self.print_string_ln("Error");

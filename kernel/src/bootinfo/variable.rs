@@ -1,0 +1,2 @@
+pub type SetVar = fn(name:&uefi::CStr16,vendor:&uefi::runtime::VariableVendor,attributes:uefi::runtime::VariableAttributes, data: &[u8]) -> Result<(), uefi::Error>;
+pub type GetVar = for<'buf> fn(name: &uefi::CStr16, vendor: &uefi::runtime::VariableVendor, buf: &'buf mut [u8]) -> Result<(&'buf [u8], uefi::runtime::VariableAttributes), uefi::Error<Option<usize>>>;

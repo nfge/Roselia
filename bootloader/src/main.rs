@@ -13,19 +13,28 @@ use core::{panic::PanicInfo, time::Duration};
 use uefi::{
     CStr16,
     boot::{
-        MemoryType, allocate_pages, exit_boot_services, get_image_file_system, image_handle, open_protocol_exclusive, stall
+        MemoryType, allocate_pages, exit_boot_services, get_handle_for_protocol,
+        get_image_file_system, image_handle, memory_map, open_protocol_exclusive, stall,
     },
+    mem::memory_map::MemoryMap,
     prelude::*,
     println,
     proto::{
+        acpi::AcpiTable,
         loaded_image::LoadedImage,
         media::file::{self, File, FileAttribute, FileInfo, FileMode},
-    }, runtime::ResetType,
+    },
+    runtime::{ResetType, VariableAttributes},
+    table::cfg::ConfigTableEntry,
 };
 
 use crate::{
     init::init_gop::init_gop,
-    systable::{reset::reset_fn, time::get_uefi_time},
+    systable::{
+        reset::reset_fn,
+        time::get_uefi_time,
+        variable::{get_variable, set_variable},
+    },
 };
 
 #[entry]
@@ -37,10 +46,10 @@ fn main() -> Status {
     let handle = image_handle();
     let mut filesys = get_image_file_system(handle).expect("Failed to load file system");
 
-    let loaded_image =
-        open_protocol_exclusive::<LoadedImage>(handle).expect("Failed to open LoadedImage");
-    let (base, size) = loaded_image.info();
-    println!("Bootloader loaded at: {:p}, size: {:#x}", base, size);
+    // let loaded_image =
+    //     open_protocol_exclusive::<LoadedImage>(handle).expect("Failed to open LoadedImage");
+    // let (base, size) = loaded_image.info();
+    // println!("Bootloader loaded at: {:p}, size: {:#x}", base, size);
 
     let mut root = filesys.open_volume().expect("Failed to open volume");
     let kernel_name: &CStr16 = cstr16!("kernel.elf");
@@ -69,7 +78,7 @@ fn main() -> Status {
     let buffer_ptr = allocate_pages(boot::AllocateType::AnyPages, MemoryType::LOADER_DATA, pages)
         .expect("Failed to allocate pages")
         .as_ptr();
-    println!("Temporary buffer_ptr: {:p}", buffer_ptr);
+    // println!("Temporary buffer_ptr: {:p}", buffer_ptr);
     let mut offset = 0;
     let chunk = 64 * 1024;
     while offset < size {
@@ -106,7 +115,7 @@ fn main() -> Status {
         let end_addr = start_addr + (pages * 0x1000);
 
         if start_addr < last_allocated_start || start_addr >= last_allocated_end {
-            println!("New allocation: Addr={:#x}, Pages={}", start_addr, pages);
+            // println!("New allocation: Addr={:#x}, Pages={}", start_addr, pages);
             let _ = boot::allocate_pages(
                 boot::AllocateType::Address(start_addr as u64),
                 boot::MemoryType::LOADER_DATA,
@@ -116,12 +125,13 @@ fn main() -> Status {
 
             last_allocated_start = start_addr;
             last_allocated_end = end_addr;
-        } else {
-            println!(
-                "Addr={:#x} already reserved by previous segment, skipping alloc",
-                start_addr
-            );
         }
+        // } else {
+        //     println!(
+        //         "Addr={:#x} already reserved by previous segment, skipping alloc",
+        //         start_addr
+        //     );
+        // }
 
         let src = unsafe { buffer_ptr.add(phdr.p_offset as usize) };
         let dst = phdr.p_vaddr as *mut u8;
@@ -139,33 +149,34 @@ fn main() -> Status {
     }
     let entry = ehdr.e_entry;
 
-    println!("Kernel Entry Physical Address: {:#x}", entry);
+    // println!("Kernel Entry Physical Address: {:#x}", entry);
 
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
-    
+
     // let acpi_handle = get_handle_for_protocol::<uefi::proto::acpi::AcpiTable>().unwrap();
     // let acpi = open_protocol_exclusive::<uefi::proto::acpi::AcpiTable>(acpi_handle).unwrap();
     // unsafe {let t = acpi.install_acpi_table(internal_system_table, 1000);}
     // println!("{:#?}",acpi.open_params().handle.component_name().unwrap().supported_languages());
-        
-    let framebuffer = init_gop();
 
+    let framebuffer = init_gop();
     let bootinfo = BootInfo {
         gop: framebuffer,
         reset: reset_fn,
         time: get_uefi_time,
+        get_var: get_variable,
+        set_var: set_variable,
     };
     
-    stall(Duration::from_secs(3));
 
+    stall(Duration::from_secs(3));
     let _ = unsafe { exit_boot_services(None) };
-    
     kernel_entry(&bootinfo as *const BootInfo);
 }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     println!("Paniced on: {}", _info);
+    stall(Duration::from_secs(5));
     uefi::runtime::reset(ResetType::COLD, Status::LOAD_ERROR, None);
 }

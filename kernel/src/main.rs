@@ -15,19 +15,24 @@ use crate::{
     gop::{color::Color, graphics::Graphics},
     terminal::Terminal, timer::sleep
 };
+
 use uefi::{Error, runtime::{Time, TimeCapabilities}};
 
 static mut RESET_FN: Option<
     fn(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: Option<&[u8]>) -> !,
 > = None;
 static mut TIME_FN: Option<fn() -> Result<(Time,TimeCapabilities), Error<()>>> = None;
+static mut SET_VAR_FN: Option<fn(name:&uefi::CStr16,vendor:&uefi::runtime::VariableVendor,attributes:uefi::runtime::VariableAttributes, data: &[u8]) -> Result<(), uefi::Error>> = None;
+static mut GET_VAR_FN: Option<for<'buf>fn(name: &uefi::CStr16, vendor: &uefi::runtime::VariableVendor, buf: &'buf mut [u8]) -> Result<(&'buf [u8], uefi::runtime::VariableAttributes), uefi::Error<Option<usize>>>> = None;
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let info = unsafe { &*boot_ptr };
     unsafe {
         RESET_FN = Some(info.reset);
-        TIME_FN = Some(info.time)
+        TIME_FN = Some(info.time);
+        SET_VAR_FN = Some(info.set_var);
+        GET_VAR_FN = Some(info.get_var)
     };
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
