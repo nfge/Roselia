@@ -1,9 +1,15 @@
 use crate::{
-    GET_VAR_FN, RESET_FN, SET_VAR_FN, TIME_FN, cpu, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, timer::{self, sleep}
+    GET_VAR_FN, RESET_FN, SET_VAR_FN, TIME_FN, cpu,
+    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
+    keyboard::KeyBoard,
+    timer::{self, sleep},
 };
-use heapless::String;
-use uefi::{Status, runtime::{VariableAttributes, VariableVendor}};
 use core::fmt::{Write, write};
+use heapless::String;
+use uefi::{
+    Status,
+    runtime::{VariableAttributes, VariableVendor},
+};
 
 pub struct Terminal {
     graphics: Graphics,
@@ -198,15 +204,50 @@ impl Terminal {
                                 )
                             };
                         },
-                        "uefi" => {
-                            let mut current: [u8; 8] = [0;8];
-                            let _ = unsafe {GET_VAR_FN.unwrap()(uefi::cstr16!("OsIndications"),&VariableVendor::GLOBAL_VARIABLE,&mut current)};
-                            let mut new = current;
-                            new[0] |= 0x0000000000000001;
-                            let _ = unsafe {SET_VAR_FN.unwrap()(uefi::cstr16!("OsIndications"), &VariableVendor::GLOBAL_VARIABLE,VariableAttributes::NON_VOLATILE | VariableAttributes::BOOTSERVICE_ACCESS | VariableAttributes::RUNTIME_ACCESS, &mut new)};
-                            sleep(1000);
-                            unsafe {RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, Status::SUCCESS,None)};
-                        }
+                        // "uefi" => {
+                        //     let mut current: [u8; 8] = [0; 8];
+                        //     let get_result = unsafe {
+                        //         GET_VAR_FN.unwrap()(
+                        //             uefi::cstr16!("OsIndications"),
+                        //             &VariableVendor::GLOBAL_VARIABLE,
+                        //             &mut current,
+                        //         )
+                        //     };
+                        //     let get_er = get_result.unwrap_err();
+                        //     if get_er.to_err_without_payload().status()
+                        //         == uefi::Status::INVALID_PARAMETER
+                        //     {
+                        //         let _ = write!(self, "GET: {}", get_er.to_err_without_payload());
+                        //         return;
+                        //     }
+                        //     let mut val = u64::from_le_bytes(current);
+                        //     val |= 1;
+                        //     let new = val.to_le_bytes();
+
+                        //     let set_result = unsafe {
+                        //         SET_VAR_FN.unwrap()(
+                        //             uefi::cstr16!("OsIndications"),
+                        //             &VariableVendor::GLOBAL_VARIABLE,
+                        //             VariableAttributes::NON_VOLATILE
+                        //                 | VariableAttributes::RUNTIME_ACCESS,
+                        //             &new,
+                        //         )
+                        //     };
+
+                        //     let set_er = set_result.unwrap_err();
+                        //     if set_er.status() == uefi::Status::INVALID_PARAMETER {
+                        //         let _ = write!(self, "SET: {}", set_er);
+                        //         return;
+                        //     }
+                        //     sleep(1000);
+                        //     unsafe {
+                        //         RESET_FN.unwrap()(
+                        //             uefi::runtime::ResetType::COLD,
+                        //             Status::SUCCESS,
+                        //             None,
+                        //         )
+                        //     };
+                        // },
                         _ => {
                             self.print_string_ln("Error");
                         }
@@ -283,7 +324,7 @@ impl Terminal {
                         }
                     };
                     sleep(time.parse::<u64>().unwrap())
-                },
+                }
                 "ticks" => {
                     let time = super::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
                     let _ = write!(self, "{:?}", time);

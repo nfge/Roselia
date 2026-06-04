@@ -24,7 +24,7 @@ use uefi::{
         loaded_image::LoadedImage,
         media::file::{self, File, FileAttribute, FileInfo, FileMode},
     },
-    runtime::{ResetType, VariableAttributes},
+    runtime::{ResetType, VariableAttributes, VariableVendor},
     table::cfg::ConfigTableEntry,
 };
 
@@ -158,7 +158,6 @@ fn main() -> Status {
     // let acpi = open_protocol_exclusive::<uefi::proto::acpi::AcpiTable>(acpi_handle).unwrap();
     // unsafe {let t = acpi.install_acpi_table(internal_system_table, 1000);}
     // println!("{:#?}",acpi.open_params().handle.component_name().unwrap().supported_languages());
-
     let framebuffer = init_gop();
     let bootinfo = BootInfo {
         gop: framebuffer,
@@ -167,10 +166,9 @@ fn main() -> Status {
         get_var: get_variable,
         set_var: set_variable,
     };
-    
 
     stall(Duration::from_secs(3));
-    let _ = unsafe { exit_boot_services(None) };
+    let _ = unsafe { exit_boot_services(Some(MemoryType::LOADER_DATA)) };
     kernel_entry(&bootinfo as *const BootInfo);
 }
 

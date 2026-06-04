@@ -8,7 +8,7 @@ mod keyboard;
 mod terminal;
 mod timer;
 mod cpu;
-use core::panic::PanicInfo;
+use core::{panic::PanicInfo};
 
 use crate::{
     bootinfo::bootinfo::BootInfo,
@@ -24,7 +24,6 @@ static mut RESET_FN: Option<
 static mut TIME_FN: Option<fn() -> Result<(Time,TimeCapabilities), Error<()>>> = None;
 static mut SET_VAR_FN: Option<fn(name:&uefi::CStr16,vendor:&uefi::runtime::VariableVendor,attributes:uefi::runtime::VariableAttributes, data: &[u8]) -> Result<(), uefi::Error>> = None;
 static mut GET_VAR_FN: Option<for<'buf>fn(name: &uefi::CStr16, vendor: &uefi::runtime::VariableVendor, buf: &'buf mut [u8]) -> Result<(&'buf [u8], uefi::runtime::VariableAttributes), uefi::Error<Option<usize>>>> = None;
-
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let info = unsafe { &*boot_ptr };
@@ -40,6 +39,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 
     let mut graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
     graphics.flush();
+
     let mut terminal = Terminal::new(graphics, 0, 0, 1, Color::White);
     terminal.run();
     loop {
