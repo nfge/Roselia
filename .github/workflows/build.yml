@@ -15,6 +15,7 @@ jobs:
     - name: Install
       run: |
         rustup toolchain install nightly
+        rustup component add rust-src --toolchain nightly
     - name: Build
       run: |
         cargo +nightly build -Z json-target-spec -p kernel --target x86_64.json --release
