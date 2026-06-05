@@ -1,0 +1,30 @@
+name: Rust
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: |
+        cargo +nightly build -p kernel --target x86_64.json --release
+        cargo build -p bootloader --target x86_64-unknown-uefi --release
+    - name: Prepare artifacts
+      run: |
+        mkdir out
+        mkdir -p out/EFI/BOOT/
+        cp -r target/x86_64/release/kernel out/kernel.efi
+        cp -r target/x86_64-unknown-uefi/release/bootloader out/EFI/BOOT/BOOTX64.efi
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Roselia
+        path: out/
+          
