@@ -3,10 +3,10 @@
 
 mod elf_loader;
 mod init;
-mod systable;
+mod bootinfo;
 use elf_loader::{PT_LOAD, elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
 
-use systable::bootinfo::BootInfo;
+use bootinfo::bootinfo::BootInfo;
 // use uefi_raw::protocol::acpi::AcpiTableProtocol;
 
 use core::{panic::PanicInfo, time::Duration};
@@ -30,7 +30,7 @@ use uefi::{
 
 use crate::{
     init::init_gop::init_gop,
-    systable::{
+    bootinfo::{
         reset::reset_fn,
         time::get_uefi_time,
         variable::{get_variable, set_variable},
