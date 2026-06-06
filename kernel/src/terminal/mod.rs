@@ -4,7 +4,7 @@ use crate::{
     keyboard::KeyBoard,
     timer::{self, sleep},
 };
-use core::fmt::{self, Write};
+use core::fmt::{Write};
 use heapless::String;
 use uefi::{
     Status,
@@ -46,7 +46,10 @@ impl Terminal {
                 self.graphics
                     .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
                 self.x += 8 * self.scale;
-            }
+            },
+            '\r' => {
+                self.x = 0;
+            },
             _ => {
                 self.graphics
                     .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
@@ -57,13 +60,7 @@ impl Terminal {
     }
     pub fn print_string(&mut self, text: &str) {
         for c in text.chars() {
-            self.graphics
-                .draw_char(c, FONT8X16, self.x, self.y, self.scale, self.color);
-            self.x += 8 * self.scale;
-            self.push(c);
-        }
-        if text.contains("\n") {
-            self.new_line();
+            self.print_char(c);
         }
     }
     pub fn print_string_ln(&mut self, text: &str) {
@@ -328,7 +325,24 @@ impl Terminal {
                 "ticks" => {
                     let time = super::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
                     let _ = write!(self, "{:?}", time);
-                }
+                },
+                "addr" => {
+                    match args.next() {
+                        Some(f) => match f {
+                            "sleep" => {
+                                let _ = write!(self, "addr={:p}", timer::sleep as *const ());
+                                self.new_line();
+                            },
+                            "fb" => {
+                                let _ = write!(self, "addr={:p}", self.graphics.framebuffer_ptr.clone());
+                                self.new_line();
+                            }
+                            _ => self.print_string_ln("Not found func"),
+                        },
+                        None => {return}
+                    }
+                },
+                "panic" => panic!("ya pidor"),
                 _ => self.print_string("Command not found\n"),
             },
             None => {
@@ -362,7 +376,7 @@ impl Terminal {
 
 impl core::fmt::Write for Terminal {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        self.print_string_ln(s);
+        self.print_string   (s);
         Ok(())
     }
 }

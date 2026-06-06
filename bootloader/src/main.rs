@@ -162,7 +162,7 @@ fn main() -> Status {
     };
 
     stall(Duration::from_secs(3));
-    let _ = unsafe { exit_boot_services(Some(MemoryType::LOADER_DATA)) };
+    let _ = unsafe { exit_boot_services(None) };
     kernel_entry(&bootinfo as *const BootInfo);
 }
 
