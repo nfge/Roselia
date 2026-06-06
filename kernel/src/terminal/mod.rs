@@ -204,50 +204,50 @@ impl Terminal {
                                 )
                             };
                         }
-                        // "uefi" => {
-                        //     let mut current: [u8; 8] = [0; 8];
-                        //     let get_result = unsafe {
-                        //         GET_VAR_FN.unwrap()(
-                        //             uefi::cstr16!("OsIndications"),
-                        //             &VariableVendor::GLOBAL_VARIABLE,
-                        //             &mut current,
-                        //         )
-                        //     };
-                        //     let get_er = get_result.unwrap_err();
-                        //     if get_er.to_err_without_payload().status()
-                        //         == uefi::Status::INVALID_PARAMETER
-                        //     {
-                        //         let _ = write!(self, "GET: {}", get_er.to_err_without_payload());
-                        //         return;
-                        //     }
-                        //     let mut val = u64::from_le_bytes(current);
-                        //     val |= 1;
-                        //     let new = val.to_le_bytes();
+                        "uefi" => {
+                            let mut current: [u8; 8] = [0; 8];
+                            let get_result = unsafe {
+                                GET_VAR_FN.unwrap()(
+                                    uefi::cstr16!("OsIndications"),
+                                    &VariableVendor::GLOBAL_VARIABLE,
+                                    &mut current,
+                                )
+                            };
+                            let get_er = get_result.unwrap_err();
+                            if get_er.to_err_without_payload().status()
+                                == uefi::Status::INVALID_PARAMETER
+                            {
+                                let _ = write!(self, "GET: {}", get_er.to_err_without_payload());
+                                return;
+                            }
+                            let mut val = u64::from_le_bytes(current);
+                            val |= 1;
+                            let new = val.to_le_bytes();
 
-                        //     let set_result = unsafe {
-                        //         SET_VAR_FN.unwrap()(
-                        //             uefi::cstr16!("OsIndications"),
-                        //             &VariableVendor::GLOBAL_VARIABLE,
-                        //             VariableAttributes::NON_VOLATILE
-                        //                 | VariableAttributes::RUNTIME_ACCESS,
-                        //             &new,
-                        //         )
-                        //     };
+                            let set_result = unsafe {
+                                SET_VAR_FN.unwrap()(
+                                    uefi::cstr16!("OsIndications"),
+                                    &VariableVendor::GLOBAL_VARIABLE,
+                                    VariableAttributes::NON_VOLATILE
+                                        | VariableAttributes::RUNTIME_ACCESS,
+                                    &new,
+                                )
+                            };
 
-                        //     let set_er = set_result.unwrap_err();
-                        //     if set_er.status() == uefi::Status::INVALID_PARAMETER {
-                        //         let _ = write!(self, "SET: {}", set_er);
-                        //         return;
-                        //     }
-                        //     sleep(1000);
-                        //     unsafe {
-                        //         RESET_FN.unwrap()(
-                        //             uefi::runtime::ResetType::COLD,
-                        //             Status::SUCCESS,
-                        //             None,
-                        //         )
-                        //     };
-                        // },
+                            let set_er = set_result.unwrap_err();
+                            if set_er.status() == uefi::Status::INVALID_PARAMETER {
+                                let _ = write!(self, "SET: {}", set_er);
+                                return;
+                            }
+                            sleep(1000);
+                            unsafe {
+                                RESET_FN.unwrap()(
+                                    uefi::runtime::ResetType::COLD,
+                                    Status::SUCCESS,
+                                    None,
+                                )
+                            };
+                        },
                         _ => {
                             self.print_string_ln("Error");
                         }
@@ -273,11 +273,16 @@ impl Terminal {
                     let mut buf = itoa::Buffer::new();
                     let t = unsafe { TIME_FN.unwrap()() };
                     let time = t.unwrap().0;
-                    self.print_string_ln(format_args!("Year: {}", buf.format(time.year())).as_str().unwrap());
-                    self.print_string_ln(format_args!("Month: {}", buf.format(time.month())).as_str().unwrap());
-                    self.print_string_ln(format_args!("Day: {}", buf.format(time.day())).as_str().unwrap());
-                    self.print_string_ln(format_args!("Hour: {}", buf.format(time.hour())).as_str().unwrap());
-                    self.print_string_ln(format_args!("Seconds: {}", buf.format(time.second())).as_str().unwrap());
+                    self.print_string("Year: ");
+                    self.print_string_ln(buf.format(time.year()));
+                    self.print_string("Month: ");
+                    self.print_string_ln(buf.format(time.month()));
+                    self.print_string("Day: ");
+                    self.print_string_ln(buf.format(time.day()));
+                    self.print_string("Hour: ");
+                    self.print_string_ln(buf.format(time.hour()));
+                    self.print_string("Seconds: ");
+                    self.print_string_ln(buf.format(time.second()));
                 }
                 "scale" => {
                     let scale = match args.next() {

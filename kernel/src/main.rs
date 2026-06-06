@@ -2,16 +2,14 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
-mod bootinfo;
 mod gop;
 mod keyboard;
 mod terminal;
 mod timer;
 mod cpu;
 use core::{panic::PanicInfo};
-
+use bootinfo::BootInfo;
 use crate::{
-    bootinfo::bootinfo::BootInfo,
     gop::{color::Color, graphics::Graphics},
     terminal::Terminal, timer::sleep
 };
@@ -37,7 +35,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::pic::disable_pic();
     cpu::apic::init_apic();
 
-    let mut graphics = Graphics::new(info.framebuffer.framebuffer_ptr, info.framebuffer.mode_info);
+    let mut graphics = Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info);
     graphics.flush();
 
     let mut terminal = Terminal::new(graphics, 0, 0, 1, Color::White);

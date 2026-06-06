@@ -1,6 +1,6 @@
 use uefi::{boot::{get_handle_for_protocol, open_protocol_exclusive}, proto::console::gop::GraphicsOutput, println};
 
-use crate::bootinfo::gop_table::gop_table;
+use bootinfo::gop_table::gop_table;
 
 
 pub fn init_gop() -> gop_table {

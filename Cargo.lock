@@ -21,9 +21,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af"
 
 [[package]]
+name = "bootinfo"
+version = "0.1.0"
+dependencies = [
+ "uefi",
+]
+
+[[package]]
 name = "bootloader"
 version = "0.1.0"
 dependencies = [
+ "bootinfo",
  "uefi",
  "uefi-raw 0.13.0",
 ]
@@ -75,6 +83,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "kernel"
 version = "0.3.0"
 dependencies = [
+ "bootinfo",
  "heapless",
  "itoa",
  "lazy_static",
