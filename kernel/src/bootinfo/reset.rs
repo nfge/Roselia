@@ -1,1 +1,0 @@
-pub type ResetFn = fn(uefi::runtime::ResetType,uefi::Status,Option<&[u8]>) -> !;
