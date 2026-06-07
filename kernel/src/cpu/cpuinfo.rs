@@ -15,7 +15,12 @@ pub fn get_cpu_brand_name() -> Option<ProcessorBrandString> {
 
     return cpuid.get_processor_brand_string();
 }
+pub fn chech_sse_support() -> bool {
+    let cpuid = CpuId::new();
+    let f = cpuid.get_feature_info().unwrap();
 
+    f.has_sse() && f.has_sse2()
+}
 // pub fn get_cpu_therm() -> Option<i32> {
 //     let therm = unsafe { x86::msr::rdmsr(IA32_THERM_STATUS) };
 //     let delta = ((therm >> 16) & 0x7F) as i32;
