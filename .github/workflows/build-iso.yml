@@ -39,9 +39,9 @@ jobs:
 
         sudo mkdir -p mnt/EFI/BOOT
         sudo cp out/EFI/BOOT/BOOTX64.efi mnt/EFI/BOOT/
-
-        sudo umount mnt
         
+        sudo umount mnt
+        cp efi.img out/efi.img
     - name: Build ISO
       run: |
         xorriso -as mkisofs \
