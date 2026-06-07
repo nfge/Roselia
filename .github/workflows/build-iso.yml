@@ -45,7 +45,7 @@ jobs:
       run: |
         xorriso -as mkisofs \
           -R -J \
-          -e efi.img
+          -e efi.img \
           -no-emul-boot \
           -o Roselia.iso \
           out/
