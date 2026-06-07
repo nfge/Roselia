@@ -3,9 +3,9 @@ use crate::{
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::KeyBoard,
     memory::{get_free, get_used},
-    timer::{self, sleep},
+    timer::{sleep},
 };
-use alloc::{string::String, vec, vec::Vec};
+use alloc::{string::String};
 use core::fmt::Write;
 use uefi::{
     Status,

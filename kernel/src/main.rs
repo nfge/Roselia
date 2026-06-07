@@ -41,6 +41,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
     cpu::apic::init_apic();
+    cpu::sse::init_sse();
     memory::init_heap();
 
     let mut graphics = Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info);
