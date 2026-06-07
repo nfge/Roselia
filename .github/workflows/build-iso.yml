@@ -1,0 +1,57 @@
+name: Build-Iso
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install
+      run: |
+        rustup toolchain install nightly
+        rustup component add rust-src --toolchain nightly
+        rustup target add x86_64-unknown-uefi
+        sudo apt update
+        sudo apt install -y xorriso dosfstools mtools
+    - name: Build
+      run: |
+        cargo +nightly build -Z json-target-spec -p kernel --target x86_64.json --release
+        cargo build -p bootloader --target x86_64-unknown-uefi --release
+    - name: Prepare artifacts
+      run: |
+        mkdir out
+        mkdir -p out/EFI/BOOT/
+        cp -r target/x86_64/release/kernel out/kernel.elf
+        cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/BOOT/BOOTX64.efi
+    - name: Create FAT Image
+      run: |
+        dd if=/dev/zero of=efi.img bs=1M count=20
+        mkfs.fat -F 32 efi.img
+
+        mkdir mnt
+        sudo mount -o loop efi.img mnt
+
+        sudo mkdir -p mnt/EFI/BOOT
+        sudo cp out/EFI/BOOT/BOOTX64.efi mnt/EFI/BOOT/
+
+        sudo unmount mnt
+    - name: Build ISO
+      run: |
+        xorriso -as mkisofs \
+          -R -J \
+          -e efi.img
+          -no-emul-boot \
+          -o Roselia.iso \
+          out/
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Roselia
+        path: Roselia.iso
+          
