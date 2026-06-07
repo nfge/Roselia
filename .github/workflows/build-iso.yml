@@ -40,7 +40,7 @@ jobs:
         sudo mkdir -p mnt/EFI/BOOT
         sudo cp out/EFI/BOOT/BOOTX64.efi mnt/EFI/BOOT/
 
-        sudo unmount mnt
+        sudo umount mnt
     - name: Build ISO
       run: |
         xorriso -as mkisofs \
