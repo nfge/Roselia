@@ -2,10 +2,11 @@ use crate::{
     GET_VAR_FN, RESET_FN, SET_VAR_FN, TIME_FN, cpu,
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::KeyBoard,
+    memory::{get_free, get_used},
     timer::{self, sleep},
 };
-use core::fmt::{Write};
-use heapless::String;
+use alloc::{string::String, vec, vec::Vec};
+use core::fmt::Write;
 use uefi::{
     Status,
     runtime::{VariableAttributes, VariableVendor},
@@ -46,10 +47,10 @@ impl Terminal {
                 self.graphics
                     .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
                 self.x += 8 * self.scale;
-            },
+            }
             '\r' => {
                 self.x = 0;
-            },
+            }
             _ => {
                 self.graphics
                     .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
@@ -152,16 +153,16 @@ impl Terminal {
         }
     }
     fn handle_command(&mut self) {
-        let mut lines: String<64> = String::new();
+        let mut lines: String = String::new();
         for i in 0..self.buf_x {
-            lines.push(self.char_buffer[self.buf_y][i]).ok();
+            lines.push(self.char_buffer[self.buf_y][i]);
         }
         let mut args = lines.as_str().split_whitespace();
         self.new_line();
 
         match args.next() {
             Some(v) => match v {
-                "help" => self.print_string("Commands: help, info, reset, flush,time\n"),
+                "help" => self.print_string("Commands: help, info, reset, flush, time, mem\n"),
                 "info" => self.print_string("Roselia Kernel 0.3.0. Made by nfge\n"),
                 "reset" => {
                     let typeofreset = match args.next() {
@@ -244,7 +245,7 @@ impl Terminal {
                                     None,
                                 )
                             };
-                        },
+                        }
                         _ => {
                             self.print_string_ln("Error");
                         }
@@ -325,24 +326,20 @@ impl Terminal {
                 "ticks" => {
                     let time = super::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
                     let _ = write!(self, "{:?}", time);
+                }
+                "panic" => panic!(),
+                "mem" => match args.next() {
+                    Some(f) => match f {
+                        "free" => {
+                            let _ = write!(self, "Free memory: {}\n", get_free());
+                        }
+                        "used" => {
+                            let _ = write!(self, "Used memory: {}\n", get_used());
+                        }
+                        _ => self.print_string_ln("Usage: mem [free || used]"),
+                    },
+                    None => self.print_string_ln("Usage: mem [free || used]"),
                 },
-                "addr" => {
-                    match args.next() {
-                        Some(f) => match f {
-                            "sleep" => {
-                                let _ = write!(self, "addr={:p}", timer::sleep as *const ());
-                                self.new_line();
-                            },
-                            "fb" => {
-                                let _ = write!(self, "addr={:p}", self.graphics.framebuffer_ptr.clone());
-                                self.new_line();
-                            }
-                            _ => self.print_string_ln("Not found func"),
-                        },
-                        None => {return}
-                    }
-                },
-                "panic" => panic!("ya pidor"),
                 _ => self.print_string("Command not found\n"),
             },
             None => {
@@ -376,7 +373,7 @@ impl Terminal {
 
 impl core::fmt::Write for Terminal {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        self.print_string   (s);
+        self.print_string(s);
         Ok(())
     }
 }

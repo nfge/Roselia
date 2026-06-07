@@ -13,5 +13,6 @@ pub struct BootInfo {
     pub time: time::GetTimeFn,
     pub reset: reset::ResetFn,
     pub set_var: variable::SetVar,
-    pub get_var: variable::GetVar
+    pub get_var: variable::GetVar,
+    pub heap_ptr: *mut u8
 }

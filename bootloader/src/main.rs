@@ -153,12 +153,15 @@ fn main() -> Status {
     // unsafe {let t = acpi.install_acpi_table(internal_system_table, 1000);}
     // println!("{:#?}",acpi.open_params().handle.component_name().unwrap().supported_languages());
     let framebuffer = init_gop();
+    let heap_pages = (10 * 1024 * 1024 + 4095) / 4096;
+    let heap_ptr = allocate_pages(boot::AllocateType::AnyPages, MemoryType::LOADER_DATA, heap_pages).expect("Failed to allocate heap").as_ptr();
     let bootinfo = BootInfo {
         gop: framebuffer,
         reset: reset_fn,
         time: get_uefi_time,
         get_var: get_variable,
         set_var: set_variable,
+        heap_ptr: heap_ptr
     };
 
     stall(Duration::from_secs(3));

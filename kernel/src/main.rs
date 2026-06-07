@@ -2,22 +2,25 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
+extern crate alloc;
+
 mod gop;
 mod keyboard;
 mod terminal;
 mod timer;
 mod cpu;
 mod uart;
+mod memory;
 use core::{panic::PanicInfo};
 use bootinfo::BootInfo;
 use crate::{
     gop::{color::Color, graphics::Graphics},
     terminal::Terminal, timer::sleep
 };
-use uart::serial_print;
 use uefi::{Error, runtime::{Time, TimeCapabilities}};
 
 static mut FB_PTR: Option<*mut u32> = None;
+static mut HEAP_PTR: Option<*mut u8> = None;
 static mut RESET_FN: Option<
     fn(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: Option<&[u8]>) -> !,
 > = None;
@@ -29,6 +32,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let info = unsafe { &*boot_ptr };
     unsafe {
         FB_PTR = Some(info.gop.framebuffer_ptr.clone() as *mut u32);
+        HEAP_PTR = Some(info.heap_ptr);
         RESET_FN = Some(info.reset);
         TIME_FN = Some(info.time);
         SET_VAR_FN = Some(info.set_var);
@@ -37,6 +41,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
     cpu::apic::init_apic();
+    memory::init_heap();
 
     let mut graphics = Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info);
     graphics.flush();
