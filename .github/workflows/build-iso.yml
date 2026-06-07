@@ -35,7 +35,7 @@ jobs:
         -R -J \
         -o Roselia.iso \
         -isohybrid-gpt-basdat \
-        -e EFI/BOOT/BOOTX64.EFI \
+        -e EFI/BOOT/BOOTX64.efi \
         -no-emul-boot \
         out/
     - name: Upload artifacts
