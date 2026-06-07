@@ -29,14 +29,26 @@ jobs:
         mkdir -p out/EFI/BOOT/
         cp -r target/x86_64/release/kernel out/kernel.elf
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/BOOT/BOOTX64.efi
+    - name: Create FAT image
+      run: |
+        dd if=/dev/zero of=efi.img bs=1M count=20
+        mkfs.fat -F 32 efi.img
+
+        mkdir mnt
+        sudo mount -o loop efi.img mnt
+
+        sudo mkdir -p mnt/EFI/BOOT
+        sudo cp out/EFI/BOOT/BOOTX64.efi mnt/EFI/BOOT/
+
+        sudo umount mnt
         
     - name: Build ISO
       run: |
         xorriso -as mkisofs \
           -R -J \
-          -e EFI/BOOT/BOOTX64.efi \
-          -no-emul-boot \
           -o Roselia.iso \
+          -e efi.img \
+          -no-emul-boot \
           out/
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
