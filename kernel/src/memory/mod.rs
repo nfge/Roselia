@@ -19,3 +19,6 @@ pub fn get_free() -> usize {
 pub fn get_used() -> usize {
     ALLOCATOR.lock().used()
 }
+pub fn get_size() -> usize {
+    ALLOCATOR.lock().size()
+}
