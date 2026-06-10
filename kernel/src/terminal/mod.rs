@@ -3,9 +3,9 @@ use crate::{
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::KeyBoard,
     memory::{get_free, get_used},
-    timer::{sleep},
+    timer::sleep,
 };
-use alloc::{string::String};
+use alloc::string::String;
 use core::fmt::Write;
 use uefi::{
     Status,
@@ -19,7 +19,7 @@ pub struct Terminal {
     y: usize,
     scale: usize,
     color: Color,
-    char_buffer: [[char; 64]; 64],
+    char_buffer: [[char; 64]; 128],
     buf_x: usize,
     buf_y: usize,
     running: bool,
@@ -34,7 +34,7 @@ impl Terminal {
             y: y,
             scale: scale,
             color: color,
-            char_buffer: [[' '; 64]; 64],
+            char_buffer: [[' '; 64]; 128],
             buf_x: 0,
             buf_y: 0,
             running: false,
@@ -52,10 +52,18 @@ impl Terminal {
                 self.x = 0;
             }
             _ => {
-                self.graphics
-                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
-                self.x += 8 * self.scale;
-                self.push(char);
+                if self.buf_x != 63 {
+                    self.graphics
+                        .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
+                    self.x += 8 * self.scale;
+                    self.push(char);
+                } else {
+                    self.new_line();
+                    self.graphics
+                        .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
+                    self.x += 8 * self.scale;
+                    self.push(char);
+                }
             }
         }
     }
@@ -69,7 +77,7 @@ impl Terminal {
         self.new_line();
     }
     fn push(&mut self, c: char) {
-        if self.buf_y >= 64 {
+        if self.buf_y >= 128 {
             return;
         }
 
@@ -93,7 +101,7 @@ impl Terminal {
                 self.graphics.draw_pixel(x, y, Color::Black as u32);
             }
         }
-        self.char_buffer = [[' '; 64]; 64];
+        self.char_buffer = [[' '; 64]; 128];
         self.buf_x = 0;
         self.buf_y = 0;
         self.x = 0;
@@ -127,7 +135,7 @@ impl Terminal {
             self.buf_y -= 1;
             self.buf_x = 63;
             self.y -= char_height;
-            self.x = char_width * 63;
+            self.x = char_width * 127;
         } else {
             self.buf_x -= 1;
             self.x -= char_width;
