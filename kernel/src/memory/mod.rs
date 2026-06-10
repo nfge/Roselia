@@ -1,3 +1,5 @@
+use core::ptr::NonNull;
+
 use linked_list_allocator::LockedHeap;
 
 use crate::HEAP_PTR;
@@ -21,4 +23,13 @@ pub fn get_used() -> usize {
 }
 pub fn get_size() -> usize {
     ALLOCATOR.lock().size()
+}
+pub fn alloc(layout:core::alloc::Layout) -> NonNull<u8> {
+    let ptr = ALLOCATOR.lock().allocate_first_fit(layout).unwrap();
+    ptr
+}
+pub fn dealloc(ptr: NonNull<u8>, layout:core::alloc::Layout){
+    unsafe {
+        ALLOCATOR.lock().deallocate(ptr, layout);
+    }
 }
