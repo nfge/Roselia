@@ -1,14 +1,22 @@
 @echo off
 
-if "%1"=="release" goto release
-goto dev
+if "%1"=="build" ( 
+    if "%2"=="dev" goto :build_dev
+    if "%2"=="release" goto :build_release
+    goto :build_dev
+)
+if "%1"=="run" (
+    if "%2"=="dev" goto :run_dev
+    if "%2"=="release" goto :run_release
+    goto :run_dev
+)
+exit /b
 
-
-:dev
+:run_dev
 call :build_dev
 goto run
 
-:release
+:run_release
 call :build_release
 goto run
 

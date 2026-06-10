@@ -2,12 +2,25 @@
 
 set -e
 
-MODE=$1
+TYPE=$1
+MODE=$2
+
+if [[ "$TYPE" == "build" ]]; then
+    CMD="build"
+elif [[ "$TYPE" == "run" ]]; then
+    CMD="run"
+else
+    echo "Usage: $0 {build|run} {dev|release}"
+    exit 1
+fi
 
 if [[ "$MODE" == "release" ]]; then
     BUILD_MODE="release"
+elif [[ "$MODE" == "dev" ]]; then
+    BUILD_MODE="dev"
 else
-    BUILD_MODE="debug"
+    echo "Usage: $0 {build|run} {dev|release}"
+    exit 1
 fi
 
 build_dev() {
@@ -43,10 +56,24 @@ run_qemu() {
         -D qemu.log
 }
 
-if [[ "$BUILD_MODE" == "release" ]]; then
-    build_release
+if [[ "$CMD" == "build" ]]; then
+    if [[ "$BUILD_MODE" == "release" ]]; then
+        build_release
+    elif [[ "$BUILD_MODE" == "dev" ]]; then
+        build_dev
+    else
+        exit 1
+    fi
+elif [[ "$CMD" == "run" ]]; then
+    if [[ "$BUILD_MODE" == "release" ]]; then
+        build_release
+        run_qemu
+    elif [[ "$BUILD_MODE" == "dev" ]]; then
+        build_dev
+        run_qemu
+    else
+        exit 1
+    fi
 else
-    build_dev
+    exit 1
 fi
-
-run_qemu
