@@ -8,6 +8,7 @@ authors = ["nfge Github: <https://github.com/nfge>"]
 uefi = "0.37.0"
 uefi-raw = "0.13.0"
 bootinfo= {path = "../common/bootinfo"}
+elf_headers = {path = "../common/elf_headers"}
 [[bin]]
 name = "bootloader"
 test=false
