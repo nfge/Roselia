@@ -1,9 +1,5 @@
 use crate::{
-    GET_VAR_FN, RESET_FN, SET_VAR_FN, TIME_FN, cpu,
-    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
-    keyboard::KeyBoard,
-    memory::{get_free, get_used},
-    timer::sleep,
+    GET_VAR_FN, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, timer::sleep
 };
 use alloc::string::String;
 use core::fmt::Write;
