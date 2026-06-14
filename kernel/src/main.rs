@@ -11,13 +11,15 @@ mod memory;
 mod terminal;
 mod timer;
 mod uart;
+mod ramfs;
 use crate::{
     gop::{color::Color, graphics::Graphics},
     terminal::Terminal,
     timer::sleep,
+    ramfs::RamFs
 };
-use alloc::{boxed::Box, fmt::format,format};
-use bootinfo::{BootInfo, gop_table::gop_table};
+use alloc::{boxed::Box,format};
+use bootinfo::{BootInfo};
 use core::panic::PanicInfo;
 use uefi::{
     Error,
@@ -50,6 +52,7 @@ static mut GET_VAR_FN: Option<
     >,
 > = None;
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
+static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
@@ -76,6 +79,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             1,
             Color::White,
         )));
+        RAMFS = Box::into_raw(Box::new(RamFs::new()));
     }
     unsafe {
         if !TERMINAL.is_null() {
