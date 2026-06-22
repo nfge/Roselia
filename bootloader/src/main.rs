@@ -2,37 +2,80 @@
 #![no_main]
 
 mod init;
-use elf_headers::{elf64ehdr::Elf64Ehdr,elf64phdr::Elf64Phdr};
+use elf_headers::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
 
-use bootinfo::{BootInfo,reset::reset_fn,variable::{get_variable,set_variable},time::get_uefi_time};
+use bootinfo::{
+    BootInfo,
+    reset::reset_fn,
+    time::get_uefi_time,
+    variable::{get_variable, set_variable},
+};
 // use uefi_raw::protocol::acpi::AcpiTableProtocol;
 
-
-
-use core::{panic::PanicInfo, time::Duration};
+use core::{panic::PanicInfo, time::Duration, usize};
 use uefi::{
     CStr16,
     boot::{
-        MemoryType, allocate_pages, exit_boot_services,
-        get_image_file_system, image_handle,stall,
+        EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services,
+        get_handle_for_protocol, get_image_file_system, image_handle, open_protocol_exclusive,
+        set_timer, stall,
     },
     prelude::*,
     println,
     proto::{
+        console::text::{Input, Key, ScanCode},
         media::file::{self, File, FileAttribute, FileInfo, FileMode},
     },
-    runtime::{ResetType},
+    runtime::{ResetType, VariableAttributes, VariableVendor},
 };
 
-use crate::{
-    init::init_gop::init_gop,
-};
+use crate::init::init_gop::init_gop;
 
 const PT_LOAD: u32 = 1;
 
 #[entry]
 fn main() -> Status {
     uefi::helpers::init().unwrap();
+
+    println!("Press ESC to enter firmware setup (2 seconds timeout)");
+    let timer = unsafe { create_event(EventType::TIMER, Tpl::APPLICATION, None, None).unwrap() };
+    let input_handle = get_handle_for_protocol::<Input>().unwrap();
+    let mut input = open_protocol_exclusive::<Input>(input_handle).unwrap();
+    let _ = set_timer(
+        &timer,
+        TimerTrigger::Relative(20_000_000),
+    );
+    let events = &mut [timer, input.wait_for_key_event().unwrap()];
+
+    let index = boot::wait_for_event(events).discard_errdata().unwrap();
+
+    match index {
+        0 => {}
+        1_usize.. => match input.read_key().unwrap() {
+            Some(Key::Special(ScanCode::ESCAPE)) => {
+                let mut current: [u8; 8] = [0; 8];
+                let _ = uefi::runtime::get_variable(
+                    uefi::cstr16!("OsIndications"),
+                    &VariableVendor::GLOBAL_VARIABLE,
+                    &mut current,
+                );
+                let mut val = u64::from_le_bytes(current);
+                val |= 1;
+                let new = val.to_le_bytes();
+                let _ = uefi::runtime::set_variable(
+                    uefi::cstr16!("OsIndications"),
+                    &VariableVendor::GLOBAL_VARIABLE,
+                    VariableAttributes::NON_VOLATILE
+                        | VariableAttributes::RUNTIME_ACCESS
+                        | VariableAttributes::BOOTSERVICE_ACCESS,
+                    &new,
+                );
+                stall(Duration::from_millis(300));
+                uefi::runtime::reset(ResetType::COLD, Status::SUCCESS, None);
+            }
+            _ => {}
+        },
+    }
 
     println!("Starting");
 
@@ -129,19 +172,24 @@ fn main() -> Status {
     }
     let entry = ehdr.e_entry;
 
-
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     let framebuffer = init_gop();
     let heap_pages = (10 * 1024 * 1024 + 4095) / 4096;
-    let heap_ptr = allocate_pages(boot::AllocateType::AnyPages, MemoryType::LOADER_DATA, heap_pages).expect("Failed to allocate heap").as_ptr();
+    let heap_ptr = allocate_pages(
+        boot::AllocateType::AnyPages,
+        MemoryType::LOADER_DATA,
+        heap_pages,
+    )
+    .expect("Failed to allocate heap")
+    .as_ptr();
     let bootinfo = BootInfo {
         gop: framebuffer,
         reset: reset_fn,
         time: get_uefi_time,
         get_var: get_variable,
         set_var: set_variable,
-        heap_ptr: heap_ptr
+        heap_ptr: heap_ptr,
     };
 
     stall(Duration::from_secs(3));

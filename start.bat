@@ -46,5 +46,5 @@ exit /b
 
 
 :run
-qemu-system-x86_64 -machine q35 -m 218 -bios OVMF_CODE.fd -boot menu=on -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -cpu qemu64,+x2apic -d int,cpu_reset,guest_errors -D qemu.log
+qemu-system-x86_64 -machine q35 -m 218 -bios OVMF_CODE.fd -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -cpu qemu64,+x2apic -d int,cpu_reset,guest_errors -D qemu.log
 goto :eof
