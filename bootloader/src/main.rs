@@ -10,7 +10,6 @@ use bootinfo::{
     time::get_uefi_time,
     variable::{get_variable, set_variable},
 };
-// use uefi_raw::protocol::acpi::AcpiTableProtocol;
 
 use core::{panic::PanicInfo, time::Duration, usize};
 use uefi::{

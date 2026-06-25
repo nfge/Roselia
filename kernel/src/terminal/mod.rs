@@ -1,5 +1,9 @@
 use crate::{
-    GET_VAR_FN, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, timer::sleep
+    GET_VAR_FN, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
+    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
+    keyboard::{self, KeyBoard},
+    memory::{get_free, get_used},
+    timer::sleep,
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -373,6 +377,15 @@ impl Terminal {
             }
         }
     }
+    pub fn wait_for_key(&mut self,k:char){
+        loop {
+            if let Some(key) = self.keyboard.get_key() {
+                if key == k {
+                    break; 
+                }
+            }
+        }
+    }
 }
 
 impl core::fmt::Write for Terminal {
@@ -381,3 +394,23 @@ impl core::fmt::Write for Terminal {
         Ok(())
     }
 }
+
+#[macro_export]
+macro_rules! kprint {
+    ($str:expr) => {
+        if unsafe { !TERMINAL.is_null() } {
+            unsafe { (*TERMINAL).print_string($str) };
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! kprintln {
+    ($str:expr) => {
+        if unsafe { !$crate::TERMINAL.is_null() } {
+            unsafe { (*TERMINAL).print_string_ln($str) };
+        }
+    };
+}
+
+

@@ -18,7 +18,7 @@ use crate::{
     timer::sleep,
     ramfs::RamFs
 };
-use alloc::{boxed::Box,format};
+use alloc::{boxed::Box, format};
 use bootinfo::{BootInfo};
 use core::panic::PanicInfo;
 use uefi::{
@@ -81,12 +81,14 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         )));
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
     }
+    
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();
             (*TERMINAL).run();
         }
     }
+    
     loop {
         x86_64::instructions::hlt();
     }
@@ -94,13 +96,14 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    unsafe {
+    kprintln!(format!("Kernel Panic: {}", _info).as_str());
+    kprintln!("Press Enter to reset");
+    unsafe { 
         if !TERMINAL.is_null() {
-            let msg = format!("KERNEL PANIC: {}",_info);
-            (*TERMINAL).print_string_ln(&msg);
+            (*TERMINAL).wait_for_key('\n');
         }
     }
-    sleep(3000);
-
+    kprintln!("Reseting...");
+    sleep(100);
     unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, uefi::Status::SUCCESS, None) };
 }
