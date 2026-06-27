@@ -60,7 +60,7 @@ build_release() {
 run_qemu() {
     qemu-system-x86_64 \
         -machine q35 \
-        -m 218 \
+        -m 512 \
         -drive if=pflash,format=raw,readonly=on,file=usr/share/OVMF/OVMF_CODE.fd \
         -drive if=pflash,format=raw,file=./os/OVMF/vars.fd \
         -drive format=raw,file=fat:rw:os/ \

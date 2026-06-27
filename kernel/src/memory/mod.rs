@@ -10,7 +10,7 @@ static ALLOCATOR:LockedHeap = LockedHeap::empty();
 
 pub fn init_heap() {
     let heap_start = unsafe {HEAP_PTR.unwrap()};
-    let heap_size = ((10 * 1024 * 1024 + 4095) / 4096) * 4096;
+    let heap_size = ((50 * 1024 * 1024 + 4095) / 4096) * 4096;
     unsafe {
         ALLOCATOR.lock().init(heap_start, heap_size);
     }

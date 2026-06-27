@@ -5,7 +5,7 @@ use crate::{
     memory::{get_free, get_used},
     timer::sleep,
 };
-use alloc::string::String;
+use alloc::{string::String, vec, vec::Vec};
 use core::fmt::Write;
 use uefi::{
     Status,
@@ -19,7 +19,9 @@ pub struct Terminal {
     y: usize,
     scale: usize,
     color: Color,
-    char_buffer: [[char; 64]; 128],
+    width: usize,
+    height: usize,
+    char_buffer: Vec<Vec<char>>,
     buf_x: usize,
     buf_y: usize,
     running: bool,
@@ -27,6 +29,7 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new(graphics: Graphics, x: usize, y: usize, scale: usize, color: Color) -> Self {
+        let (width, height) = graphics.mode_info.resolution();
         Self {
             graphics: graphics,
             keyboard: KeyBoard::new(),
@@ -34,7 +37,9 @@ impl Terminal {
             y: y,
             scale: scale,
             color: color,
-            char_buffer: [[' '; 64]; 128],
+            width: width,
+            height: height,
+            char_buffer: vec![vec![' '; width]; height],
             buf_x: 0,
             buf_y: 0,
             running: false,
@@ -52,7 +57,7 @@ impl Terminal {
                 self.x = 0;
             }
             _ => {
-                if self.buf_x != 63 {
+                if self.buf_x != self.width {
                     self.graphics
                         .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
                     self.x += 8 * self.scale;
@@ -77,14 +82,14 @@ impl Terminal {
         self.new_line();
     }
     fn push(&mut self, c: char) {
-        if self.buf_y >= 128 {
+        if self.buf_y >= self.height {
             return;
         }
 
         self.char_buffer[self.buf_y][self.buf_x] = c;
         self.buf_x += 1;
 
-        if self.buf_x >= 64 {
+        if self.buf_x >= self.width {
             self.buf_x = 0;
             self.buf_y += 1;
         }
@@ -101,7 +106,7 @@ impl Terminal {
                 self.graphics.draw_pixel(x, y, Color::Black as u32);
             }
         }
-        self.char_buffer = [[' '; 64]; 128];
+        self.char_buffer = vec![vec![' '; self.width]; self.height];
         self.buf_x = 0;
         self.buf_y = 0;
         self.x = 0;
@@ -133,9 +138,9 @@ impl Terminal {
 
         if self.buf_x == 0 {
             self.buf_y -= 1;
-            self.buf_x = 63;
+            self.buf_x = self.width - 1;
             self.y -= char_height;
-            self.x = char_width * 127;
+            self.x = char_width * (self.height - 1);
         } else {
             self.buf_x -= 1;
             self.x -= char_width;
@@ -180,7 +185,7 @@ impl Terminal {
                             return;
                         }
                     };
-                    self.print_string("Shutdown...\n");
+                    self.print_string("Reseting...\n");
                     sleep(900);
                     match typeofreset {
                         "cold" => {
@@ -205,50 +210,6 @@ impl Terminal {
                             unsafe {
                                 RESET_FN.unwrap()(
                                     uefi::runtime::ResetType::SHUTDOWN,
-                                    Status::SUCCESS,
-                                    None,
-                                )
-                            };
-                        }
-                        "uefi" => {
-                            let mut current: [u8; 8] = [0; 8];
-                            let get_result = unsafe {
-                                GET_VAR_FN.unwrap()(
-                                    uefi::cstr16!("OsIndications"),
-                                    &VariableVendor::GLOBAL_VARIABLE,
-                                    &mut current,
-                                )
-                            };
-                            let get_er = get_result.unwrap_err();
-                            if get_er.to_err_without_payload().status()
-                                == uefi::Status::INVALID_PARAMETER
-                            {
-                                let _ = write!(self, "GET: {}", get_er.to_err_without_payload());
-                                return;
-                            }
-                            let mut val = u64::from_le_bytes(current);
-                            val |= 1;
-                            let new = val.to_le_bytes();
-
-                            let set_result = unsafe {
-                                SET_VAR_FN.unwrap()(
-                                    uefi::cstr16!("OsIndications"),
-                                    &VariableVendor::GLOBAL_VARIABLE,
-                                    VariableAttributes::NON_VOLATILE
-                                        | VariableAttributes::RUNTIME_ACCESS,
-                                    &new,
-                                )
-                            };
-
-                            let set_er = set_result.unwrap_err();
-                            if set_er.status() == uefi::Status::INVALID_PARAMETER {
-                                let _ = write!(self, "SET: {}", set_er);
-                                return;
-                            }
-                            sleep(1000);
-                            unsafe {
-                                RESET_FN.unwrap()(
-                                    uefi::runtime::ResetType::COLD,
                                     Status::SUCCESS,
                                     None,
                                 )
@@ -348,6 +309,12 @@ impl Terminal {
                     },
                     None => self.print_string_ln("Usage: mem [free || used]"),
                 },
+                "resolution" => {
+                    let width = self.width;
+                    let height = self.height;
+                    let _ = write!(self, "Width: {}. Height: {}", width, height);
+                    self.new_line();
+                }
                 _ => self.print_string("Command not found\n"),
             },
             None => {
@@ -377,11 +344,11 @@ impl Terminal {
             }
         }
     }
-    pub fn wait_for_key(&mut self,k:char){
+    pub fn wait_for_key(&mut self, k: char) {
         loop {
             if let Some(key) = self.keyboard.get_key() {
                 if key == k {
-                    break; 
+                    break;
                 }
             }
         }
@@ -412,5 +379,3 @@ macro_rules! kprintln {
         }
     };
 }
-
-

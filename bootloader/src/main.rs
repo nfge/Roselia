@@ -76,8 +76,6 @@ fn main() -> Status {
         },
     }
 
-    println!("Starting");
-
     let handle = image_handle();
     let mut filesys = get_image_file_system(handle).expect("Failed to load file system");
 
@@ -174,7 +172,7 @@ fn main() -> Status {
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     let framebuffer = init_gop();
-    let heap_pages = (10 * 1024 * 1024 + 4095) / 4096;
+    let heap_pages = (50 * 1024 * 1024 + 4095) / 4096;
     let heap_ptr = allocate_pages(
         boot::AllocateType::AnyPages,
         MemoryType::LOADER_DATA,
