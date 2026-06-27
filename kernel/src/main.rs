@@ -55,7 +55,7 @@ static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 
 #[unsafe(no_mangle)]
-pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
+pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let info = unsafe { &*boot_ptr };
     unsafe {
         FB_PTR = Some(info.gop.framebuffer_ptr as *mut u32);
@@ -72,6 +72,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     memory::init_heap();
 
     unsafe {
+        RAMFS = Box::into_raw(Box::new(RamFs::new()));
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
             Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info),
             0,
@@ -79,7 +80,6 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             1,
             Color::White,
         )));
-        RAMFS = Box::into_raw(Box::new(RamFs::new()));
     }
     
     unsafe {

@@ -27,9 +27,14 @@ cargo build -p bootloader --target x86_64-unknown-uefi
 
 if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
+if not exist os\EFI\Roselia mkdir os\EFI\Roselia
+if not exist os\OVMF\ mkdir os\OVMF\
 
+
+if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
 copy target\x86_64\debug\kernel os\kernel.elf
 copy target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\BOOT\BOOTX64.efi
+copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\Roselia\boot.efi
 exit /b
 
 
@@ -39,12 +44,17 @@ cargo build -p bootloader --target x86_64-unknown-uefi --release
 
 if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
+if not exist os\EFI\Roselia mkdir os\EFI\Roselia
+if not exist os\OVMF\ mkdir os\OVMF\
 
+
+if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
 copy target\x86_64\release\kernel os\kernel.elf
 copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\BOOT\BOOTX64.efi
+copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\Roselia\boot.efi
 exit /b
 
 
 :run
-qemu-system-x86_64 -machine q35 -m 218 -bios OVMF_CODE.fd -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -cpu qemu64,+x2apic -d int,cpu_reset,guest_errors -D qemu.log
+qemu-system-x86_64 -machine q35 -m 218 -drive if=pflash,format=raw,readonly=on,file="C:\Program Files\qemu\share\OVMF_CODE.fd" -drive if=pflash,format=raw,file=./os/OVMF/vars.fd -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -cpu qemu64,+x2apic -d int,cpu_reset,guest_errors -D qemu.log
 goto :eof

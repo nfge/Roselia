@@ -398,7 +398,7 @@ impl core::fmt::Write for Terminal {
 #[macro_export]
 macro_rules! kprint {
     ($str:expr) => {
-        if unsafe { !TERMINAL.is_null() } {
+        if unsafe { !$crate::TERMINAL.is_null() } {
             unsafe { (*TERMINAL).print_string($str) };
         }
     };

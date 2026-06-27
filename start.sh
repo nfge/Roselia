@@ -28,9 +28,16 @@ build_dev() {
     cargo build -p bootloader --target x86_64-unknown-uefi
 
     mkdir -p os/EFI/BOOT
+    mkdir -p os/EFI/Roselia
+    mkdir -p os/OVMF
+
+    if [ ! -f os/OVMF/vars.fd ]; then
+    cp usr/share/OVMF/OVMF_VARS.fd os/OVMF/vars.fd
+    fi
 
     cp target/x86_64/debug/kernel os/kernel.elf
     cp target/x86_64-unknown-uefi/debug/bootloader.efi os/EFI/BOOT/BOOTX64.efi
+    cp target/x86_64-unknown-uefi/debug/bootloader.efi os/EFI/Roselia/boot.efi
 }
 
 build_release() {
@@ -38,17 +45,24 @@ build_release() {
     cargo build -p bootloader --target x86_64-unknown-uefi --release
 
     mkdir -p os/EFI/BOOT
+    mkdir -p os/EFI/Roselia
+    mkdir -p os/OVMF
 
+    if [ ! -f os/OVMF/vars.fd ]; then
+    cp usr/share/OVMF/OVMF_VARS.fd os/OVMF/vars.fd
+    fi
+    
     cp target/x86_64/release/kernel os/kernel.elf
     cp target/x86_64-unknown-uefi/release/bootloader.efi os/EFI/BOOT/BOOTX64.efi
+    cp target/x86_64-unknown-uefi/release/bootloader.efi os/EFI/Roselia/boot.efi
 }
 
 run_qemu() {
     qemu-system-x86_64 \
         -machine q35 \
         -m 218 \
-        -bios usr/share/OVMF/OVMF_CODE.fd \
-        -boot menu=on \
+        -drive if=pflash,format=raw,readonly=on,file=usr/share/OVMF/OVMF_CODE.fd \
+        -drive if=pflash,format=raw,file=./os/OVMF/vars.fd \
         -drive format=raw,file=fat:rw:os/ \
         -rtc clock=host,base=utc \
         -cpu qemu64,+x2apic \

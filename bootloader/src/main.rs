@@ -25,7 +25,7 @@ use uefi::{
         console::text::{Input, Key, ScanCode},
         media::file::{self, File, FileAttribute, FileInfo, FileMode},
     },
-    runtime::{ResetType, VariableAttributes, VariableVendor},
+    runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map},
 };
 
 use crate::init::init_gop::init_gop;
