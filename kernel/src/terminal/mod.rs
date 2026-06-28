@@ -180,7 +180,7 @@ impl Terminal {
         match args.next() {
             Some(v) => match v {
                 "help" => self.print_string("Commands: help, info, reset, flush, time, mem\n"),
-                "info" => self.print_string("Roselia Kernel 0.3.0. Made by nfge\n"),
+                "info" => self.print_string("Roselia Kernel 0.4.0. Made by nfge\n"),
                 "reset" => {
                     let typeofreset = match args.next() {
                         Some(v) => v,
@@ -357,6 +357,8 @@ impl Terminal {
                 if key == k {
                     break;
                 }
+            } else {
+                x86_64::instructions::hlt();
             }
         }
     }
