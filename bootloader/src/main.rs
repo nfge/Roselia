@@ -70,7 +70,7 @@ fn main() -> Status {
                     &new,
                 );
                 stall(Duration::from_millis(300));
-                uefi::runtime::reset(ResetType::COLD, Status::SUCCESS, None);
+                uefi::runtime::reset(ResetType::WARM, Status::SUCCESS, None);
             }
             _ => {}
         },

@@ -162,6 +162,8 @@ impl Terminal {
         while self.running {
             if let Some(key) = self.keyboard.get_key() {
                 self.handle_keyboard(key);
+            } else {
+                x86_64::instructions::hlt();
             }
         }
     }

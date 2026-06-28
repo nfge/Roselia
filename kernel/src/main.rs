@@ -70,7 +70,6 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::apic::init_apic();
     cpu::sse::init_sse();
     memory::init_heap();
-
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
         TERMINAL = Box::into_raw(Box::new(Terminal::new(

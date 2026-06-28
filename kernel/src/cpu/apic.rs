@@ -2,6 +2,7 @@ use x86::{
     apic::{ioapic::IoApic},
     msr::{IA32_APIC_BASE, rdmsr, wrmsr},
 };
+use crate::{serial_println, uart::serial_print};
 
 pub fn init_x2apic() {
     unsafe {
@@ -17,7 +18,6 @@ pub fn init_lapic(){
 }
 
 pub fn init_apic() {
-    x86_64::instructions::interrupts::disable();
     x86_64::instructions::interrupts::disable();
 
     let mut apic_base = unsafe { rdmsr(IA32_APIC_BASE) };
@@ -39,7 +39,7 @@ pub fn init_ioapic(){
     unsafe {
         let mut ioapic = IoApic::new(0xFEC00000);
         ioapic.enable(1, rdmsr(0x802) as u8);
-    }
+    }   
 }
 
 pub fn send_eoi() {
