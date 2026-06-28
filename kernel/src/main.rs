@@ -95,7 +95,7 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    kprintln!(format!("Kernel Panic: {}", _info).as_str());
+    kprintln!("Kernel Panic: {}", _info);
     kprintln!("\nPress Enter to reset");
     unsafe { 
         if !TERMINAL.is_null() {

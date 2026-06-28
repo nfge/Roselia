@@ -157,6 +157,8 @@ impl Terminal {
     }
     #[allow(dead_code)]
     pub fn run(&mut self) {
+        self.print_string_ln("Press Enter to start terminal");
+        self.wait_for_key('\n');
         self.running = true;
         self.print_char('>');
         while self.running {
@@ -316,6 +318,9 @@ impl Terminal {
                     let height = self.height;
                     let _ = write!(self, "Width: {}. Height: {}", width, height);
                     self.new_line();
+                },
+                "agu" => {
+                    self.print_string_ln("");
                 }
                 _ => self.print_string("Command not found\n"),
             },
@@ -366,18 +371,25 @@ impl core::fmt::Write for Terminal {
 
 #[macro_export]
 macro_rules! kprint {
-    ($str:expr) => {
+    ($($arg:tt)*) => {{
+        use core::fmt::Write;
         if unsafe { !$crate::TERMINAL.is_null() } {
-            unsafe { (*TERMINAL).print_string($str) };
+            let term = unsafe {$crate::TERMINAL};
+            unsafe { let _ = write!((*term),  $($arg)*) };
         }
-    };
+    }};
 }
 
 #[macro_export]
 macro_rules! kprintln {
-    ($str:expr) => {
+    ($($arg:tt)*) => {{
+        use core::fmt::Write;
         if unsafe { !$crate::TERMINAL.is_null() } {
-            unsafe { (*TERMINAL).print_string_ln($str) };
+            let term = unsafe {$crate::TERMINAL};
+            unsafe { 
+                let _ = write!((*term),  $($arg)*);
+                let _ = write!((*term), "\n");
+            };
         }
-    };
+    }};
 }
