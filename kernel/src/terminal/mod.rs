@@ -9,7 +9,7 @@ use alloc::{string::String, vec, vec::Vec};
 use core::fmt::Write;
 use uefi::{
     Status,
-    runtime::{VariableAttributes, VariableVendor},
+    runtime::{ResetType, VariableAttributes, VariableVendor},
 };
 
 pub struct Terminal {
@@ -158,10 +158,22 @@ impl Terminal {
     #[allow(dead_code)]
     pub fn run(&mut self) {
         self.print_string_ln("Press Enter to start terminal");
-        self.wait_for_key('\n');
+        loop {
+            if self.wait_for_key('\n') == true {
+                break;
+            }
+        }
         self.running = true;
         self.print_char('>');
         while self.running {
+            if self.keyboard.key_state.get_ctrl() && self.keyboard.key_state.get_shift() {
+                if self.wait_for_key('C') {
+                    self.new_line();
+                    self.print_string_ln("Interrupt detected. Reseting...");
+                    sleep(1000);
+                    unsafe { RESET_FN.unwrap()(ResetType::WARM, Status::SUCCESS, None) };
+                }
+            }
             if let Some(key) = self.keyboard.get_key() {
                 self.handle_keyboard(key);
             } else {
@@ -318,10 +330,36 @@ impl Terminal {
                     let height = self.height;
                     let _ = write!(self, "Width: {}. Height: {}", width, height);
                     self.new_line();
-                },
-                "agu" => {
-                    self.print_string_ln("");
                 }
+                "game" => {
+                    let mut x = self.x;
+                    let key_x: usize = 96;
+
+                    loop {
+                        self.set_cursor(key_x, self.y);
+                        self.print_string("K");
+                        self.set_cursor(x, self.y);
+                        if self.wait_for_key('w') {
+                            self.clear_line();
+                            x += 8;
+                            self.set_cursor(x, self.y);
+                            self.print_string("P");
+                        } else if self.wait_for_key('s') {
+                            self.clear_line();
+                            x -= 8;
+                            self.set_cursor(x, self.y);
+                            self.print_string("P");
+                        } else if self.wait_for_key('z') {
+                            break;
+                        }
+                        if x == key_x {
+                            self.new_line();
+                            self.print_string_ln("You win");
+                            break;
+                        }
+                    }
+                }
+
                 _ => self.print_string("Command not found\n"),
             },
             None => {
@@ -351,16 +389,31 @@ impl Terminal {
             }
         }
     }
-    pub fn wait_for_key(&mut self, k: char) {
-        loop {
-            if let Some(key) = self.keyboard.get_key() {
-                if key == k {
-                    break;
-                }
-            } else {
-                x86_64::instructions::hlt();
+    pub fn wait_for_key(&mut self, k: char) -> bool {
+        if let Some(key) = self.keyboard.get_key() {
+            if key == k { true } else { false }
+        } else {
+            x86_64::instructions::hlt();
+            false
+        }
+    }
+    pub fn set_cursor(&mut self, x: usize, y: usize) {
+        self.x = x;
+        self.y = y;
+        self.buf_x = x;
+        self.buf_y = y;
+    }
+    pub fn clear_line(&mut self) {
+        let char_width = 8;
+        let char_height = 16;
+        for px in 0..(self.x * char_width) {
+            for py in 0..char_height {
+                self.graphics
+                    .draw_pixel(px, self.y + py, Color::Black as u32);
             }
         }
+        self.x = 0;
+        self.buf_x = 0;
     }
 }
 
@@ -388,7 +441,7 @@ macro_rules! kprintln {
         use core::fmt::Write;
         if unsafe { !$crate::TERMINAL.is_null() } {
             let term = unsafe {$crate::TERMINAL};
-            unsafe { 
+            unsafe {
                 let _ = write!((*term),  $($arg)*);
                 let _ = write!((*term), "\n");
             };

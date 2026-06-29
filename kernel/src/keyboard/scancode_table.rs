@@ -30,6 +30,7 @@ pub(super) static SCANCODE_TABLE: &[Key] = &[
     Key { scancode: 0x39, letter: ' '}, // special
     Key { scancode: 0x1C, letter: '\n'}, 
     Key { scancode: 0x0E, letter: '\x08'},
+    Key { scancode: 0x1B, letter: ' '},
     // Key { scancode: 0x2A, letter: '\0'},
     Key { scancode: 0x02, letter: '1'}, // numbers
     Key { scancode: 0x03, letter: '2'},

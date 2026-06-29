@@ -99,7 +99,8 @@ fn panic(_info: &PanicInfo) -> ! {
     kprintln!("\nPress Enter to reset");
     unsafe { 
         if !TERMINAL.is_null() {
-            (*TERMINAL).wait_for_key('\n');
+            loop { if (*TERMINAL).wait_for_key('\n') == true {break}};
+            
         }
     }
     kprintln!("Reseting...");
