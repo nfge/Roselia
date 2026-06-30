@@ -34,7 +34,6 @@ dependencies = [
  "bootinfo",
  "elf_headers",
  "uefi",
- "uefi-raw 0.13.0",
 ]
 
 [[package]]
@@ -263,7 +262,7 @@ dependencies = [
  "ptr_meta",
  "ucs2",
  "uefi-macros",
- "uefi-raw 0.14.0",
+ "uefi-raw",
  "uguid",
 ]
 
@@ -276,16 +275,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "uefi-raw"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f64fe59e11af447d12fd60a403c74106eb104309f34b4c6dbce6e927d97da9d"
-dependencies = [
- "bitflags 2.11.0",
- "uguid",
 ]
 
 [[package]]

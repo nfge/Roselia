@@ -430,7 +430,7 @@ macro_rules! kprint {
         use core::fmt::Write;
         if unsafe { !$crate::TERMINAL.is_null() } {
             let term = unsafe {$crate::TERMINAL};
-            unsafe { let _ = write!((*term),  $($arg)*) };
+            unsafe { let _ = write!((*term),  $($arg)*); };
         }
     }};
 }

@@ -85,7 +85,12 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             (*TERMINAL).flush_screen();
         }
     }
-    kprintln!("{}",info.memory_map.meta().entry_count());
+    for entry in info.memory_map.entries() {
+        if entry.ty == uefi::mem::memory_map::MemoryType::CONVENTIONAL {
+            kprint!("Physical addr: 0x{} ", entry.phys_start);
+            kprintln!("Page Count: {}", entry.page_count)
+        }
+    }
     
     loop {
         x86_64::instructions::hlt();

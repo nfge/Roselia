@@ -34,7 +34,7 @@ if not exist os\OVMF\ mkdir os\OVMF\
 if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
 copy target\x86_64\debug\kernel os\kernel.elf
 copy target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\BOOT\BOOTX64.efi
-copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\Roselia\boot.efi
+copy target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\Roselia\boot.efi
 exit /b
 
 

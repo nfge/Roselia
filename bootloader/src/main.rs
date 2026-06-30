@@ -13,17 +13,14 @@ use bootinfo::{
 
 use core::{panic::PanicInfo, time::Duration, usize};
 use uefi::{
-    CStr16,
-    boot::{
-        EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services, get_handle_for_protocol, get_image_file_system, image_handle, memory_map, open_protocol_exclusive, set_timer, stall
-    },
-    prelude::*,
-    println,
-    proto::{
+    CStr16, boot::{
+        EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services,
+        get_handle_for_protocol, get_image_file_system, image_handle, memory_map,
+        open_protocol_exclusive, set_timer, stall,
+    }, mem::memory_map::MemoryMapOwned, prelude::*, println, proto::{
         console::text::{Input, Key, ScanCode},
         media::file::{self, File, FileAttribute, FileInfo, FileMode},
-    },
-    runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map},
+    }, runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map}
 };
 
 use crate::init::init_gop::init_gop;
@@ -38,10 +35,7 @@ fn main() -> Status {
     let timer = unsafe { create_event(EventType::TIMER, Tpl::APPLICATION, None, None).unwrap() };
     let input_handle = get_handle_for_protocol::<Input>().unwrap();
     let mut input = open_protocol_exclusive::<Input>(input_handle).unwrap();
-    let _ = set_timer(
-        &timer,
-        TimerTrigger::Relative(20_000_000),
-    );
+    let _ = set_timer(&timer, TimerTrigger::Relative(20_000_000));
     let events = &mut [timer, input.wait_for_key_event().unwrap()];
 
     let index = boot::wait_for_event(events).discard_errdata().unwrap();
@@ -170,7 +164,6 @@ fn main() -> Status {
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     let framebuffer = init_gop();
-    let mmap = memory_map(MemoryType::LOADER_DATA).expect("Failed to receive memory_map");
     let heap_pages = (30 * 1024 * 1024 + 4095) / 4096;
     let heap_ptr = allocate_pages(
         boot::AllocateType::AnyPages,
@@ -179,7 +172,9 @@ fn main() -> Status {
     )
     .expect("Failed to allocate heap")
     .as_ptr();
-    
+
+    let mmap = unsafe { exit_boot_services(None) };
+
     let bootinfo = BootInfo {
         gop: framebuffer,
         reset: reset_fn,
@@ -190,8 +185,6 @@ fn main() -> Status {
         heap_ptr: heap_ptr,
     };
 
-    stall(Duration::from_secs(3));
-    let _ = unsafe { exit_boot_services(None) };
     kernel_entry(&bootinfo as *const BootInfo);
 }
 
