@@ -14,5 +14,6 @@ pub struct BootInfo {
     pub reset: reset::ResetFn,
     pub set_var: variable::SetVar,
     pub get_var: variable::GetVar,
-    pub heap_ptr: *mut u8
+    pub memory_map: uefi::mem::memory_map::MemoryMapOwned,
+    pub heap_ptr: *mut u8,
 }

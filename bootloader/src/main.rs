@@ -15,9 +15,7 @@ use core::{panic::PanicInfo, time::Duration, usize};
 use uefi::{
     CStr16,
     boot::{
-        EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services,
-        get_handle_for_protocol, get_image_file_system, image_handle, open_protocol_exclusive,
-        set_timer, stall,
+        EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services, get_handle_for_protocol, get_image_file_system, image_handle, memory_map, open_protocol_exclusive, set_timer, stall
     },
     prelude::*,
     println,
@@ -172,7 +170,8 @@ fn main() -> Status {
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     let framebuffer = init_gop();
-    let heap_pages = (50 * 1024 * 1024 + 4095) / 4096;
+    let mmap = memory_map(MemoryType::LOADER_DATA).expect("Failed to receive memory_map");
+    let heap_pages = (30 * 1024 * 1024 + 4095) / 4096;
     let heap_ptr = allocate_pages(
         boot::AllocateType::AnyPages,
         MemoryType::LOADER_DATA,
@@ -180,12 +179,14 @@ fn main() -> Status {
     )
     .expect("Failed to allocate heap")
     .as_ptr();
+    
     let bootinfo = BootInfo {
         gop: framebuffer,
         reset: reset_fn,
         time: get_uefi_time,
         get_var: get_variable,
         set_var: set_variable,
+        memory_map: mmap,
         heap_ptr: heap_ptr,
     };
 

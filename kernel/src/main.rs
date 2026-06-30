@@ -22,8 +22,7 @@ use alloc::{boxed::Box, format};
 use bootinfo::{BootInfo};
 use core::panic::PanicInfo;
 use uefi::{
-    Error,
-    runtime::{Time, TimeCapabilities},
+    Error, mem::memory_map::MemoryMap, runtime::{Time, TimeCapabilities}
 };
 
 
@@ -84,9 +83,9 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();
-            (*TERMINAL).run();
         }
     }
+    kprintln!("{}",info.memory_map.meta().entry_count());
     
     loop {
         x86_64::instructions::hlt();
