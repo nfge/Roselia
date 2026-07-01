@@ -25,8 +25,10 @@ jobs:
       run: |
         mkdir out
         mkdir -p out/EFI/BOOT/
+        mkdir -p out/EFI/Roselia/
         cp -r target/x86_64/release/kernel out/kernel.elf
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/BOOT/BOOTX64.efi
+        cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/Roselia/boot.efi
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
