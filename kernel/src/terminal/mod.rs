@@ -1,5 +1,6 @@
 use crate::{
     GET_VAR_FN, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
+    func::{get_time, reset},
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::{self, KeyBoard},
     memory::{get_free, get_used},
@@ -204,33 +205,9 @@ impl Terminal {
                     self.print_string("Reseting...\n");
                     sleep(900);
                     match typeofreset {
-                        "cold" => {
-                            unsafe {
-                                RESET_FN.unwrap()(
-                                    uefi::runtime::ResetType::COLD,
-                                    Status::SUCCESS,
-                                    None,
-                                )
-                            };
-                        }
-                        "warm" => {
-                            unsafe {
-                                RESET_FN.unwrap()(
-                                    uefi::runtime::ResetType::WARM,
-                                    Status::SUCCESS,
-                                    None,
-                                )
-                            };
-                        }
-                        "shutdown" => {
-                            unsafe {
-                                RESET_FN.unwrap()(
-                                    uefi::runtime::ResetType::SHUTDOWN,
-                                    Status::SUCCESS,
-                                    None,
-                                )
-                            };
-                        }
+                        "cold" => reset(uefi::runtime::ResetType::COLD, Status::SUCCESS, None),
+                        "warm" => reset(uefi::runtime::ResetType::WARM, Status::SUCCESS, None),
+                        "shutdown" => reset(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None),
                         _ => {
                             self.print_string_ln("Error");
                         }
@@ -253,19 +230,17 @@ impl Terminal {
                     self.print_string_ln(text);
                 }
                 "time" => {
-                    let mut buf = itoa::Buffer::new();
-                    let t = unsafe { TIME_FN.unwrap()() };
+                    let t = get_time();
                     let time = t.unwrap().0;
-                    self.print_string("Year: ");
-                    self.print_string_ln(buf.format(time.year()));
-                    self.print_string("Month: ");
-                    self.print_string_ln(buf.format(time.month()));
-                    self.print_string("Day: ");
-                    self.print_string_ln(buf.format(time.day()));
-                    self.print_string("Hour: ");
-                    self.print_string_ln(buf.format(time.hour()));
-                    self.print_string("Seconds: ");
-                    self.print_string_ln(buf.format(time.second()));
+                    
+                    let _ = write!(self, "Time Zone: {}\n", time.time_zone().unwrap());
+                    let _ = write!(self, "Year: {}\n", time.year());
+                    let _ = write!(self, "Month: {}\n", time.month());
+                    let _ = write!(self, "Day: {}\n", time.day());
+                    let _ = write!(self, "Hour: {}\n", time.hour());
+                    let _ = write!(self, "Minutes: {}\n", time.minute());
+                    let _ = write!(self, "Seconds: {}\n", time.second());
+                    
                 }
                 "scale" => {
                     let scale = match args.next() {

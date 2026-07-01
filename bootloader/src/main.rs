@@ -164,14 +164,6 @@ fn main() -> Status {
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     let framebuffer = init_gop();
-    let heap_pages = (30 * 1024 * 1024 + 4095) / 4096;
-    let heap_ptr = allocate_pages(
-        boot::AllocateType::AnyPages,
-        MemoryType::LOADER_DATA,
-        heap_pages,
-    )
-    .expect("Failed to allocate heap")
-    .as_ptr();
 
     let mmap = unsafe { exit_boot_services(None) };
 
@@ -182,7 +174,6 @@ fn main() -> Status {
         get_var: get_variable,
         set_var: set_variable,
         memory_map: mmap,
-        heap_ptr: heap_ptr,
     };
 
     kernel_entry(&bootinfo as *const BootInfo);

@@ -12,22 +12,19 @@ mod terminal;
 mod timer;
 mod uart;
 mod ramfs;
+mod func;
 use crate::{
-    gop::{color::Color, graphics::Graphics},
-    terminal::Terminal,
-    timer::sleep,
-    ramfs::RamFs
+    func::reset, gop::{color::Color, graphics::Graphics}, memory::alloc, ramfs::RamFs, terminal::Terminal, timer::sleep
 };
 use alloc::{boxed::Box, format};
 use bootinfo::{BootInfo};
-use core::panic::PanicInfo;
+use core::{alloc::Layout, panic::PanicInfo};
 use uefi::{
     Error, mem::memory_map::MemoryMap, runtime::{Time, TimeCapabilities}
 };
 
 
 static mut FB_PTR: Option<*mut u32> = None;
-static mut HEAP_PTR: Option<*mut u8> = None;
 static mut RESET_FN: Option<
     fn(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: Option<&[u8]>) -> !,
 > = None;
@@ -58,7 +55,6 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let info = unsafe { &*boot_ptr };
     unsafe {
         FB_PTR = Some(info.gop.framebuffer_ptr as *mut u32);
-        HEAP_PTR = Some(info.heap_ptr);
         RESET_FN = Some(info.reset);
         TIME_FN = Some(info.time);
         SET_VAR_FN = Some(info.set_var);
@@ -68,7 +64,7 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::pic::disable_pic();
     cpu::apic::init_apic();
     cpu::sse::init_sse();
-    memory::init_heap();
+    memory::init_heap(&info.memory_map);
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
@@ -79,16 +75,10 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             Color::White,
         )));
     }
-    
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();
-        }
-    }
-    for entry in info.memory_map.entries() {
-        if entry.ty == uefi::mem::memory_map::MemoryType::CONVENTIONAL {
-            kprint!("Physical addr: 0x{} ", entry.phys_start);
-            kprintln!("Page Count: {}", entry.page_count)
+            (*TERMINAL).run();
         }
     }
     
@@ -109,5 +99,5 @@ fn panic(_info: &PanicInfo) -> ! {
     }
     kprintln!("Reseting...");
     sleep(100);
-    unsafe { RESET_FN.unwrap()(uefi::runtime::ResetType::COLD, uefi::Status::SUCCESS, None) };
+    reset(uefi::runtime::ResetType::COLD, uefi::Status::SUCCESS, None);
 }
