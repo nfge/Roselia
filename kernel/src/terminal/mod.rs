@@ -1,5 +1,5 @@
 use crate::{
-    GET_VAR_FN, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
+    GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
     func::{get_time, reset},
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::{self, KeyBoard},
@@ -207,7 +207,9 @@ impl Terminal {
                     match typeofreset {
                         "cold" => reset(uefi::runtime::ResetType::COLD, Status::SUCCESS, None),
                         "warm" => reset(uefi::runtime::ResetType::WARM, Status::SUCCESS, None),
-                        "shutdown" => reset(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None),
+                        "shutdown" => {
+                            reset(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None)
+                        }
                         _ => {
                             self.print_string_ln("Error");
                         }
@@ -232,7 +234,7 @@ impl Terminal {
                 "time" => {
                     let t = get_time();
                     let time = t.unwrap().0;
-                    
+
                     let _ = write!(self, "Time Zone: {}\n", time.time_zone().unwrap());
                     let _ = write!(self, "Year: {}\n", time.year());
                     let _ = write!(self, "Month: {}\n", time.month());
@@ -240,7 +242,6 @@ impl Terminal {
                     let _ = write!(self, "Hour: {}\n", time.hour());
                     let _ = write!(self, "Minutes: {}\n", time.minute());
                     let _ = write!(self, "Seconds: {}\n", time.second());
-                    
                 }
                 "scale" => {
                     let scale = match args.next() {
@@ -291,10 +292,10 @@ impl Terminal {
                 "mem" => match args.next() {
                     Some(f) => match f {
                         "free" => {
-                            let _ = write!(self, "Free memory: {}\n", get_free());
+                            let _ = write!(self, "Free memory: {}KB\n", get_free() / 1024);
                         }
                         "used" => {
-                            let _ = write!(self, "Used memory: {}\n", get_used());
+                            let _ = write!(self, "Used memory: {}KB\n", get_used() / 1024);
                         }
                         _ => self.print_string_ln("Usage: mem [free || used]"),
                     },
@@ -334,7 +335,6 @@ impl Terminal {
                         }
                     }
                 }
-
                 _ => self.print_string("Command not found\n"),
             },
             None => {

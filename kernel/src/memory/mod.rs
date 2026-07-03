@@ -25,7 +25,7 @@ pub fn init_heap(mmap: &MemoryMapOwned) {
             }
         }
     }
-    let heap_size = 24 * 1024 * 1024;
+    let heap_size = 12 * 1024 * 1024;
     let heap_start = best_start.expect("No usable memory");
 
     unsafe {ALLOCATOR.lock().init(heap_start, heap_size)};

@@ -14,13 +14,13 @@ mod uart;
 mod ramfs;
 mod func;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics}, memory::alloc, ramfs::RamFs, terminal::Terminal, timer::sleep
+    func::reset, gop::{color::Color, graphics::Graphics},ramfs::RamFs, terminal::{Terminal}, timer::sleep
 };
-use alloc::{boxed::Box, format};
+use alloc::{boxed::Box};
 use bootinfo::{BootInfo};
-use core::{alloc::Layout, panic::PanicInfo};
+use core::{panic::PanicInfo};
 use uefi::{
-    Error, mem::memory_map::MemoryMap, runtime::{Time, TimeCapabilities}
+    Error, runtime::{Time, TimeCapabilities}
 };
 
 
@@ -78,8 +78,11 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();
+        }
+        if !TERMINAL.is_null() {
             (*TERMINAL).run();
         }
+        
     }
     
     loop {
