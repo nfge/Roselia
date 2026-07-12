@@ -60,6 +60,7 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         SET_VAR_FN = Some(info.set_var);
         GET_VAR_FN = Some(info.get_var)
     };
+    cpu::gdt::init();
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
     cpu::apic::init_apic();

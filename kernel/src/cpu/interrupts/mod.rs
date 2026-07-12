@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
-use crate::{keyboard, timer};
+use crate::{keyboard, kprintln, timer};
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -19,6 +19,7 @@ pub fn init_idt() {
 }
 
 extern "x86-interrupt" fn spurious_handler(_: InterruptStackFrame) {
+    kprintln!("Spurious");
 }
 // extern "x86-interrupt" fn default_handler(_:InterruptStackFrame){
 //     loop {}
