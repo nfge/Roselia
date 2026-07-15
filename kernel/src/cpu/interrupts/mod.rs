@@ -7,7 +7,7 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         
-        idt[32].set_handler_fn(timer::irq::timer_handler);
+        unsafe {idt[32].set_handler_fn(timer::irq::timer_handler).set_stack_index(0)};
         idt[33].set_handler_fn(keyboard::irq::keyboard_irq);
         idt[0xFF].set_handler_fn(spurious_handler);
         idt

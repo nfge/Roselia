@@ -5,24 +5,27 @@
 extern crate alloc;
 
 mod cpu;
+mod func;
 mod gop;
 mod keyboard;
 mod memory;
+mod ramfs;
 mod terminal;
 mod timer;
 mod uart;
-mod ramfs;
-mod func;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics},ramfs::RamFs, terminal::{Terminal}, timer::sleep
+    func::reset,
+    gop::{color::Color, graphics::Graphics},
+    ramfs::RamFs,
+    terminal::Terminal,
+    timer::sleep,
 };
-use alloc::{boxed::Box};
-use bootinfo::{BootInfo};
-use core::{panic::PanicInfo};
+use alloc::boxed::Box;
+use bootinfo::BootInfo;
+use core::panic::PanicInfo;
 use uefi::{
-    Error, runtime::{Time, TimeCapabilities}
+    Error, mem::memory_map::MemoryMap, runtime::{Time, TimeCapabilities}
 };
-
 
 static mut FB_PTR: Option<*mut u32> = None;
 static mut RESET_FN: Option<
@@ -51,7 +54,7 @@ static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 
 #[unsafe(no_mangle)]
-pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
+pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let info = unsafe { &*boot_ptr };
     unsafe {
         FB_PTR = Some(info.gop.framebuffer_ptr as *mut u32);
@@ -60,12 +63,25 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         SET_VAR_FN = Some(info.set_var);
         GET_VAR_FN = Some(info.get_var)
     };
+    for entry in info.memory_map.entries() {
+        serial_println!(
+            "{:?} {:#x} {}",
+            entry.ty,
+            entry.phys_start,
+            entry.page_count
+        );
+    }
     cpu::gdt::init();
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
     cpu::apic::init_apic();
+    cpu::apic::init_x2apic();
+    cpu::apic::init_ioapic();
+    cpu::apic::init_lapic();
     cpu::sse::init_sse();
     memory::init_heap(&info.memory_map);
+    x86_64::instructions::interrupts::enable();
+
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
@@ -83,9 +99,8 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         if !TERMINAL.is_null() {
             (*TERMINAL).run();
         }
-        
     }
-    
+
     loop {
         x86_64::instructions::hlt();
     }
@@ -93,12 +108,16 @@ pub fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    serial_println!("{}", _info);
     kprintln!("Kernel Panic: {}", _info);
     kprintln!("\nPress Enter to reset");
-    unsafe { 
+    unsafe {
         if !TERMINAL.is_null() {
-            loop { if (*TERMINAL).wait_for_key('\n') == true {break}};
-            
+            loop {
+                if (*TERMINAL).wait_for_key('\n') == true {
+                    break;
+                }
+            }
         }
     }
     kprintln!("Reseting...");

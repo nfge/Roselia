@@ -12,12 +12,12 @@ pub fn init_sse() {
             });
             Cr0::update(|cr0| {
                 cr0.remove(Cr0Flags::EMULATE_COPROCESSOR);
-                cr0.remove(Cr0Flags::MONITOR_COPROCESSOR);
+                cr0.insert(Cr0Flags::MONITOR_COPROCESSOR);
             });
         }
-        serial_print("SSE init successful");
+        serial_print("SSE init successful\n");
     } else {
-        serial_print("SSE not supported");
+        serial_print("SSE not supported\n");
         return;
     }
 }
