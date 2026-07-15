@@ -1,4 +1,3 @@
-use crate::{serial_println, uart::serial_print};
 use x86::{
     apic::ioapic::IoApic,
     msr::{IA32_APIC_BASE, IA32_X2APIC_LVT_TIMER, rdmsr, wrmsr},
@@ -10,8 +9,6 @@ pub fn init_x2apic() {
     }
 }
 pub fn init_lapic() {
-    let old = unsafe { rdmsr(IA32_X2APIC_LVT_TIMER) };
-    serial_println!("old = {:#x}", old);
 
     unsafe {
         wrmsr(IA32_X2APIC_LVT_TIMER, (1 << 17) | 0x20);
