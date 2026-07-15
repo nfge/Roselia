@@ -12,7 +12,6 @@
     "panic-strategy": "abort",
     "disable-redzone": true,
     "features": "-mmx,+sse,+sse2",
-    "rustc-abi": "x86-softfloat",
     "relocation-model": "static",
     "pre-link-args": {
         "ld.lld": ["-Tkernel/linker.ld"]
