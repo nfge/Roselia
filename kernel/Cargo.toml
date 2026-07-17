@@ -7,7 +7,7 @@ authors = ["nfge Github: <https://github.com/nfge>"]
 
 [dependencies]
 # bootloader = "0.9"
-x86_64 = "0.15.4"
+x86_64 = "0.15.5"
 uefi = "0.37.0"
 raw-cpuid = "11.6.0"
 itoa = "1.0.18"

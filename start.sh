@@ -24,7 +24,7 @@ else
 fi
 
 build_dev() {
-    cargo +nightly build -p kernel --target x86_64.json
+    cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json
     cargo build -p bootloader --target x86_64-unknown-uefi
 
     mkdir -p os/EFI/BOOT
@@ -41,7 +41,7 @@ build_dev() {
 }
 
 build_release() {
-    cargo +nightly build -p kernel --target x86_64.json --release
+    cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json --release
     cargo build -p bootloader --target x86_64-unknown-uefi --release
 
     mkdir -p os/EFI/BOOT

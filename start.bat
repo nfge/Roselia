@@ -22,7 +22,7 @@ goto run
 
 
 :build_dev
-cargo +nightly build -p kernel --target x86_64.json 
+cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json 
 cargo build -p bootloader --target x86_64-unknown-uefi
 
 if not exist os\ mkdir os
@@ -39,7 +39,7 @@ exit /b
 
 
 :build_release
-cargo +nightly build -p kernel --target x86_64.json --release
+cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json --release
 cargo build -p bootloader --target x86_64-unknown-uefi --release
 
 if not exist os\ mkdir os
