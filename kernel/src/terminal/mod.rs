@@ -196,7 +196,7 @@ impl Terminal {
 
         match args.next() {
             Some(v) => match v {
-                "help" => self.print_string("Commands: help, info, reset, flush, time, mem\n"),
+                "help" => self.print_string("Commands: help, info, reset, poweroff, flush, time, mem\n"),
                 "info" => {
                     let _ = write!(
                         self,
@@ -210,7 +210,7 @@ impl Terminal {
                     let typeofreset = match args.next() {
                         Some(v) => v,
                         None => {
-                            self.print_string_ln("Usage: reset [shutdown || cold || warm]");
+                            self.print_string_ln("Usage: reset [cold || warm]");
                             return;
                         }
                     };
@@ -219,14 +219,12 @@ impl Terminal {
                     match typeofreset {
                         "cold" => reset(uefi::runtime::ResetType::COLD, Status::SUCCESS, None),
                         "warm" => reset(uefi::runtime::ResetType::WARM, Status::SUCCESS, None),
-                        "shutdown" => {
-                            reset(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None)
-                        }
                         _ => {
                             self.print_string_ln("Error");
                         }
                     }
                 }
+                "poweroff" => reset(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None),
                 "flush" => self.flush_screen(),
                 "cpu" => {
                     let cpu = cpu::cpuinfo::get_cpu();
@@ -264,7 +262,6 @@ impl Terminal {
                             self.print_string_ln("Error during reading rtc");
                         }
                     }
-                        
                 }
                 "scale" => {
                     let scale = match args.next() {

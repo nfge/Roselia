@@ -1,6 +1,6 @@
 use uefi::{
     Result,
-    runtime::{Daylight, Time, TimeCapabilities, TimeError, get_time_and_caps},
+    runtime::{Daylight, get_time_and_caps},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -16,6 +16,7 @@ pub struct KernelTime {
     pub time_zone: Option<i16>,
 }
 
+#[allow(improper_ctypes_definitions)]
 pub extern "win64" fn get_uefi_time() -> Result<KernelTime> {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let (time, _caps) = get_time_and_caps()?;
@@ -36,6 +37,6 @@ pub extern "win64" fn get_uefi_time() -> Result<KernelTime> {
 // pub fn s_time(time: &Time) -> Result<()> {
 //     return unsafe {set_time(time)};
 // }
-
+#[allow(improper_ctypes_definitions)]
 pub type GetTimeFn = extern "win64" fn() -> Result<KernelTime>;
 // pub type SetTimeFn = fn() -> Result<()>;
