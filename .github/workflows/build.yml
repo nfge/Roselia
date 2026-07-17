@@ -19,7 +19,7 @@ jobs:
         rustup target add x86_64-unknown-uefi
     - name: Build
       run: |
-        cargo +nightly-2026-01-05 build -Z json-target-spec -p kernel --target x86_64.json --release
+        cargo +nightly-2025-12-30 build -Z json-target-spec -p kernel --target x86_64.json --release
         cargo build -p bootloader --target x86_64-unknown-uefi --release
     - name: Prepare artifacts
       run: |
