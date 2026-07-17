@@ -244,26 +244,26 @@ impl Terminal {
                     self.print_string_ln(text);
                 }
                 "time" => {
-                    // let t = get_time();
-                    // match t {
-                    //     Ok(time) => {
-                    //         let _ = write!(
-                    //             self,
-                    //             "Time Zone: {}\n",
-                    //             time.time_zone
-                    //                 .map_or_else(|| "unspecified".to_string(), |tz| tz.to_string())
-                    //         );
-                    //         let _ = write!(self, "Year: {}\n", time.year);
-                    //         let _ = write!(self, "Month: {}\n", time.month);
-                    //         let _ = write!(self, "Day: {}\n", time.day);
-                    //         let _ = write!(self, "Hour: {}\n", time.hour);
-                    //         let _ = write!(self, "Minutes: {}\n", time.minute);
-                    //         let _ = write!(self, "Seconds: {}\n", time.second);
-                    //     }
-                    //     Err(e) => {
-                    //         self.print_string_ln("Error during reading rtc");
-                    //     }
-                    // }
+                    let t = get_time();
+                    match t {
+                        Ok(time) => {
+                            let _ = write!(
+                                self,
+                                "Time Zone: {}\n",
+                                time.time_zone
+                                    .map_or_else(|| "unspecified".to_string(), |tz| tz.to_string())
+                            );
+                            let _ = write!(self, "Year: {}\n", time.year);
+                            let _ = write!(self, "Month: {}\n", time.month);
+                            let _ = write!(self, "Day: {}\n", time.day);
+                            let _ = write!(self, "Hour: {}\n", time.hour + 3);
+                            let _ = write!(self, "Minutes: {}\n", time.minute);
+                            let _ = write!(self, "Seconds: {}\n", time.second);
+                        }
+                        Err(e) => {
+                            self.print_string_ln("Error during reading rtc");
+                        }
+                    }
                         
                 }
                 "scale" => {

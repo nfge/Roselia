@@ -166,13 +166,13 @@ fn main() -> Status {
     let framebuffer = init_gop();
 
     let mmap = unsafe { exit_boot_services(None) };
-
+   
     let bootinfo = BootInfo {
         gop: framebuffer,
-        reset: reset_fn,
-        time: get_uefi_time,
-        get_var: get_variable,
-        set_var: set_variable,
+        reset: reset_fn as *const (),
+        time: get_uefi_time as *const (),
+        get_var: get_variable as *const (),
+        set_var: set_variable as *const (),
         memory_map: mmap,
     };
 

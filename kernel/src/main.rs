@@ -21,35 +21,17 @@ use crate::{
     timer::sleep,
 };
 use alloc::boxed::Box;
-use bootinfo::{BootInfo, time::KernelTime};
-use core::panic::PanicInfo;
+use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn, KernelTime}, variable::{GetVar, SetVar}};
+use core::{mem, panic::PanicInfo};
 use uefi::{
     Error, mem::memory_map::MemoryMap, runtime::{Time, TimeCapabilities}
 };
 
 static mut FB_PTR: Option<*mut u32> = None;
-static mut RESET_FN: Option<
-    fn(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: Option<&[u8]>) -> !,
-> = None;
-static mut TIME_FN: Option<fn() -> Result<KernelTime, Error<()>>> = None;
-static mut SET_VAR_FN: Option<
-    fn(
-        name: &uefi::CStr16,
-        vendor: &uefi::runtime::VariableVendor,
-        attributes: uefi::runtime::VariableAttributes,
-        data: &[u8],
-    ) -> Result<(), uefi::Error>,
-> = None;
-static mut GET_VAR_FN: Option<
-    for<'buf> fn(
-        name: &uefi::CStr16,
-        vendor: &uefi::runtime::VariableVendor,
-        buf: &'buf mut [u8],
-    ) -> Result<
-        (&'buf [u8], uefi::runtime::VariableAttributes),
-        uefi::Error<Option<usize>>,
-    >,
-> = None;
+static mut RESET_FN: Option<ResetFn> = None;
+static mut TIME_FN: Option<GetTimeFn> = None;
+static mut SET_VAR_FN: Option<SetVar> = None;
+static mut GET_VAR_FN: Option<GetVar> = None;
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 
@@ -58,11 +40,12 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let info = unsafe { &*boot_ptr };
     unsafe {
         FB_PTR = Some(info.gop.framebuffer_ptr as *mut u32);
-        RESET_FN = Some(info.reset);
-        TIME_FN = Some(info.time);
-        SET_VAR_FN = Some(info.set_var);
-        GET_VAR_FN = Some(info.get_var)
+        RESET_FN = Some(core::mem::transmute(info.reset));
+        TIME_FN = Some(core::mem::transmute(info.time));
+        SET_VAR_FN = Some(core::mem::transmute(info.set_var));
+        GET_VAR_FN = Some(core::mem::transmute(info.get_var));
     };
+
     cpu::gdt::init();
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
@@ -84,8 +67,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             Color::White,
         )));
     }
-    
-    // reset(uefi::runtime::ResetType::COLD, uefi::Status::SUCCESS, None);
+
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();

@@ -16,7 +16,7 @@ pub struct KernelTime {
     pub time_zone: Option<i16>,
 }
 
-pub fn get_uefi_time() -> Result<KernelTime> {
+pub extern "win64" fn get_uefi_time() -> Result<KernelTime> {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let (time, _caps) = get_time_and_caps()?;
         Ok(KernelTime {
@@ -37,5 +37,5 @@ pub fn get_uefi_time() -> Result<KernelTime> {
 //     return unsafe {set_time(time)};
 // }
 
-pub type GetTimeFn = fn() -> Result<KernelTime>;
+pub type GetTimeFn = extern "win64" fn() -> Result<KernelTime>;
 // pub type SetTimeFn = fn() -> Result<()>;
