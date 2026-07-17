@@ -1,3 +1,4 @@
+use bootinfo::time::KernelTime;
 use uefi::runtime::{Time, TimeCapabilities};
 
 use crate::{GET_VAR_FN, RESET_FN, SET_VAR_FN, TIME_FN};
@@ -6,7 +7,7 @@ pub fn reset(reset_type: uefi::runtime::ResetType, status: uefi::Status, data: O
     unsafe { RESET_FN.unwrap()(reset_type, status, data) };
 }
 
-pub fn get_time() -> Result<(Time, TimeCapabilities), uefi::Error<()>> {
+pub fn get_time() -> Result<KernelTime, uefi::Error<()>> {
     unsafe { TIME_FN.unwrap()() }
 }
 pub fn set_uefi_var(

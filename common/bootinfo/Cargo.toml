@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 uefi="0.37.0"
+x86_64 = "0.15.5"

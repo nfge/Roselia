@@ -6,7 +6,11 @@ use crate::{
     memory::{get_free, get_used},
     timer::sleep,
 };
-use alloc::{string::String, vec, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use core::fmt::Write;
 use uefi::{
     Status,
@@ -194,9 +198,14 @@ impl Terminal {
             Some(v) => match v {
                 "help" => self.print_string("Commands: help, info, reset, flush, time, mem\n"),
                 "info" => {
-                    let _ = write!(self, "Roselia Kernel {} ({})", env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT"));
+                    let _ = write!(
+                        self,
+                        "Roselia Kernel {} ({})",
+                        env!("CARGO_PKG_VERSION"),
+                        env!("GIT_COMMIT")
+                    );
                     self.new_line();
-                },
+                }
                 "reset" => {
                     let typeofreset = match args.next() {
                         Some(v) => v,
@@ -235,16 +244,27 @@ impl Terminal {
                     self.print_string_ln(text);
                 }
                 "time" => {
-                    let t = get_time();
-                    let time = t.unwrap().0;
-
-                    let _ = write!(self, "Time Zone: {}\n", time.time_zone().unwrap());
-                    let _ = write!(self, "Year: {}\n", time.year());
-                    let _ = write!(self, "Month: {}\n", time.month());
-                    let _ = write!(self, "Day: {}\n", time.day());
-                    let _ = write!(self, "Hour: {}\n", time.hour());
-                    let _ = write!(self, "Minutes: {}\n", time.minute());
-                    let _ = write!(self, "Seconds: {}\n", time.second());
+                    // let t = get_time();
+                    // match t {
+                    //     Ok(time) => {
+                    //         let _ = write!(
+                    //             self,
+                    //             "Time Zone: {}\n",
+                    //             time.time_zone
+                    //                 .map_or_else(|| "unspecified".to_string(), |tz| tz.to_string())
+                    //         );
+                    //         let _ = write!(self, "Year: {}\n", time.year);
+                    //         let _ = write!(self, "Month: {}\n", time.month);
+                    //         let _ = write!(self, "Day: {}\n", time.day);
+                    //         let _ = write!(self, "Hour: {}\n", time.hour);
+                    //         let _ = write!(self, "Minutes: {}\n", time.minute);
+                    //         let _ = write!(self, "Seconds: {}\n", time.second);
+                    //     }
+                    //     Err(e) => {
+                    //         self.print_string_ln("Error during reading rtc");
+                    //     }
+                    // }
+                        
                 }
                 "scale" => {
                     let scale = match args.next() {
