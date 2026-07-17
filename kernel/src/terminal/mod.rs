@@ -193,7 +193,10 @@ impl Terminal {
         match args.next() {
             Some(v) => match v {
                 "help" => self.print_string("Commands: help, info, reset, flush, time, mem\n"),
-                "info" => self.print_string("Roselia Kernel 0.4.0. Made by nfge\n"),
+                "info" => {
+                    let _ = write!(self, "Roselia Kernel {} ({})", env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT"));
+                    self.new_line();
+                },
                 "reset" => {
                     let typeofreset = match args.next() {
                         Some(v) => v,
