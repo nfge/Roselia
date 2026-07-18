@@ -2,19 +2,19 @@ use crate::{
     GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
     func::{get_time, reset},
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
-    keyboard::{self, KeyBoard},
+    keyboard::{KeyBoard},
     memory::{get_free, get_used},
     timer::sleep,
 };
 use alloc::{
-    string::{String, ToString},
+    string::{String},
     vec,
     vec::Vec,
 };
-use core::fmt::Write;
+use core::{fmt::Write, hint::unreachable_unchecked};
 use uefi::{
     Status,
-    runtime::{ResetType, VariableAttributes, VariableVendor},
+    runtime::{ResetType},
 };
 
 pub struct Terminal {
@@ -135,6 +135,9 @@ impl Terminal {
     }
     pub fn backspace(&mut self) {
         if self.buf_x == 0 && self.buf_y == 0 {
+            return;
+        }
+        if self.x == 0 {
             return;
         }
 

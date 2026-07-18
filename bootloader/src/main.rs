@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 mod init;
 use elf_headers::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
