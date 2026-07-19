@@ -41,6 +41,7 @@ jobs:
         --protective-msdos-label \
         out/ \
         -o Roselia.iso
+        xorriso -indev Roselia.iso -report_el_torito plain
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
