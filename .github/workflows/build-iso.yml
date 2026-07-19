@@ -35,7 +35,7 @@ jobs:
       run: |
         xorriso -as mkisofs \
         -R -J \
-        --efi-boot out/EFI/BOOT/BOOTX64.efi \
+        --efi-boot EFI/BOOT/BOOTX64.efi \
         -efi-boot-part \
         --efi-boot-image \
         --protective-msdos-label \
