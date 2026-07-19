@@ -47,6 +47,7 @@ jobs:
         mkdir iso
         cp -r out/* iso/
         cp efiboot.img iso/
+        fsck.fat -vn efiboot.img
     - name: Build ISO
       run: |
         xorriso -as mkisofs \
@@ -57,6 +58,7 @@ jobs:
           -no-emul-boot \
           -o Roselia.iso \
           iso/
+          
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
