@@ -36,7 +36,7 @@ fn main() -> Status {
     let timer = unsafe { create_event(EventType::TIMER, Tpl::APPLICATION, None, None).unwrap() };
     let input_handle = get_handle_for_protocol::<Input>().unwrap();
     let mut input = open_protocol_exclusive::<Input>(input_handle).unwrap();
-    let _ = set_timer(&timer, TimerTrigger::Relative(20_000_000));
+    let _ = set_timer(&timer, TimerTrigger::Relative(Duration::from_secs(2)));
     let events = &mut [timer, input.wait_for_key_event().unwrap()];
 
     let index = boot::wait_for_event(events).discard_errdata().unwrap();
