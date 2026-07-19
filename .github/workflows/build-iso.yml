@@ -33,7 +33,7 @@ jobs:
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/Roselia/boot.efi
     - name: Create EFI image
       run: |
-        dd if=/dev/zero of=efiboot.img bs=1M count=16
+        dd if=/dev/zero of=efiboot.img bs=1M count=64
 
         mkfs.fat -F32 efiboot.img
 
