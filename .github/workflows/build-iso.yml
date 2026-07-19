@@ -40,10 +40,10 @@ jobs:
         --efi-boot-image \
         --protective-msdos-label \
         out/ \
-        -o roselia.iso
+        -o Roselia.iso
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: Roselia
-        path: roselia.iso
+        path: Roselia.iso
           
