@@ -31,10 +31,6 @@ jobs:
         cp -r target/x86_64/release/kernel out/kernel.elf
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/BOOT/BOOTX64.efi
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/Roselia/boot.efi
-
-        mkdir iso
-        cp -r out/* iso/
-        cp efiboot.img iso/
     - name: Create EFI image
       run: |
         dd if=/dev/zero of=efiboot.img bs=1M count=16
@@ -48,6 +44,9 @@ jobs:
         mcopy -i efiboot.img out/EFI/BOOT/BOOTX64.efi ::/EFI/BOOT/
         mcopy -i efiboot.img out/EFI/Roselia/boot.efi ::/EFI/Roselia/
         mcopy -i efiboot.img out/kernel.elf ::/
+        mkdir iso
+        cp -r out/* iso/
+        cp efiboot.img iso/
     - name: Build ISO
       run: |
         xorriso -as mkisofs \
