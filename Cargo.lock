@@ -70,9 +70,9 @@ dependencies = [
 
 [[package]]
 name = "heapless"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2af2455f757db2b292a9b1768c4b70186d443bcb3b316252d6b540aec1cd89ed"
+checksum = "25ba4bd83f9415b58b4ed8dc5714c76e626a105be4646c02630ad730ad3b5aa4"
 dependencies = [
  "hash32",
  "stable_deref_trait",
@@ -257,9 +257,9 @@ dependencies = [
 
 [[package]]
 name = "uefi"
-version = "0.37.0"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66ab9569afdd1e33a31d8002343aa1df594f055347b1a66136bf9dd6cbc3ec37"
+checksum = "a58ad7512f7c38b58aa536c3839dbb1d5a122d14a7e2245b06ded49edcb7585a"
 dependencies = [
  "bitflags 2.11.0",
  "cfg-if",
@@ -284,9 +284,9 @@ dependencies = [
 
 [[package]]
 name = "uefi-raw"
-version = "0.14.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3775e5934877acaef4b00f254f252df1e2266903c31e51455c117f4f2824eda"
+checksum = "1a36f49db0b04a8dfd246a26ddf8d2526a2ffd8cf946ae7fe603fd0c5fbd2786"
 dependencies = [
  "bitflags 2.11.0",
  "uguid",
