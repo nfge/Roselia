@@ -18,7 +18,7 @@ jobs:
         rustup default nightly
         rustup component add rust-src --toolchain nightly
         rustup target add x86_64-unknown-uefi
-        sudo apt install xorriso
+        sudo apt install dosfstools mtools xorriso
     - name: Build
       run: |
         cargo +nightly build -Z json-target-spec -p kernel --target x86_64.json --release
@@ -31,17 +31,30 @@ jobs:
         cp -r target/x86_64/release/kernel out/kernel.elf
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/BOOT/BOOTX64.efi
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/Roselia/boot.efi
+    - name: Create EFI image
+      run: |
+        dd if=/dev/zero of=efiboot.img bs=1M count=16
+
+        mkfs.fat -F32 efiboot.img
+
+        mmd -i efiboot.img ::/EFI
+        mmd -i efiboot.img ::/EFI/BOOT
+        mmd -i efiboot.img ::/EFI/Roselia
+
+        mcopy -i efiboot.img out/EFI/BOOT/BOOTX64.efi ::/EFI/BOOT/
+        mcopy -i efiboot.img out/EFI/Roselia/boot.efi ::/EFI/Roselia/
+        mcopy -i efiboot.img out/kernel.elf ::/
     - name: Build ISO
       run: |
         xorriso -as mkisofs \
-        -R -J \
-        --efi-boot EFI/BOOT/BOOTX64.efi \
-        -efi-boot-part \
-        --efi-boot-image \
-        --protective-msdos-label \
-        out/ \
-        -o Roselia.iso
-        xorriso -indev Roselia.iso -report_el_torito plain
+          -R -J \
+          -V Roselia \
+          -eltorito-alt-boot \
+          -e efiboot.img \
+          -no-emul-boot \
+          -append_partition 2 0xef efiboot.img \
+          -o Roselia.iso \
+          out/
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
