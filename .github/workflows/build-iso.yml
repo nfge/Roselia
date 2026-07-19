@@ -55,7 +55,6 @@ jobs:
           -eltorito-alt-boot \
           -e efiboot.img \
           -no-emul-boot \
-          -append_partition 2 0xef efiboot.img \
           -o Roselia.iso \
           iso/
     - name: Upload artifacts
