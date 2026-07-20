@@ -77,7 +77,7 @@ pub fn init_ioapic() {
                     for madt_entry in madt.entries() {
                         if let MadtEntry::IoApic(io) = madt_entry {
                             let mut ioapic = IoApic::new({ io.io_apic_address } as usize);
-                            ioapic.enable(1, 0x21); // не rdmsr(0x802)
+                            ioapic.enable(1, rdmsr(0x802) as u8);
                         }
                     }
                 }
