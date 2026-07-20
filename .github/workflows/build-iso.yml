@@ -46,7 +46,6 @@ jobs:
         mcopy -i efiboot.img out/kernel.elf ::/
         mkdir iso
         cp -r out/* iso/
-        cp efiboot.img iso/
         fsck.fat -vn efiboot.img
     - name: Build ISO
       run: |
@@ -54,7 +53,7 @@ jobs:
           -R -J \
           -V Roselia \
           -eltorito-alt-boot \
-          -e efiboot.img \
+          -e ../efiboot.img \
           -no-emul-boot \
           -o Roselia.iso \
           iso/
