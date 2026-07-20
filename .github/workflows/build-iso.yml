@@ -57,7 +57,7 @@ jobs:
          -eltorito-alt-boot \
          -e --interval:appended_partition_2::: \
          -no-emul-boot \
-  -o Roselia.iso \
+         -o Roselia.iso \
          iso/
           
     - name: Upload artifacts
