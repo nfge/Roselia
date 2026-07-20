@@ -1,6 +1,7 @@
 use crate::sdtheader::SdtHeader;
 
 #[repr(C, packed)]
+#[derive(Clone, Copy,Debug)]
 pub struct GenericAddressStructure {
     pub address_space: u8,
     pub bit_width: u8,
@@ -10,6 +11,7 @@ pub struct GenericAddressStructure {
 }
 
 #[repr(C, packed)]
+#[derive(Clone, Copy,Debug)]
 pub struct Fadt {
     pub header: SdtHeader,
     pub firmware_ctrl: u32,

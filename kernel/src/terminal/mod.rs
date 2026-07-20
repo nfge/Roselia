@@ -1,10 +1,5 @@
 use crate::{
-    GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
-    func::{get_time, reset},
-    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
-    keyboard::{KeyBoard},
-    memory::{get_free, get_used},
-    timer::sleep,
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, timer::sleep
 };
 use alloc::{
     string::{String},
@@ -360,6 +355,10 @@ impl Terminal {
                             break;
                         }
                     }
+                },
+                "acpi-version" => {
+                    let version = unsafe {ACPI_TABLE.unwrap().revision} as i32;
+                    let _ = write!(self, "ACPI version {version}\n");
                 }
                 _ => self.print_string("Command not found\n"),
             },

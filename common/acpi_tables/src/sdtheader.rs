@@ -1,4 +1,5 @@
 #[repr(C, packed)]
+#[derive(Clone, Copy,Debug)]
 pub struct SdtHeader {
     pub signature: [u8; 4],
     pub length: u32,

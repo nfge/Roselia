@@ -20,6 +20,7 @@ use crate::{
     terminal::Terminal,
     timer::sleep,
 };
+use acpi_tables::sdtheader::SdtHeader;
 use alloc::boxed::Box;
 use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn, KernelTime}, variable::{GetVar, SetVar}};
 use core::{mem, panic::PanicInfo};
@@ -32,6 +33,7 @@ static mut RESET_FN: Option<ResetFn> = None;
 static mut TIME_FN: Option<GetTimeFn> = None;
 static mut SET_VAR_FN: Option<SetVar> = None;
 static mut GET_VAR_FN: Option<GetVar> = None;
+static mut ACPI_TABLE: Option<SdtHeader> = None;
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 
@@ -44,8 +46,9 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         TIME_FN = Some(core::mem::transmute(info.time));
         SET_VAR_FN = Some(core::mem::transmute(info.set_var));
         GET_VAR_FN = Some(core::mem::transmute(info.get_var));
+        ACPI_TABLE = Some((info.acpi_table_ptr as *const SdtHeader).read_unaligned())
     };
-
+    
     cpu::gdt::init();
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
@@ -67,7 +70,6 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             Color::White,
         )));
     }
-
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();

@@ -1,6 +1,7 @@
 use crate::sdtheader::SdtHeader;
 
 #[repr(C, packed)]
+#[derive(Clone, Copy,Debug)]
 pub struct Rsdt {
     pub header: SdtHeader
 }
