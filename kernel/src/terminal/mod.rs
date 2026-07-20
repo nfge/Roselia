@@ -162,19 +162,23 @@ impl Terminal {
     pub fn run(&mut self) {
         self.print_string_ln("Press Enter to start terminal");
         loop {
-            if self.wait_for_key('\n') == true {
-                break;
+            match self.keyboard.get_key() {
+                Some('\n') => break,
+                _ => { x86_64::instructions::hlt(); }
             }
         }
         self.running = true;
         self.print_char('>');
         while self.running {
             if self.keyboard.key_state.get_ctrl() && self.keyboard.key_state.get_shift() {
-                if self.wait_for_key('C') {
-                    self.new_line();
-                    self.print_string_ln("Interrupt detected. Reseting...");
-                    sleep(1000);
-                    unsafe { RESET_FN.unwrap()(ResetType::WARM, Status::SUCCESS, None) };
+                match self.keyboard.get_key() {
+                    Some('c') => {
+                         self.new_line();
+                        self.print_string_ln("Interrupt detected. Reseting...");
+                        sleep(1000);
+                        unsafe { RESET_FN.unwrap()(ResetType::WARM, Status::SUCCESS, None) };
+                    }
+                    _ => {}
                 }
             }
             if let Some(key) = self.keyboard.get_key() {
@@ -194,7 +198,7 @@ impl Terminal {
 
         match args.next() {
             Some(v) => match v {
-                "help" => self.print_string("Commands: help, info, reset, poweroff, flush, time, mem\n"),
+                "help" => self.print_string("Commands: help, info, reset, poweroff, flush, time, date, heap\n"),
                 "info" => {
                     let _ = write!(
                         self,
@@ -243,27 +247,26 @@ impl Terminal {
                     let t = get_time();
                     match t {
                         Ok(time) => {
-                            // let _ = write!(
-                            //     self,
-                            //     "Time Zone: {}\n",
-                            //     time.time_zone
-                            //         .map_or_else(|| "unspecified".to_string(), |tz| tz.to_string())
-                            // );
-                            // let _ = write!(self, "Year: {}\n", time.year);
-                            // let _ = write!(self, "Month: {}\n", time.month);
-                            // let _ = write!(self, "Day: {}\n", time.day);
-                            // let _ = write!(self, "Hour: {}\n", time.hour + 3);
-                            // let _ = write!(self, "Minutes: {}\n", time.minute);
-                            // let _ = write!(self, "Seconds: {}\n", time.second);
-                            let _ = write!(self, "{}-{}-{} ", time.year, time.month, time.day);
                             let _ = write!(self, "{}:{}:{}\n", time.hour, time.minute, time.second);
 
                         }
-                        Err(e) => {
+                        Err(_) => {
                             self.print_string_ln("Error during reading rtc");
                         }
                     }
                 }
+                "date" => {
+                    let t = get_time();
+                    match t {
+                        Ok(time) => {
+                            let _ = write!(self, "{}-{}-{}\n", time.year, time.month, time.day);
+
+                        }
+                        Err(_) => {
+                            self.print_string_ln("Error during reading rtc");
+                        }
+                    }
+                },
                 "scale" => {
                     let scale = match args.next() {
                         Some(v) => v,
@@ -310,7 +313,7 @@ impl Terminal {
                     let _ = write!(self, "{:?}", time);
                 }
                 "panic" => panic!(),
-                "mem" => match args.next() {
+                "heap" => match args.next() {
                     Some(f) => match f {
                         "free" => {
                             let _ = write!(self, "Free memory: {}KB\n", get_free() / 1024);
@@ -318,9 +321,9 @@ impl Terminal {
                         "used" => {
                             let _ = write!(self, "Used memory: {}KB\n", get_used() / 1024);
                         }
-                        _ => self.print_string_ln("Usage: mem [free || used]"),
+                        _ => self.print_string_ln("Usage: heap [free || used]"),
                     },
-                    None => self.print_string_ln("Usage: mem [free || used]"),
+                    None => self.print_string_ln("Usage: heap [free || used]"),
                 },
                 "resolution" => {
                     let width = self.width;
@@ -336,18 +339,21 @@ impl Terminal {
                         self.set_cursor(key_x, self.y);
                         self.print_string("K");
                         self.set_cursor(x, self.y);
-                        if self.wait_for_key('w') {
-                            self.clear_line();
-                            x += 8;
-                            self.set_cursor(x, self.y);
-                            self.print_string("P");
-                        } else if self.wait_for_key('s') {
-                            self.clear_line();
-                            x -= 8;
-                            self.set_cursor(x, self.y);
-                            self.print_string("P");
-                        } else if self.wait_for_key('z') {
-                            break;
+                        match self.keyboard.get_key() {
+                            Some('w') => {
+                                self.clear_line();
+                                x += 8;
+                                self.set_cursor(x, self.y);
+                                self.print_string("P");
+                            },
+                            Some('s') => {
+                                self.clear_line();
+                                x -= 8;
+                                self.set_cursor(x, self.y);
+                                self.print_string("P");
+                            },
+                            Some('z') => break,
+                            _ => { x86_64::instructions::hlt(); }
                         }
                         if x == key_x {
                             self.new_line();
@@ -355,10 +361,6 @@ impl Terminal {
                             break;
                         }
                     }
-                },
-                "acpi-version" => {
-                    let version = unsafe {ACPI_TABLE.unwrap().revision} as i32;
-                    let _ = write!(self, "ACPI version {version}\n");
                 }
                 _ => self.print_string("Command not found\n"),
             },
@@ -389,14 +391,14 @@ impl Terminal {
             }
         }
     }
-    pub fn wait_for_key(&mut self, k: char) -> bool {
-        if let Some(key) = self.keyboard.get_key() {
-            if key == k { true } else { false }
-        } else {
-            x86_64::instructions::hlt();
-            false
-        }
-    }
+    // pub fn wait_for_key(&mut self, k: char) -> bool {
+    //     if let Some(key) = self.keyboard.get_key() {
+    //         if key == k { true } else { false }
+    //     } else {
+    //         x86_64::instructions::hlt();
+    //         false
+    //     }
+    // }
     pub fn set_cursor(&mut self, x: usize, y: usize) {
         self.x = x;
         self.y = y;

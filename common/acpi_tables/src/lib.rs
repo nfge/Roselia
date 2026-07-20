@@ -3,5 +3,7 @@
 
 pub mod sdtheader;
 pub mod rsdt;
-pub mod xstd;
+pub mod xsdt;
 pub mod fadt;
+pub mod madt;
+pub mod rsdp;

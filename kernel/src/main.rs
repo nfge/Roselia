@@ -23,7 +23,7 @@ use crate::{
 use acpi_tables::sdtheader::SdtHeader;
 use alloc::boxed::Box;
 use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn, KernelTime}, variable::{GetVar, SetVar}};
-use core::{mem, panic::PanicInfo};
+use core::{ffi::c_void, mem, panic::PanicInfo};
 use uefi::{
     Error, mem::memory_map::MemoryMap, runtime::{Time, TimeCapabilities}
 };
@@ -33,7 +33,7 @@ static mut RESET_FN: Option<ResetFn> = None;
 static mut TIME_FN: Option<GetTimeFn> = None;
 static mut SET_VAR_FN: Option<SetVar> = None;
 static mut GET_VAR_FN: Option<GetVar> = None;
-static mut ACPI_TABLE: Option<SdtHeader> = None;
+static mut ACPI_TABLE: Option<*const c_void> = None;
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 
@@ -46,7 +46,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         TIME_FN = Some(core::mem::transmute(info.time));
         SET_VAR_FN = Some(core::mem::transmute(info.set_var));
         GET_VAR_FN = Some(core::mem::transmute(info.get_var));
-        ACPI_TABLE = Some((info.acpi_table_ptr as *const SdtHeader).read_unaligned())
+        ACPI_TABLE = Some(info.acpi_table_ptr)
     };
     
     cpu::gdt::init();

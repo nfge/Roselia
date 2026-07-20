@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
 
 mod init;
 use elf_headers::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
@@ -14,13 +13,23 @@ use bootinfo::{
 
 use core::{panic::PanicInfo, ptr::null, time::Duration, usize};
 use uefi::{
-    CStr16, boot::{
+    CStr16,
+    boot::{
         EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services,
         get_handle_for_protocol, get_image_file_system, image_handle, memory_map,
         open_protocol_exclusive, set_timer, stall,
-    }, mem::memory_map::MemoryMapOwned, prelude::*, println, proto::{
-        acpi::AcpiTable, console::text::{Input, Key, ScanCode}, media::file::{self, File, FileAttribute, FileInfo, FileMode}
-    }, runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map}, system::with_config_table, table::cfg::ConfigTableEntry
+    },
+    mem::memory_map::MemoryMapOwned,
+    prelude::*,
+    println,
+    proto::{
+        acpi::AcpiTable,
+        console::text::{Input, Key, ScanCode},
+        media::file::{self, File, FileAttribute, FileInfo, FileMode},
+    },
+    runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map},
+    system::with_config_table,
+    table::cfg::ConfigTableEntry,
 };
 
 use crate::init::init_gop::init_gop;
@@ -176,7 +185,7 @@ fn main() -> Status {
         }
     });
     let mmap = unsafe { exit_boot_services(None) };
-   
+
     let bootinfo = BootInfo {
         gop: framebuffer,
         reset: reset_fn as *const (),
@@ -184,7 +193,7 @@ fn main() -> Status {
         get_var: get_variable as *const (),
         set_var: set_variable as *const (),
         memory_map: mmap,
-        acpi_table_ptr: acpi_ptr
+        acpi_table_ptr: acpi_ptr,
     };
 
     kernel_entry(&bootinfo as *const BootInfo);
