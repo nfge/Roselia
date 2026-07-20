@@ -12,16 +12,15 @@ use bootinfo::{
     variable::{get_variable, set_variable},
 };
 
-use core::{panic::PanicInfo, time::Duration, usize};
+use core::{panic::PanicInfo, ptr::null, time::Duration, usize};
 use uefi::{
     CStr16, boot::{
         EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services,
         get_handle_for_protocol, get_image_file_system, image_handle, memory_map,
         open_protocol_exclusive, set_timer, stall,
     }, mem::memory_map::MemoryMapOwned, prelude::*, println, proto::{
-        console::text::{Input, Key, ScanCode},
-        media::file::{self, File, FileAttribute, FileInfo, FileMode},
-    }, runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map}
+        acpi::AcpiTable, console::text::{Input, Key, ScanCode}, media::file::{self, File, FileAttribute, FileInfo, FileMode}
+    }, runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map}, system::with_config_table, table::cfg::ConfigTableEntry
 };
 
 use crate::init::init_gop::init_gop;
@@ -62,7 +61,7 @@ fn main() -> Status {
                         | VariableAttributes::BOOTSERVICE_ACCESS,
                     &new,
                 );
-                stall(Duration::from_millis(300));
+                stall(Duration::from_millis(500));
                 uefi::runtime::reset(ResetType::WARM, Status::SUCCESS, None);
             }
             _ => {}
@@ -166,6 +165,16 @@ fn main() -> Status {
         unsafe { core::mem::transmute(entry as usize) };
     let framebuffer = init_gop();
 
+    let mut acpi_ptr: *const core::ffi::c_void = null();
+    with_config_table(|slice| {
+        for i in slice {
+            match i.guid {
+                ConfigTableEntry::ACPI_GUID => acpi_ptr = i.address,
+                ConfigTableEntry::ACPI2_GUID => acpi_ptr = i.address,
+                _ => {}
+            }
+        }
+    });
     let mmap = unsafe { exit_boot_services(None) };
    
     let bootinfo = BootInfo {
@@ -175,6 +184,7 @@ fn main() -> Status {
         get_var: get_variable as *const (),
         set_var: set_variable as *const (),
         memory_map: mmap,
+        acpi_table_ptr: acpi_ptr
     };
 
     kernel_entry(&bootinfo as *const BootInfo);

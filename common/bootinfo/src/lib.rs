@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use core::ffi::c_void;
+
 pub mod gop_table;
 pub mod reset;
 pub mod time;
@@ -15,4 +17,5 @@ pub struct BootInfo {
     pub set_var: *const (),
     pub get_var: *const (),
     pub memory_map: uefi::mem::memory_map::MemoryMapOwned,
+    pub acpi_table_ptr: *const c_void
 }
