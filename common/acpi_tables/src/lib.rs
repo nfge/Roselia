@@ -1,6 +1,7 @@
 #![no_main]
 #![no_std]
 
-mod sdtheader;
-mod rsdt;
-mod xstd;
+pub mod sdtheader;
+pub mod rsdt;
+pub mod xstd;
+pub mod fadt;
