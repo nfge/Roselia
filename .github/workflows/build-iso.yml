@@ -46,23 +46,21 @@ jobs:
         mcopy -i efiboot.img out/kernel.elf ::/
         mkdir iso
         cp -r out/* iso/
+        cp efiboot.img iso/
         fsck.fat -vn efiboot.img
     - name: Build ISO
       run: |
         xorriso -as mkisofs \
-         -R -J \
-         -V Roselia \
-         -append_partition 2 0xef efiboot.img \
-         -appended_part_as_gpt \
-         -eltorito-alt-boot \
-         -e --interval:appended_partition_2::: \
-         -no-emul-boot \
-         -o Roselia.iso \
-         iso/
+          -R -J \
+          -V Roselia \
+          -eltorito-alt-boot \
+          -e efiboot.img \
+          -no-emul-boot \
+          -o Roselia.iso \
+          iso/
           
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: Roselia
         path: Roselia.iso
-          
