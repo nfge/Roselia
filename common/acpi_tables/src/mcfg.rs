@@ -18,16 +18,18 @@ pub struct McfgEntry {
 }
 
 impl Mcfg {
-    pub unsafe fn entry(&self,index:usize) -> u32 {
+    pub unsafe fn entry(&self,index:usize) -> McfgEntry {
         unsafe {
-            let ptr = (self as *const Mcfg as *const u8)
-                .add(core::mem::size_of::<SdtHeader>())
-                .add(index * core::mem::size_of::<u32>()) as *const u32;
+            let ptr = (self as *const Self as *const u8)
+                .add(core::mem::size_of::<Self>())
+                .cast::<McfgEntry>()
+                .add(index);
+                
             ptr.read_unaligned()
         }
     }
     pub unsafe fn entry_count(&self) -> usize {
-        (self.header.length as usize - core::mem::size_of::<SdtHeader>())
-            / core::mem::size_of::<u32>()
+        (self.header.length as usize - core::mem::size_of::<Self>())
+            / core::mem::size_of::<McfgEntry>()
     }
 }
