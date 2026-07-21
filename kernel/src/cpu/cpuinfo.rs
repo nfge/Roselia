@@ -1,4 +1,5 @@
 use raw_cpuid::{CpuId, ProcessorBrandString, VendorInfo};
+use x86::msr::{IA32_THERM_STATUS, rdmsr};
 // use x86::msr::IA32_THERM_STATUS;
 
 // pub fn get_frequency() -> Option<u16> {
@@ -21,13 +22,25 @@ pub fn chech_sse_support() -> bool {
 
     f.has_sse() && f.has_sse2()
 }
-// pub fn get_cpu_therm() -> Option<i32> {
-//     let therm = unsafe { x86::msr::rdmsr(IA32_THERM_STATUS) };
-//     let delta = ((therm >> 16) & 0x7F) as i32;
-//     let tjmax = 100;
-//     let temp = tjmax - delta;
-//     return Some(temp);
-// }
+pub fn get_cpu_therm() -> Option<u8> {
+    match get_cpu_vendor().unwrap().as_str() {
+        "GenuineIntel" => {
+            let therm_status = unsafe { rdmsr(IA32_THERM_STATUS) };
+            let tj_value = unsafe { rdmsr(0x1A2) };
+            let valid = ((therm_status >> 31) & 1) != 0;
+            let tjmax = ((tj_value >> 16) & 0xFF) as u8;
+            if valid {
+                let digital_readout = ((therm_status >> 16) & 0x7F) as u8;
+                let temp = tjmax - digital_readout;
+                Some(temp)
+            } else {
+                None
+            }
+        }
+        "AuthenticAMD" => None,
+        _ => None,
+    }
+}
 // fn cpu_apic() -> bool {
 //     let cpuid = CpuId::new();
 //     return cpuid.get_feature_info().unwrap().has_apic();

@@ -217,8 +217,10 @@ impl Terminal {
                 "flush" => self.flush_screen(),
                 "cpu" => {
                     let cpu = cpu::cpuinfo::get_cpu();
-                    self.print_string_ln(cpu.0.unwrap().as_str());
-                    self.print_string_ln(cpu.1.unwrap().as_str());
+                    let cpu_therm = cpu::cpuinfo::get_cpu_therm();
+                    let _ = write!(self, "Vendor: {}\n", cpu.0.unwrap().as_str());
+                    let _ = write!(self, "Model: {}\n", cpu.1.unwrap().as_str());
+                    let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
                 }
                 "print" => {
                     let text = match args.next() {
