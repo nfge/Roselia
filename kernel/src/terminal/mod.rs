@@ -1,5 +1,5 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, timer::sleep
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, timer::sleep
 };
 use alloc::{
     string::{String},
@@ -213,7 +213,7 @@ impl Terminal {
                     sleep(1000);
                     reset();
                 }
-                "poweroff" => self.print_string_ln("Poweroff not supported in this version"),
+                "poweroff" => self.print_string_ln("Poweroff is not supported in this version"),
                 "flush" => self.flush_screen(),
                 "cpu" => {
                     let cpu = cpu::cpuinfo::get_cpu();
