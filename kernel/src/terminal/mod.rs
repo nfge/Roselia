@@ -176,7 +176,7 @@ impl Terminal {
                          self.new_line();
                         self.print_string_ln("Interrupt detected. Reseting...");
                         sleep(1000);
-                        unsafe { RESET_FN.unwrap()(ResetType::WARM, Status::SUCCESS, None) };
+                        reset();
                     }
                     _ => {}
                 }
@@ -209,24 +209,11 @@ impl Terminal {
                     self.new_line();
                 }
                 "reset" => {
-                    let typeofreset = match args.next() {
-                        Some(v) => v,
-                        None => {
-                            self.print_string_ln("Usage: reset [cold || warm]");
-                            return;
-                        }
-                    };
-                    self.print_string("Reseting...\n");
-                    sleep(900);
-                    match typeofreset {
-                        "cold" => reset(uefi::runtime::ResetType::COLD, Status::SUCCESS, None),
-                        "warm" => reset(uefi::runtime::ResetType::WARM, Status::SUCCESS, None),
-                        _ => {
-                            self.print_string_ln("Error");
-                        }
-                    }
+                    self.print_string_ln("Reseting...");
+                    sleep(1000);
+                    reset();
                 }
-                "poweroff" => reset(uefi::runtime::ResetType::SHUTDOWN, Status::SUCCESS, None),
+                "poweroff" => self.print_string_ln("Poweroff not supported in this version"),
                 "flush" => self.flush_screen(),
                 "cpu" => {
                     let cpu = cpu::cpuinfo::get_cpu();

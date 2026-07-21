@@ -89,5 +89,5 @@ fn panic(_info: &PanicInfo) -> ! {
     serial_println!("{}", _info);
     kprintln!("Kernel Panic: {}", _info);
     sleep(3000);
-    reset(uefi::runtime::ResetType::COLD, uefi::Status::SUCCESS, None);
+    reset();
 }
