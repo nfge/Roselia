@@ -9,3 +9,4 @@ pub mod madt;
 pub mod rsdp;
 pub mod dsdt;
 pub mod func;
+pub mod mcfg;
