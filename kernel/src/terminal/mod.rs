@@ -1,16 +1,10 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, timer::sleep
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, serial_println, timer::sleep
 };
-use alloc::{
-    string::{String},
-    vec,
-    vec::Vec,
-};
+use acpi_tables::{mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
+use alloc::{string::String, vec, vec::Vec};
 use core::{fmt::Write, hint::unreachable_unchecked};
-use uefi::{
-    Status,
-    runtime::{ResetType},
-};
+use uefi::{Status, runtime::ResetType};
 
 pub struct Terminal {
     graphics: Graphics,
@@ -164,7 +158,9 @@ impl Terminal {
         loop {
             match self.keyboard.get_key() {
                 Some('\n') => break,
-                _ => { x86_64::instructions::hlt(); }
+                _ => {
+                    x86_64::instructions::hlt();
+                }
             }
         }
         self.running = true;
@@ -173,7 +169,7 @@ impl Terminal {
             if self.keyboard.key_state.get_ctrl() && self.keyboard.key_state.get_shift() {
                 match self.keyboard.get_key() {
                     Some('c') => {
-                         self.new_line();
+                        self.new_line();
                         self.print_string_ln("Interrupt detected. Reseting...");
                         sleep(1000);
                         reset();
@@ -198,7 +194,9 @@ impl Terminal {
 
         match args.next() {
             Some(v) => match v {
-                "help" => self.print_string("Commands: help, info, reset, poweroff, flush, time, date, heap\n"),
+                "help" => self.print_string(
+                    "Commands: help, info, reset, poweroff, flush, time, date, heap\n",
+                ),
                 "info" => {
                     let _ = write!(
                         self,
@@ -237,7 +235,6 @@ impl Terminal {
                     match t {
                         Ok(time) => {
                             let _ = write!(self, "{}:{}:{}\n", time.hour, time.minute, time.second);
-
                         }
                         Err(_) => {
                             self.print_string_ln("Error during reading rtc");
@@ -249,13 +246,12 @@ impl Terminal {
                     match t {
                         Ok(time) => {
                             let _ = write!(self, "{}-{}-{}\n", time.year, time.month, time.day);
-
                         }
                         Err(_) => {
                             self.print_string_ln("Error during reading rtc");
                         }
                     }
-                },
+                }
                 "scale" => {
                     let scale = match args.next() {
                         Some(v) => v,
@@ -334,15 +330,17 @@ impl Terminal {
                                 x += 8;
                                 self.set_cursor(x, self.y);
                                 self.print_string("P");
-                            },
+                            }
                             Some('s') => {
                                 self.clear_line();
                                 x -= 8;
                                 self.set_cursor(x, self.y);
                                 self.print_string("P");
-                            },
+                            }
                             Some('z') => break,
-                            _ => { x86_64::instructions::hlt(); }
+                            _ => {
+                                x86_64::instructions::hlt();
+                            }
                         }
                         if x == key_x {
                             self.new_line();
@@ -351,6 +349,51 @@ impl Terminal {
                         }
                     }
                 }
+                "pci" => unsafe {
+                    let rsdp_ptr = ACPI_TABLE.unwrap() as *const Rsdp;
+                    let rsdp = rsdp_ptr.read_unaligned();
+
+                    if &rsdp.signature != b"RSD PTR " {
+                        serial_println!("Invalid RSDP signature");
+                        return;
+                    }
+
+                    let revision = { rsdp.revision };
+                    let root_ptr = if revision >= 2 {
+                        rsdp.xsdt_address as usize as *const core::ffi::c_void
+                    } else {
+                        rsdp.rsdt_address as usize as *const core::ffi::c_void
+                    };
+
+                    let root_header = (root_ptr as *const SdtHeader).read_unaligned();
+
+                    if &root_header.signature == b"XSDT" {
+                        let xsdt = &*(root_ptr as *const Xsdt);
+
+                        let count = xsdt.entry_count();
+                        for i in 0..count {
+                            let entry_addr = xsdt.entry(i);
+                            let entry_ptr = entry_addr as *const core::ffi::c_void;
+                            let entry_header = (entry_ptr as *const SdtHeader).read_unaligned();
+
+                            if &entry_header.signature == b"MCFG" {
+                                let mcfg = &*(entry_ptr as *const Mcfg);
+                                let count = mcfg.entry_count();
+                                for i in 0..count {
+                                    let entry = &mcfg.entry(i);
+                                    let devices = pci::enumerate(entry);
+                                    for device in devices {
+                                        let _ = write!(self, "Bus={}, Device={}, Function={}\n\n", device.bus,device.device,device.function);
+                                        let _ = write!(self, "VendorId=0x{:04X}, DeviceId=0x{:04X}\n\n", device.header.vendor_id as u16, device.header.device_id as u16);
+                                    }
+                                }
+                            }
+                            
+                        }
+                    } else {
+                        serial_println!("Root table is not XSDT (found different signature)");
+                    }
+                },
                 _ => self.print_string("Command not found\n"),
             },
             None => {

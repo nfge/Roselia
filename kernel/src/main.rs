@@ -20,13 +20,10 @@ use crate::{
     terminal::Terminal,
     timer::sleep,
 };
-use acpi_tables::sdtheader::SdtHeader;
+
 use alloc::boxed::Box;
-use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn, KernelTime}, variable::{GetVar, SetVar}};
-use core::{ffi::c_void, mem, panic::PanicInfo};
-use uefi::{
-    Error, mem::memory_map::MemoryMap, runtime::{Time, TimeCapabilities}
-};
+use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn}, variable::{GetVar, SetVar}};
+use core::{ffi::c_void, panic::PanicInfo};
 
 static mut FB_PTR: Option<*mut u32> = None;
 static mut RESET_FN: Option<ResetFn> = None;

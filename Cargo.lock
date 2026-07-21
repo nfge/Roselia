@@ -99,6 +99,7 @@ dependencies = [
  "lazy_static",
  "linked_list_allocator",
  "mem",
+ "pci",
  "raw-cpuid 11.6.0",
  "spin 0.12.2",
  "uefi",
@@ -142,6 +143,13 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 [[package]]
 name = "mem"
 version = "0.1.0"
+
+[[package]]
+name = "pci"
+version = "0.1.0"
+dependencies = [
+ "acpi_tables",
+]
 
 [[package]]
 name = "proc-macro2"
