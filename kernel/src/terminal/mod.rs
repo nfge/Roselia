@@ -213,7 +213,7 @@ impl Terminal {
                     sleep(1000);
                     reset();
                 }
-                "poweroff" => self.print_string_ln("Poweroff is not supported in this version"),
+                "poweroff" => s5_soft_off(),
                 "flush" => self.flush_screen(),
                 "cpu" => {
                     let cpu = cpu::cpuinfo::get_cpu();

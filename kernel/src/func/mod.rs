@@ -4,7 +4,7 @@ use crate::uart::serial_print;
 use acpi_tables::{
     dsdt::Dsdt,
     fadt::Fadt,
-    func::{SLP_EN, SLP_TYP_SHIFT,find_s5_sleep_type},
+    func::{SLP_EN, SLP_TYP_SHIFT, find_s5_sleep_type},
     rsdp::Rsdp,
     sdtheader::SdtHeader,
     xsdt::Xsdt,
@@ -98,9 +98,13 @@ pub fn s5_soft_off() -> ! {
 
                 if &entry_header.signature == b"FACP" {
                     let fadt = &*(entry_ptr as *const Fadt);
-                    let dsdt_ptr = fadt.x_dsdt as *const Dsdt;
-                    let dsdt = dsdt_ptr.read_unaligned();
-                    
+                    let dsdt_addr = if fadt.x_dsdt != 0 {
+                        fadt.x_dsdt as usize
+                    } else {
+                        fadt.dsdt as usize
+                    };
+                    let dsdt = &*(dsdt_addr as *const Dsdt);
+
                     let (slp_typa, slp_typb) = find_s5_sleep_type(dsdt.aml_bytes()).unwrap();
                     let mut a: Port<u16> = Port::new(fadt.pm1a_control_block as u16);
                     a.write(((slp_typa as u16) << SLP_TYP_SHIFT) | SLP_EN);
