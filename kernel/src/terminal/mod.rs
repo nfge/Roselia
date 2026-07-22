@@ -1,5 +1,11 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, serial_println, timer::sleep
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
+    func::{get_time, reset, s5_soft_off},
+    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
+    keyboard::KeyBoard,
+    memory::{get_free, get_used},
+    serial_println,
+    timer::sleep,
 };
 use acpi_tables::{mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
 use alloc::{string::String, vec, vec::Vec};
@@ -15,6 +21,8 @@ pub struct Terminal {
     color: Color,
     width: usize,
     height: usize,
+    cols: usize,
+    rows: usize,
     char_buffer: Vec<Vec<char>>,
     buf_x: usize,
     buf_y: usize,
@@ -24,6 +32,8 @@ pub struct Terminal {
 impl Terminal {
     pub fn new(graphics: Graphics, x: usize, y: usize, scale: usize, color: Color) -> Self {
         let (width, height) = graphics.mode_info.resolution();
+        let cols = width / (8 * scale);
+        let rows = height / (16 * scale);
         Self {
             graphics: graphics,
             keyboard: KeyBoard::new(),
@@ -33,7 +43,9 @@ impl Terminal {
             color: color,
             width: width,
             height: height,
-            char_buffer: vec![vec![' '; width]; height],
+            cols: cols,
+            rows: rows,
+            char_buffer: vec![vec![' '; cols]; rows],
             buf_x: 0,
             buf_y: 0,
             running: false,
@@ -51,18 +63,13 @@ impl Terminal {
                 self.x = 0;
             }
             _ => {
-                if self.buf_x != self.width {
-                    self.graphics
-                        .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
-                    self.x += 8 * self.scale;
-                    self.push(char);
-                } else {
+                if self.buf_x >= self.cols {
                     self.new_line();
-                    self.graphics
-                        .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
-                    self.x += 8 * self.scale;
-                    self.push(char);
                 }
+                self.graphics
+                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
+                self.x += 8 * self.scale;
+                self.push(char);
             }
         }
     }
@@ -76,17 +83,12 @@ impl Terminal {
         self.new_line();
     }
     fn push(&mut self, c: char) {
-        if self.buf_y >= self.height {
+        if self.buf_y >= self.rows || self.buf_x >= self.cols {
             return;
         }
 
         self.char_buffer[self.buf_y][self.buf_x] = c;
         self.buf_x += 1;
-
-        if self.buf_x >= self.width {
-            self.buf_x = 0;
-            self.buf_y += 1;
-        }
     }
     // fn push_command(&mut self, c: char){
     //     if self.cmd_buf_len < self.cmd_buffer.len() {
@@ -95,12 +97,12 @@ impl Terminal {
     //     }
     // }
     pub fn flush_screen(&mut self) {
-        for y in 0..self.graphics.mode_info.resolution().1 {
-            for x in 0..self.graphics.mode_info.resolution().0 {
+        for y in 0..self.height {
+            for x in 0..self.width {
                 self.graphics.draw_pixel(x, y, Color::Black as u32);
             }
         }
-        self.char_buffer = vec![vec![' '; self.width]; self.height];
+        self.char_buffer = vec![vec![' '; self.cols]; self.rows];
         self.buf_x = 0;
         self.buf_y = 0;
         self.x = 0;
@@ -116,17 +118,56 @@ impl Terminal {
     //     self.flush_screen();
     // }
     fn new_line(&mut self) {
-        self.y += 16 * self.scale;
         self.x = 0;
-
         self.buf_x = 0;
-        self.buf_y += 1;
+
+        if self.buf_y + 1 >= self.rows {
+            // Already on the last visible row: scroll everything up
+            // instead of running off the bottom of the screen.
+            self.scroll_up();
+        } else {
+            self.buf_y += 1;
+            self.y += 16 * self.scale;
+        }
+    }
+    /// Drops the top row of `char_buffer`, appends a blank row at the
+    /// bottom, then repaints the whole screen from the buffer. This is
+    /// the "redraw" approach: instead of shifting pixels in the
+    /// framebuffer, we just re-render the known character grid.
+    fn scroll_up(&mut self) {
+        self.char_buffer.remove(0);
+        self.char_buffer.push(vec![' '; self.cols]);
+        self.redraw();
+    }
+    fn redraw(&mut self) {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                self.graphics.draw_pixel(x, y, Color::Black as u32);
+            }
+        }
+
+        for row in 0..self.rows {
+            for col in 0..self.cols {
+                let c = self.char_buffer[row][col];
+                if c != ' ' {
+                    self.graphics.draw_char(
+                        c,
+                        FONT8X16,
+                        col * 8 * self.scale,
+                        row * 16 * self.scale,
+                        self.scale,
+                        self.color,
+                    );
+                }
+            }
+        }
+
+        // Cursor stays pinned to the last visible row after a scroll.
+        self.buf_y = self.rows - 1;
+        self.y = (self.rows - 1) * 16 * self.scale;
     }
     pub fn backspace(&mut self) {
         if self.buf_x == 0 && self.buf_y == 0 {
-            return;
-        }
-        if self.x == 0 {
             return;
         }
 
@@ -135,9 +176,9 @@ impl Terminal {
 
         if self.buf_x == 0 {
             self.buf_y -= 1;
-            self.buf_x = self.width - 1;
+            self.buf_x = self.cols - 1;
             self.y -= char_height;
-            self.x = char_width * (self.height - 1);
+            self.x = char_width * (self.cols - 1);
         } else {
             self.buf_x -= 1;
             self.x -= char_width;
@@ -168,7 +209,7 @@ impl Terminal {
         while self.running {
             if self.keyboard.key_state.get_ctrl() && self.keyboard.key_state.get_shift() {
                 match self.keyboard.get_key() {
-                    Some('c') => {
+                    Some('C') => {
                         self.new_line();
                         self.print_string_ln("Interrupt detected. Reseting...");
                         sleep(1000);
@@ -264,7 +305,14 @@ impl Terminal {
                         self.print_string_ln("Scale must not be less than or equal to 0");
                         return;
                     }
+                    if scale.parse::<usize>().unwrap() >= 12 {
+                        self.print_string_ln("It is not recommended to set scale more than 12");
+                        return;
+                    }
                     self.scale = scale.parse::<usize>().unwrap();
+                    self.cols = self.width / (8 * self.scale);
+                    self.rows = self.height / (16 * self.scale);
+                    self.flush_screen();
                 }
                 "color" => {
                     let color = match args.next() {
@@ -313,7 +361,13 @@ impl Terminal {
                 "resolution" => {
                     let width = self.width;
                     let height = self.height;
-                    let _ = write!(self, "Width: {}. Height: {}", width, height);
+                    let cols = self.cols;
+                    let rows = self.rows;
+                    let _ = write!(
+                        self,
+                        "Width: {}. Height: {} ({}x{} chars)",
+                        width, height, cols, rows
+                    );
                     self.new_line();
                 }
                 "game" => {
@@ -383,12 +437,12 @@ impl Terminal {
                                     let entry = &mcfg.entry(i);
                                     let devices = pci::enumerate(entry);
                                     for device in devices {
-                                        let _ = write!(self, "Bus={}, Device={}, Function={}\n\n", device.bus,device.device,device.function);
-                                        let _ = write!(self, "VendorId=0x{:04X}, DeviceId=0x{:04X}\n\n", device.header.vendor_id as u16, device.header.device_id as u16);
+                                        let (vendor_name, device_name) = pci::check(device.header.vendor_id, device.header.device_id).unwrap_or(("Error or not found", "Error or not found"));
+                                        let _ = write!(self, "Bus: {}, device: {}, function: {}\n", device.bus, device.device, device.function);
+                                        let _ = write!(self, "{:04x} {vendor_name}\n{:04x} {device_name}\n\n", device.header.vendor_id as u16, device.header.device_id as u16);
                                     }
                                 }
                             }
-                            
                         }
                     } else {
                         serial_println!("Root table is not XSDT (found different signature)");
