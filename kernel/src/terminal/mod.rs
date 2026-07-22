@@ -4,9 +4,9 @@ use crate::{
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::KeyBoard,
     memory::{get_free, get_used},
-    serial_println,
     timer::sleep,
 };
+use utils::serial_println;
 use acpi_tables::{mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
 use alloc::{string::String, vec, vec::Vec};
 use core::{fmt::Write, hint::unreachable_unchecked};
@@ -437,7 +437,7 @@ impl Terminal {
                                     let entry = &mcfg.entry(i);
                                     let devices = pci::enumerate(entry);
                                     for device in devices {
-                                        let (vendor_name, device_name) = pci::check(device.header.vendor_id, device.header.device_id).unwrap_or((Some("Error or not found"), Some("Error or not found")));
+                                        let (vendor_name, device_name) = pci::check(device.header.vendor_id, device.header.device_id);
                                         let _ = write!(self, "Bus: {}, device: {}, function: {}\n", device.bus, device.device, device.function);
                                         let _ = write!(self, "{:04x} {}\n{:04x} {}\n\n", device.header.vendor_id as u16, vendor_name.unwrap_or("Error or not found"), device.header.device_id as u16, device_name.unwrap_or("Error or not found"));
                                     }

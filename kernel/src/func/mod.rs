@@ -1,6 +1,5 @@
 use core::panic;
 
-use crate::uart::serial_print;
 use acpi_tables::{
     dsdt::Dsdt,
     fadt::Fadt,
@@ -11,10 +10,12 @@ use acpi_tables::{
 };
 use alloc::format;
 use bootinfo::time::KernelTime;
+use utils::serial_println;
 use x86::io::outb;
 use x86_64::instructions::hlt;
 
-use crate::{ACPI_TABLE, GET_VAR_FN, SET_VAR_FN, TIME_FN, serial_println};
+use crate::{ACPI_TABLE, GET_VAR_FN, SET_VAR_FN, TIME_FN };
+
 
 pub fn reset() -> ! {
     unsafe {

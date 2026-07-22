@@ -1,6 +1,6 @@
 use x86_64::registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags};
 
-use crate::uart::serial_print;
+use utils::uart::serial_print;
 
 pub fn init_sse() {
     use super::cpuinfo::chech_sse_support;

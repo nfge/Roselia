@@ -11,7 +11,8 @@ use x86::{
     msr::{IA32_APIC_BASE, IA32_X2APIC_LVT_TIMER, rdmsr, wrmsr},
 };
 
-use crate::{ACPI_TABLE, serial_println};
+use crate::{ACPI_TABLE};
+use utils::serial_println;
 
 pub fn init_x2apic() {
     unsafe {

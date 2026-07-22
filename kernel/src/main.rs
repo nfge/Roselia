@@ -12,7 +12,7 @@ mod memory;
 mod ramfs;
 mod terminal;
 mod timer;
-mod uart;
+// mod uart;
 use crate::{
     func::reset,
     gop::{color::Color, graphics::Graphics},
@@ -23,6 +23,7 @@ use crate::{
 
 use alloc::boxed::Box;
 use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn}, variable::{GetVar, SetVar}};
+use utils::serial_println;
 use core::{ffi::c_void, panic::PanicInfo};
 
 static mut FB_PTR: Option<*mut u32> = None;

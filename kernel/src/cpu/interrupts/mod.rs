@@ -1,7 +1,8 @@
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
-use crate::{keyboard, kprintln, panic, serial_println, timer};
+use crate::{keyboard, kprintln,timer};
+use utils::serial_println;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {

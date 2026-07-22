@@ -1,6 +1,6 @@
 use x86_64::structures::idt::InterruptStackFrame;
 
-use crate::{cpu, serial_println};
+use crate::{cpu};
 
 
 

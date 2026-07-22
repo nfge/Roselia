@@ -19,6 +19,7 @@ bootinfo={path = "../common/bootinfo"}
 acpi_tables = {path = "../common/acpi_tables"}
 pci={path = "../common/pci"}
 mem={path = "../tools/mem"}
+utils={path = "../utils"}
 linked_list_allocator = "0.10.6"
 # rusttype = {version = "0.9.3",default-features = false, features = ["libm-math"]}
 # libm = "0.2.16"

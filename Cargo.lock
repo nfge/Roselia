@@ -103,6 +103,7 @@ dependencies = [
  "raw-cpuid 11.6.0",
  "spin 0.12.2",
  "uefi",
+ "utils",
  "x86",
  "x86_64",
 ]
@@ -149,6 +150,7 @@ name = "pci"
 version = "0.1.0"
 dependencies = [
  "acpi_tables",
+ "utils",
 ]
 
 [[package]]
@@ -317,6 +319,13 @@ name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+
+[[package]]
+name = "utils"
+version = "0.1.0"
+dependencies = [
+ "x86_64",
+]
 
 [[package]]
 name = "volatile"

@@ -9,8 +9,6 @@ use x86_64::{
     },
 };
 
-use crate::serial_println;
-
 lazy_static! {
     static ref GDT: (
         GlobalDescriptorTable,
