@@ -40,7 +40,7 @@ pub unsafe fn enumerate(entry: &McfgEntry) -> Vec<PciDevice> {
     devices
 }
 
-pub fn check(vendor_id: u16, device_id: u16) -> Option<(&'static str, &'static str)> {
+pub fn check(vendor_id: u16, device_id: u16) -> Option<(Option<&'static str>, Option<&'static str>)> {
     let (mut vendor, mut device): (&str, &str);
     let text = core::str::from_utf8(PCI_IDS).unwrap();
     let mut lines = text.lines();
@@ -60,11 +60,11 @@ pub fn check(vendor_id: u16, device_id: u16) -> Option<(&'static str, &'static s
                 }
 
                 if trimmed.starts_with(format!("{:04x}", device_id).as_str()) {
-                    let device = trimmed[4..].trim();
-                    return Some((vendor, device));
+                    device = trimmed[4..].trim();
+                    return Some((Some(vendor), Some(device)));
                 }
             }
-            return None;
+            return Some((Some(vendor), None));
         }
     }
     None
