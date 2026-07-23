@@ -6,11 +6,11 @@ use crate::{
     memory::{get_free, get_used},
     timer::sleep,
 };
-use utils::serial_println;
-use acpi_tables::{mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
+use acpi_tables::{get_table, mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
 use alloc::{string::String, vec, vec::Vec};
 use core::{fmt::Write, hint::unreachable_unchecked};
 use uefi::{Status, runtime::ResetType};
+use utils::serial_println;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -214,7 +214,7 @@ impl Terminal {
                         self.new_line();
                         self.print_string_ln("Interrupt detected. Reseting...");
                         sleep(1000);
-                        reset();
+                        unsafe {reset()};
                     }
                     _ => {}
                 }
@@ -251,9 +251,9 @@ impl Terminal {
                 "reset" => {
                     self.print_string_ln("Reseting...");
                     sleep(1000);
-                    reset();
+                    unsafe {reset()};
                 }
-                "poweroff" => s5_soft_off(),
+                "poweroff" => unsafe {s5_soft_off()},
                 "flush" => self.flush_screen(),
                 "cpu" => {
                     let cpu = cpu::cpuinfo::get_cpu();
@@ -404,51 +404,33 @@ impl Terminal {
                         }
                     }
                 }
-                "pci" => unsafe {
-                    let rsdp_ptr = ACPI_TABLE.unwrap() as *const Rsdp;
-                    let rsdp = rsdp_ptr.read_unaligned();
-
-                    if &rsdp.signature != b"RSD PTR " {
-                        serial_println!("Invalid RSDP signature");
-                        return;
-                    }
-
-                    let revision = { rsdp.revision };
-                    let root_ptr = if revision >= 2 {
-                        rsdp.xsdt_address as usize as *const core::ffi::c_void
-                    } else {
-                        rsdp.rsdt_address as usize as *const core::ffi::c_void
-                    };
-
-                    let root_header = (root_ptr as *const SdtHeader).read_unaligned();
-
-                    if &root_header.signature == b"XSDT" {
-                        let xsdt = &*(root_ptr as *const Xsdt);
-
-                        let count = xsdt.entry_count();
-                        for i in 0..count {
-                            let entry_addr = xsdt.entry(i);
-                            let entry_ptr = entry_addr as *const core::ffi::c_void;
-                            let entry_header = (entry_ptr as *const SdtHeader).read_unaligned();
-
-                            if &entry_header.signature == b"MCFG" {
-                                let mcfg = &*(entry_ptr as *const Mcfg);
-                                let count = mcfg.entry_count();
-                                for i in 0..count {
-                                    let entry = &mcfg.entry(i);
-                                    let devices = pci::enumerate(entry);
-                                    for device in devices {
-                                        let (vendor_name, device_name) = pci::check(device.header.vendor_id, device.header.device_id);
-                                        let _ = write!(self, "Bus: {}, device: {}, function: {}\n", device.bus, device.device, device.function);
-                                        let _ = write!(self, "{:04x} {}\n{:04x} {}\n\n", device.header.vendor_id as u16, vendor_name.unwrap_or("Not found in pci.ids"), device.header.device_id as u16, device_name.unwrap_or("Not found in pci.ids"));
-                                    }
-                                }
-                            }
+                "pci" => {
+                    let mcfg_ptr =
+                        unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
+                    let mcfg = unsafe { &*mcfg_ptr };
+                    let count = unsafe {mcfg.entry_count()};
+                    for i in 0..count {
+                        let entry = unsafe {&mcfg.entry(i)};
+                        let devices = unsafe {pci::enumerate(entry)};
+                        for device in devices {
+                            let (vendor_name, device_name) =
+                                pci::check(device.header.vendor_id, device.header.device_id);
+                            let _ = write!(
+                                self,
+                                "Bus: {}, device: {}, function: {}\n",
+                                device.bus, device.device, device.function
+                            );
+                            let _ = write!(
+                                self,
+                                "{:04x} {}\n{:04x} {}\n\n",
+                                device.header.vendor_id as u16,
+                                vendor_name.unwrap_or("Not found in pci.ids"),
+                                device.header.device_id as u16,
+                                device_name.unwrap_or("Not found in pci.ids")
+                            );
                         }
-                    } else {
-                        serial_println!("Root table is not XSDT (found different signature)");
                     }
-                },
+                }
                 _ => self.print_string("Command not found\n"),
             },
             None => {
