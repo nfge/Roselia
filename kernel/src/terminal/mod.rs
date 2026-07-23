@@ -204,6 +204,7 @@ impl Terminal {
                 }
             }
         }
+        self.flush_screen();
         self.running = true;
         self.print_char('>');
         while self.running {
@@ -439,7 +440,7 @@ impl Terminal {
                                     for device in devices {
                                         let (vendor_name, device_name) = pci::check(device.header.vendor_id, device.header.device_id);
                                         let _ = write!(self, "Bus: {}, device: {}, function: {}\n", device.bus, device.device, device.function);
-                                        let _ = write!(self, "{:04x} {}\n{:04x} {}\n\n", device.header.vendor_id as u16, vendor_name.unwrap_or("Error or not found"), device.header.device_id as u16, device_name.unwrap_or("Error or not found"));
+                                        let _ = write!(self, "{:04x} {}\n{:04x} {}\n\n", device.header.vendor_id as u16, vendor_name.unwrap_or("Not found in pci.ids"), device.header.device_id as u16, device_name.unwrap_or("Not found in pci.ids"));
                                     }
                                 }
                             }
