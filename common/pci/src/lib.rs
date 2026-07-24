@@ -4,6 +4,7 @@
 extern crate alloc;
 
 use acpi_tables::mcfg::McfgEntry;
+use x86::io::{inl, outl};
 
 use crate::headers::{PciDevice, PciHeader};
 use alloc::{boxed::Box, format, vec::Vec};
@@ -17,7 +18,56 @@ pub unsafe fn read_header(addr: u64) -> PciHeader {
     (addr as *const PciHeader).read_volatile()
 }
 
-pub unsafe fn enumerate(entry: &McfgEntry) -> Vec<PciDevice> {
+pub unsafe fn read_header_legacy(
+    bus: u8,
+    device: u8,
+    function: u8,
+) -> PciHeader {
+    PciHeader {
+        vendor_id: read_u16(bus, device, function, 0x00),
+        device_id: read_u16(bus, device, function, 0x02),
+        command: read_u16(bus, device, function, 0x04),
+        status: read_u16(bus, device, function, 0x06),
+        revision_id: read_u8(bus, device, function, 0x08),
+        prog_if: read_u8(bus, device, function, 0x09),
+        subclass: read_u8(bus, device, function, 0x0A),
+        class_code: read_u8(bus, device, function, 0x0B),
+        cache_line_size: read_u8(bus, device, function, 0x0C),
+        latency_timer: read_u8(bus, device, function, 0x0D),
+        header_type: read_u8(bus, device, function, 0x0E),
+        bist: read_u8(bus, device, function, 0x0F),
+    }
+}
+
+
+pub unsafe fn read_u32(bus: u8, device: u8, function: u8, offset: u8) -> u32 {
+    let address =
+        0x8000_0000u32
+        | ((bus as u32) << 16)
+        | ((device as u32) << 11)
+        | ((function as u32) << 8)
+        | ((offset as u32) & 0xFC);
+
+    outl(0xCF8, address);
+    inl(0xCFC)
+}
+
+pub unsafe fn read_u16(bus: u8, device: u8, function: u8, offset: u8) -> u16 {
+    let value = read_u32(bus, device, function, offset & !0x3);
+
+    let shift = ((offset & 0x2) * 8) as u32;
+    ((value >> shift) & 0xFFFF) as u16
+}
+
+pub unsafe fn read_u8(bus: u8, device: u8, function: u8, offset: u8) -> u8 {
+    let value = read_u32(bus, device, function, offset & !0x3);
+
+    let shift = ((offset & 0x3) * 8) as u32;
+    ((value >> shift) & 0xFF) as u8
+}
+
+
+pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
     let mut devices = Vec::new();
     for bus in entry.start_bus..=entry.end_bus {
         for device in 0..32 {
@@ -28,6 +78,7 @@ pub unsafe fn enumerate(entry: &McfgEntry) -> Vec<PciDevice> {
                     + ((function as u64) << 12);
 
                 let header = unsafe { read_header(addr) };
+
                 if header.vendor_id != 0xFFFF {
                     devices.push(PciDevice {
                         bus,
@@ -41,6 +92,53 @@ pub unsafe fn enumerate(entry: &McfgEntry) -> Vec<PciDevice> {
     }
     devices
 }
+pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
+    let mut devices = Vec::new();
+
+    for bus in 0..=255u8 {
+        for device in 0..32u8 {
+            let value = read_u32(bus, device, 0, 0);
+
+            let vendor_id = (value & 0xFFFF) as u16;
+            let device_id = (value >> 16) as u16;
+
+            if vendor_id == 0xFFFF {
+                continue;
+            }
+            let header = read_header_legacy(bus, device, 0);
+
+            devices.push(PciDevice {
+                bus,
+                device,
+                function: 0,
+                header,
+            });
+
+            if header.header_type & 0x80 != 0 {
+                for function in 1..8u8 {
+                    let value = read_u32(bus, device, function, 0);
+
+                    let vendor_id = (value & 0xFFFF) as u16;
+                    if vendor_id == 0xFFFF {
+                        continue;
+                    }
+
+                    let header = read_header_legacy(bus, device, function);
+
+                    devices.push(PciDevice {
+                        bus,
+                        device,
+                        function,
+                        header,
+                    });
+                }
+            }
+        }
+    }
+
+    devices
+}
+
 
 pub fn check(vendor_id: u16, device_id: u16) -> (Option<&'static str>, Option<&'static str>) {
     let text = core::str::from_utf8(PCI_IDS).unwrap();

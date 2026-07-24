@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 acpi_tables = {path = "../acpi_tables"}
 utils={path = "../../utils"}
+x86 = "0.52.0"

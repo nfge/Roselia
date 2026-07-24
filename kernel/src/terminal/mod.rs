@@ -214,7 +214,7 @@ impl Terminal {
                         self.new_line();
                         self.print_string_ln("Interrupt detected. Reseting...");
                         sleep(1000);
-                        unsafe {reset()};
+                        unsafe { reset() };
                     }
                     _ => {}
                 }
@@ -251,9 +251,9 @@ impl Terminal {
                 "reset" => {
                     self.print_string_ln("Reseting...");
                     sleep(1000);
-                    unsafe {reset()};
+                    unsafe { reset() };
                 }
-                "poweroff" => unsafe {s5_soft_off()},
+                "poweroff" => unsafe { s5_soft_off() },
                 "flush" => self.flush_screen(),
                 "cpu" => {
                     let cpu = cpu::cpuinfo::get_cpu();
@@ -408,26 +408,63 @@ impl Terminal {
                     let mcfg_ptr =
                         unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
                     let mcfg = unsafe { &*mcfg_ptr };
-                    let count = unsafe {mcfg.entry_count()};
+                    let count = unsafe { mcfg.entry_count() };
                     for i in 0..count {
-                        let entry = unsafe {&mcfg.entry(i)};
-                        let devices = unsafe {pci::enumerate(entry)};
-                        for device in devices {
-                            let (vendor_name, device_name) =
-                                pci::check(device.header.vendor_id, device.header.device_id);
-                            let _ = write!(
-                                self,
-                                "Bus: {}, device: {}, function: {}\n",
-                                device.bus, device.device, device.function
-                            );
-                            let _ = write!(
-                                self,
-                                "{:04x} {}\n{:04x} {}\n\n",
-                                device.header.vendor_id as u16,
-                                vendor_name.unwrap_or("Not found in pci.ids"),
-                                device.header.device_id as u16,
-                                device_name.unwrap_or("Not found in pci.ids")
-                            );
+                        let entry = unsafe { &mcfg.entry(i) };
+                        match args.next() {
+                            Some(s) => {
+                                if s.is_empty() {
+                                    return;
+                                }
+                                match s {
+                                    "legacy" => {
+                                        let devices = unsafe { pci::enumerate_legacy() };
+                                        for device in devices {
+                                            let (vendor_name, device_name) = pci::check(
+                                                device.header.vendor_id,
+                                                device.header.device_id,
+                                            );
+                                            let _ = write!(
+                                                self,
+                                                "Bus: {}, device: {}, function: {}\n",
+                                                device.bus, device.device, device.function
+                                            );
+                                            let _ = write!(
+                                                self,
+                                                "{:04x} {}\n{:04x} {}\n\n",
+                                                device.header.vendor_id as u16,
+                                                vendor_name.unwrap_or("Not found in pci.ids"),
+                                                device.header.device_id as u16,
+                                                device_name.unwrap_or("Not found in pci.ids")
+                                            );
+                                        }
+                                    }
+                                    "mcfg" => {
+                                        let devices = unsafe { pci::enumerate_mcfg(entry) };
+                                        for device in devices {
+                                            let (vendor_name, device_name) = pci::check(
+                                                device.header.vendor_id,
+                                                device.header.device_id,
+                                            );
+                                            let _ = write!(
+                                                self,
+                                                "Bus: {}, device: {}, function: {}\n",
+                                                device.bus, device.device, device.function
+                                            );
+                                            let _ = write!(
+                                                self,
+                                                "{:04x} {}\n{:04x} {}\n\n",
+                                                device.header.vendor_id as u16,
+                                                vendor_name.unwrap_or("Not found in pci.ids"),
+                                                device.header.device_id as u16,
+                                                device_name.unwrap_or("Not found in pci.ids")
+                                            );
+                                        }
+                                    }
+                                    _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
+                                }
+                            }
+                            _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
                         }
                     }
                 }
@@ -460,14 +497,6 @@ impl Terminal {
             }
         }
     }
-    // pub fn wait_for_key(&mut self, k: char) -> bool {
-    //     if let Some(key) = self.keyboard.get_key() {
-    //         if key == k { true } else { false }
-    //     } else {
-    //         x86_64::instructions::hlt();
-    //         false
-    //     }
-    // }
     pub fn set_cursor(&mut self, x: usize, y: usize) {
         self.x = x;
         self.y = y;
