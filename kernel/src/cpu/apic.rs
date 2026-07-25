@@ -28,7 +28,6 @@ pub fn init_lapic() {
 }
 
 pub fn init_apic() {
-    x86_64::instructions::interrupts::disable();
 
     let mut apic_base = unsafe { rdmsr(IA32_APIC_BASE) };
 

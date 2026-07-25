@@ -18,7 +18,7 @@ use crate::{
     gop::{color::Color, graphics::Graphics},
     ramfs::RamFs,
     terminal::Terminal,
-    timer::sleep,
+    timer::{sleep},
 };
 
 use alloc::boxed::Box;
@@ -50,13 +50,15 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::gdt::init();
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
+    x86_64::instructions::interrupts::disable();
     cpu::apic::init_apic();
     cpu::apic::init_x2apic();
     cpu::apic::init_ioapic();
     cpu::apic::init_lapic();
+    x86_64::instructions::interrupts::enable();
+    timer::calibrate();
     cpu::sse::init_sse();
     memory::init_heap(&info.memory_map);
-    x86_64::instructions::interrupts::enable();
     
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));

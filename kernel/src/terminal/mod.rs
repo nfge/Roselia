@@ -342,9 +342,11 @@ impl Terminal {
                     };
                     sleep(time.parse::<u64>().unwrap())
                 }
-                "ticks" => {
-                    let time = super::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
-                    let _ = write!(self, "{:?}", time);
+                "uptime" => {
+                    let ticks_per_sec = crate::timer::TICKS_PER_SEC.load(core::sync::atomic::Ordering::Relaxed);
+                    let ticks = crate::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
+                    let seconds = ticks / ticks_per_sec;
+                    let _ = write!(self, "{:?}s\n", seconds);
                 }
                 "panic" => panic!(),
                 "heap" => match args.next() {

@@ -1,32 +1,24 @@
-use core::arch::x86_64::_rdtsc;
+use core::{arch::x86_64::_rdtsc, sync::atomic::Ordering};
 
 // use crate::{cpu::{cpuinfo::get_frequency,read_pit}};
 use x86_64::{instructions::nop};
 
-// pub fn sleep_cpuid(ms: u64) {
-//     let cycles = get_frequency().unwrap_or(0) * ms / 1000;
-//     let start = unsafe { _rdtsc() };
-//     while unsafe { _rdtsc() } - start < cycles {
-//         nop();
-//     }
-    
-// }
+use crate::timer::{TICKS, TICKS_PER_SEC};
 
+pub fn sleep(ms: u64) {
+    let ticks_per_sec = TICKS_PER_SEC.load(Ordering::Relaxed);
+    let target = TICKS.load(Ordering::Relaxed) + (ticks_per_sec * ms) / 1000;
 
-// pub fn sleep(ms:u64){
-//     let start = time_ms();
+    while TICKS.load(Ordering::Relaxed) < target {
+        x86_64::instructions::hlt();
+    }
+}
 
-//     while time_ms() - start < ms {
-//         nop();
-//     } 
-// }
-pub fn sleep(ms:u64){
-    const CYCLES:u64 = 2_100_000;
+pub fn spin_sleep(ms: u64) {
+    let ticks_per_sec = TICKS_PER_SEC.load(Ordering::Relaxed);
+    let target = TICKS.load(Ordering::Relaxed) + (ticks_per_sec * ms) / 1000;
 
-    let start =unsafe {_rdtsc()};
-    let target = start + ms * CYCLES;
-
-    while unsafe { _rdtsc() } < target {
-        nop();
-    } 
+    while TICKS.load(Ordering::Relaxed) < target {
+        core::hint::spin_loop();
+    }
 }
