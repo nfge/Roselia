@@ -10,7 +10,10 @@ use acpi_tables::{get_table, mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt:
 use alloc::{string::String, vec, vec::Vec};
 use core::{fmt::Write, hint::unreachable_unchecked};
 use uefi::{Status, runtime::ResetType};
-use utils::serial_println;
+
+mod command;
+mod parser;
+mod r#enum;
 
 pub struct Terminal {
     graphics: Graphics,
