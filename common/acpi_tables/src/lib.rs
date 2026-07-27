@@ -18,6 +18,7 @@ pub mod madt;
 pub mod mcfg;
 
 pub mod dsdt;
+pub mod ssdt;
 
 pub mod func;
 
