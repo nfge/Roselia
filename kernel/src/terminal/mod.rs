@@ -1,5 +1,11 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, terminal::token::Token, timer::sleep
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
+    func::{get_time, reset, s5_soft_off},
+    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
+    keyboard::KeyBoard,
+    memory::{get_free, get_used},
+    terminal::token::Token,
+    timer::sleep,
 };
 use acpi_tables::{get_table, mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
 use alloc::{string::String, vec, vec::Vec};
@@ -230,123 +236,132 @@ impl Terminal {
         for i in 0..self.buf_x {
             line.push(self.char_buffer[self.buf_y][i]);
         }
-        let tokens = lexer::Lexer::tokenize(&line);
-        let command = parser::Parser::parse(tokens);
+        let command_line = line
+            .split_once('>')
+            .map(|(_, s)| s.trim_start())
+            .unwrap_or(&line);
+        let _ = write!(self, "{command_line}\n");
+        let tokens = lexer::Lexer::tokenize(&command_line);
+        let command = parser::Parser::parse(tokens).unwrap();
         self.new_line();
 
-        match command.unwrap().name.as_str() {
-                "help" => self.print_string(
-                    "Commands: help, info, reset, poweroff, flush, time, date, heap\n",
-                ),
-                "info" => {
-                    let _ = write!(
-                        self,
-                        "Roselia Kernel {} ({})",
-                        env!("CARGO_PKG_VERSION"),
-                        env!("GIT_COMMIT")
-                    );
-                    self.new_line();
-                }
-                "reset" => {
-                    self.print_string_ln("Reseting...");
-                    sleep(1000);
-                    unsafe { reset() };
-                }
-                "poweroff" => unsafe { s5_soft_off() },
-                "flush" => self.flush_screen(),
-                "cpu" => {
-                    let cpu = cpu::cpuinfo::get_cpu();
-                    let cpu_therm = cpu::cpuinfo::get_cpu_therm();
-                    let _ = write!(self, "Vendor: {}\n", cpu.0.unwrap().as_str());
-                    let _ = write!(self, "Model: {}\n", cpu.1.unwrap().as_str());
-                    let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
-                }
-                "print" => {
-                    let text = match command.unwrap().args.first() {
-                        Some(text) => text,
-                        None =>  {self.print_string_ln("Usage: print [str]"); return},
-                    };
-                    self.print_string_ln(text);
-                }
-                "time" => {
-                    let t = get_time();
-                    match t {
-                        Ok(time) => {
-                            let _ = write!(self, "{}:{}:{}\n", time.hour, time.minute, time.second);
-                        }
-                        Err(_) => {
-                            self.print_string_ln("Error during reading rtc");
-                        }
-                    }
-                }
-                "date" => {
-                    let t = get_time();
-                    match t {
-                        Ok(time) => {
-                            let _ = write!(self, "{}-{}-{}\n", time.year, time.month, time.day);
-                        }
-                        Err(_) => {
-                            self.print_string_ln("Error during reading rtc");
-                        }
-                    }
-                }
-                "scale" => {
-                    let scale = match args.next() {
-                        Some(v) => v,
-                        None => {
-                            self.print_string_ln("Usage: scale [value]");
-                            return;
-                        }
-                    };
-                    if scale.parse::<usize>().unwrap() <= 0 {
-                        self.print_string_ln("Scale must not be less than or equal to 0");
+        match command.name.as_str() {
+            "help" => self
+                .print_string("Commands: help, info, reset, poweroff, flush, time, date, heap\n"),
+            "info" => {
+                let _ = write!(
+                    self,
+                    "Roselia Kernel {} ({})",
+                    env!("CARGO_PKG_VERSION"),
+                    env!("GIT_COMMIT")
+                );
+                self.new_line();
+            }
+            "reset" => {
+                self.print_string_ln("Reseting...");
+                sleep(1000);
+                unsafe { reset() };
+            }
+            "poweroff" => unsafe { s5_soft_off() },
+            "flush" => self.flush_screen(),
+            "cpu" => {
+                let cpu = cpu::cpuinfo::get_cpu();
+                let cpu_therm = cpu::cpuinfo::get_cpu_therm();
+                let _ = write!(self, "Vendor: {}\n", cpu.0.unwrap().as_str());
+                let _ = write!(self, "Model: {}\n", cpu.1.unwrap().as_str());
+                let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
+            }
+            "print" => {
+                let text = match command.args.first() {
+                    Some(text) => text,
+                    None => {
+                        self.print_string_ln("Usage: print [str]");
                         return;
                     }
-                    if scale.parse::<usize>().unwrap() >= 12 {
-                        self.print_string_ln("It is not recommended to set scale more than 12");
+                };
+                self.print_string_ln(text);
+            }
+            "time" => {
+                let t = get_time();
+                match t {
+                    Ok(time) => {
+                        let _ = write!(self, "{}:{}:{}\n", time.hour, time.minute, time.second);
+                    }
+                    Err(_) => {
+                        self.print_string_ln("Error during reading rtc");
+                    }
+                }
+            }
+            "date" => {
+                let t = get_time();
+                match t {
+                    Ok(time) => {
+                        let _ = write!(self, "{}-{}-{}\n", time.year, time.month, time.day);
+                    }
+                    Err(_) => {
+                        self.print_string_ln("Error during reading rtc");
+                    }
+                }
+            }
+            "scale" => {
+                let scale = match command.args.first() {
+                    Some(text) => text,
+                    None => {
+                        self.print_string_ln("Usage: scale [value]");
                         return;
                     }
-                    self.scale = scale.parse::<usize>().unwrap();
-                    self.cols = self.width / (8 * self.scale);
-                    self.rows = self.height / (16 * self.scale);
-                    self.flush_screen();
+                };
+                if scale.parse::<usize>().unwrap() <= 0 {
+                    self.print_string_ln("Scale must not be less than or equal to 0");
+                    return;
                 }
-                "color" => {
-                    let color = match args.next() {
-                        Some(v) => v,
-                        None => {
-                            self.print_string_ln("Usage: color [value]");
-                            return;
-                        }
-                    };
-                    match color {
-                        "white" => self.color = Color::White,
-                        "red" => self.color = Color::Red,
-                        "green" => self.color = Color::Green,
-                        "blue" => self.color = Color::Blue,
-                        "black" => self.color = Color::Black,
-                        _ => self.print_string_ln("Color not found"),
+                if scale.parse::<usize>().unwrap() >= 12 {
+                    self.print_string_ln("It is not recommended to set scale more than 12");
+                    return;
+                }
+                self.scale = scale.parse::<usize>().unwrap();
+                self.cols = self.width / (8 * self.scale);
+                self.rows = self.height / (16 * self.scale);
+                self.flush_screen();
+            }
+            "color" => {
+                let color = match command.args.first() {
+                    Some(text) => text.as_str(),
+                    None => {
+                        self.print_string_ln("Usage: color [value]");
+                        return;
                     }
+                };
+                match color {
+                    "white" => self.color = Color::White,
+                    "red" => self.color = Color::Red,
+                    "green" => self.color = Color::Green,
+                    "blue" => self.color = Color::Blue,
+                    "black" => self.color = Color::Black,
+                    _ => self.print_string_ln("Color not found"),
                 }
-                "sleep" => {
-                    let time = match args.next() {
-                        Some(v) => v,
-                        None => {
-                            self.print_string_ln("Usage: sleep [value in ms]");
-                            return;
-                        }
-                    };
-                    sleep(time.parse::<u64>().unwrap())
-                }
-                "uptime" => {
-                    let ticks_per_sec = crate::timer::TICKS_PER_SEC.load(core::sync::atomic::Ordering::Relaxed);
-                    let ticks = crate::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
-                    let seconds = ticks / ticks_per_sec;
-                    let _ = write!(self, "{:?}s\n", seconds);
-                }
-                "panic" => panic!(),
-                "heap" => match args.next() {
-                    Some(f) => match f {
+            }
+            "sleep" => {
+                let time = match command.args.first() {
+                    Some(text) => text,
+                    None => {
+                        self.print_string_ln("Usage: sleep [value in ms]");
+                        return;
+                    }
+                };
+                sleep(time.parse::<u64>().unwrap())
+            }
+            "uptime" => {
+                let ticks_per_sec =
+                    crate::timer::TICKS_PER_SEC.load(core::sync::atomic::Ordering::Relaxed);
+                let ticks = crate::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
+                let seconds = ticks / ticks_per_sec;
+                let _ = write!(self, "{:?}s\n", seconds);
+            }
+            "panic" => panic!(),
+            "heap" => {
+                match command.args.first() {
+                    Some(text) => match text.as_str() {
                         "free" => {
                             let _ = write!(self, "Free memory: {}KB\n", get_free() / 1024);
                         }
@@ -355,120 +370,120 @@ impl Terminal {
                         }
                         _ => self.print_string_ln("Usage: heap [free || used]"),
                     },
-                    None => self.print_string_ln("Usage: heap [free || used]"),
-                },
-                "resolution" => {
-                    let width = self.width;
-                    let height = self.height;
-                    let cols = self.cols;
-                    let rows = self.rows;
-                    let _ = write!(
-                        self,
-                        "Width: {}. Height: {} ({}x{} chars)",
-                        width, height, cols, rows
-                    );
-                    self.new_line();
+                    None => self.print_string_ln("Usage: heap [free || used]")
                 }
-                "game" => {
-                    let mut x = self.x;
-                    let key_x: usize = 96;
-
-                    loop {
-                        self.set_cursor(key_x, self.y);
-                        self.print_string("K");
-                        self.set_cursor(x, self.y);
-                        match self.keyboard.get_key() {
-                            Some('w') => {
-                                self.clear_line();
-                                x += 8;
-                                self.set_cursor(x, self.y);
-                                self.print_string("P");
-                            }
-                            Some('s') => {
-                                self.clear_line();
-                                x -= 8;
-                                self.set_cursor(x, self.y);
-                                self.print_string("P");
-                            }
-                            Some('z') => break,
-                            _ => {
-                                x86_64::instructions::hlt();
-                            }
-                        }
-                        if x == key_x {
-                            self.new_line();
-                            self.print_string_ln("You win");
-                            break;
-                        }
-                    }
-                }
-                "pci" => {
-                    let mcfg_ptr =
-                        unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
-                    let mcfg = unsafe { &*mcfg_ptr };
-                    let count = unsafe { mcfg.entry_count() };
-                    for i in 0..count {
-                        let entry = unsafe { &mcfg.entry(i) };
-                        match args.next() {
-                            Some(s) => {
-                                if s.is_empty() {
-                                    return;
-                                }
-                                match s {
-                                    "legacy" => {
-                                        let devices = unsafe { pci::enumerate_legacy() };
-                                        for device in devices {
-                                            let (vendor_name, device_name) = pci::check(
-                                                device.header.vendor_id,
-                                                device.header.device_id,
-                                            );
-                                            let _ = write!(
-                                                self,
-                                                "Bus: {}, device: {}, function: {}\n",
-                                                device.bus, device.device, device.function
-                                            );
-                                            let _ = write!(
-                                                self,
-                                                "{:04x} {}\n{:04x} {}\n\n",
-                                                device.header.vendor_id as u16,
-                                                vendor_name.unwrap_or("Not found in pci.ids"),
-                                                device.header.device_id as u16,
-                                                device_name.unwrap_or("Not found in pci.ids")
-                                            );
-                                        }
-                                    }
-                                    "mcfg" => {
-                                        let devices = unsafe { pci::enumerate_mcfg(entry) };
-                                        for device in devices {
-                                            let (vendor_name, device_name) = pci::check(
-                                                device.header.vendor_id,
-                                                device.header.device_id,
-                                            );
-                                            let _ = write!(
-                                                self,
-                                                "Bus: {}, device: {}, function: {}\n",
-                                                device.bus, device.device, device.function
-                                            );
-                                            let _ = write!(
-                                                self,
-                                                "{:04x} {}\n{:04x} {}\n\n",
-                                                device.header.vendor_id as u16,
-                                                vendor_name.unwrap_or("Not found in pci.ids"),
-                                                device.header.device_id as u16,
-                                                device_name.unwrap_or("Not found in pci.ids")
-                                            );
-                                        }
-                                    }
-                                    _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
-                                }
-                            }
-                            _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
-                        }
-                    }
-                }
-                _ => self.print_string("Command not found\n"),
             }
+            "resolution" => {
+                let width = self.width;
+                let height = self.height;
+                let cols = self.cols;
+                let rows = self.rows;
+                let _ = write!(
+                    self,
+                    "Width: {}. Height: {} ({}x{} chars)",
+                    width, height, cols, rows
+                );
+                self.new_line();
+            }
+            "game" => {
+                let mut x = self.x;
+                let key_x: usize = 96;
+
+                loop {
+                    self.set_cursor(key_x, self.y);
+                    self.print_string("K");
+                    self.set_cursor(x, self.y);
+                    match self.keyboard.get_key() {
+                        Some('w') => {
+                            self.clear_line();
+                            x += 8;
+                            self.set_cursor(x, self.y);
+                            self.print_string("P");
+                        }
+                        Some('s') => {
+                            self.clear_line();
+                            x -= 8;
+                            self.set_cursor(x, self.y);
+                            self.print_string("P");
+                        }
+                        Some('z') => break,
+                        _ => {
+                            x86_64::instructions::hlt();
+                        }
+                    }
+                    if x == key_x {
+                        self.new_line();
+                        self.print_string_ln("You win");
+                        break;
+                    }
+                }
+            }
+            "pci" => {
+                let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
+                let mcfg = unsafe { &*mcfg_ptr };
+                let count = unsafe { mcfg.entry_count() };
+                for i in 0..count {
+                    let entry = unsafe { &mcfg.entry(i) };
+                    match command.args.first() {
+                        Some(s) => {
+                            if s.is_empty() {
+                                return;
+                            }
+                            match s.as_str() {
+                                "legacy" => {
+                                    let devices = unsafe { pci::enumerate_legacy() };
+                                    for device in devices {
+                                        let (vendor_name, device_name) = pci::check(
+                                            device.header.vendor_id,
+                                            device.header.device_id,
+                                        );
+                                        let _ = write!(
+                                            self,
+                                            "Bus: {}, device: {}, function: {}\n",
+                                            device.bus, device.device, device.function
+                                        );
+                                        let _ = write!(
+                                            self,
+                                            "{:04x} {}\n{:04x} {}\n\n",
+                                            device.header.vendor_id as u16,
+                                            vendor_name.unwrap_or("Not found in pci.ids"),
+                                            device.header.device_id as u16,
+                                            device_name.unwrap_or("Not found in pci.ids")
+                                        );
+                                    }
+                                }
+                                "mcfg" => {
+                                    let devices = unsafe { pci::enumerate_mcfg(entry) };
+                                    for device in devices {
+                                        let (vendor_name, device_name) = pci::check(
+                                            device.header.vendor_id,
+                                            device.header.device_id,
+                                        );
+                                        let _ = write!(
+                                            self,
+                                            "Bus: {}, device: {}, function: {}\n",
+                                            device.bus, device.device, device.function
+                                        );
+                                        let _ = write!(
+                                            self,
+                                            "{:04x} {}\n{:04x} {}\n\n",
+                                            device.header.vendor_id as u16,
+                                            vendor_name.unwrap_or("Not found in pci.ids"),
+                                            device.header.device_id as u16,
+                                            device_name.unwrap_or("Not found in pci.ids")
+                                        );
+                                    }
+                                }
+                                _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
+                            }
+                        }
+                        _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
+                    }
+                }
+            }
+            _ => self.print_string("Command not found\n"),
         }
+    }
     fn handle_keyboard(&mut self, char: char) {
         match char {
             '\n' => {
