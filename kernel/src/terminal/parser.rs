@@ -1,12 +1,12 @@
 use alloc::{string::ToString, vec::Vec};
 
-use crate::terminal::{command::Command, token::Token};
+use crate::{kprintln, terminal::{command::Command, token::Token}};
 
 pub struct Parser;
 
 impl Parser {
     pub fn parse(tokens: Vec<Token>) -> Option<Command> {
-        let mut  t_iter = tokens.into_iter();
+        let mut t_iter = tokens.into_iter();
         let mut args = Vec::new();
         let name = match t_iter.next()? {
             Token::Word(name) => name,

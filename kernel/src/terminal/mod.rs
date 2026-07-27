@@ -4,13 +4,12 @@ use crate::{
     gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
     keyboard::KeyBoard,
     memory::{get_free, get_used},
-    terminal::token::Token,
+    terminal::{command::Command, token::Token},
     timer::sleep,
 };
-use acpi_tables::{get_table, mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
-use alloc::{string::String, vec, vec::Vec};
-use core::{fmt::Write, hint::unreachable_unchecked};
-use uefi::{Status, runtime::ResetType};
+use acpi_tables::{get_table, mcfg::Mcfg};
+use alloc::{string::{String, ToString}, vec::{Vec}, vec};
+use core::{fmt::Write};
 
 mod command;
 mod lexer;
@@ -240,9 +239,8 @@ impl Terminal {
             .split_once('>')
             .map(|(_, s)| s.trim_start())
             .unwrap_or(&line);
-        let _ = write!(self, "{command_line}\n");
         let tokens = lexer::Lexer::tokenize(&command_line);
-        let command = parser::Parser::parse(tokens).unwrap();
+        let command = parser::Parser::parse(tokens).unwrap_or(Command::new(" ".to_string(), Vec::new()));
         self.new_line();
 
         match command.name.as_str() {
@@ -271,11 +269,11 @@ impl Terminal {
                 let _ = write!(self, "Model: {}\n", cpu.1.unwrap().as_str());
                 let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
             }
-            "print" => {
+            "echo" => {
                 let text = match command.args.first() {
                     Some(text) => text,
                     None => {
-                        self.print_string_ln("Usage: print [str]");
+                        self.print_string_ln("Usage: echo [str]");
                         return;
                     }
                 };
