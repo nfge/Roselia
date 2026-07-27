@@ -1,10 +1,5 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
-    func::{get_time, reset, s5_soft_off},
-    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
-    keyboard::KeyBoard,
-    memory::{get_free, get_used},
-    timer::sleep,
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, terminal::token::Token, timer::sleep
 };
 use acpi_tables::{get_table, mcfg::Mcfg, rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
 use alloc::{string::String, vec, vec::Vec};
@@ -12,8 +7,9 @@ use core::{fmt::Write, hint::unreachable_unchecked};
 use uefi::{Status, runtime::ResetType};
 
 mod command;
+mod lexer;
 mod parser;
-mod r#enum;
+mod token;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -230,15 +226,15 @@ impl Terminal {
         }
     }
     fn handle_command(&mut self) {
-        let mut lines: String = String::new();
+        let mut line: String = String::new();
         for i in 0..self.buf_x {
-            lines.push(self.char_buffer[self.buf_y][i]);
+            line.push(self.char_buffer[self.buf_y][i]);
         }
-        let mut args = lines.as_str().split_whitespace();
+        let tokens = lexer::Lexer::tokenize(&line);
+        let command = parser::Parser::parse(tokens);
         self.new_line();
 
-        match args.next() {
-            Some(v) => match v {
+        match command.unwrap().name.as_str() {
                 "help" => self.print_string(
                     "Commands: help, info, reset, poweroff, flush, time, date, heap\n",
                 ),
@@ -266,12 +262,9 @@ impl Terminal {
                     let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
                 }
                 "print" => {
-                    let text = match args.next() {
-                        Some(v) => v,
-                        None => {
-                            self.print_string_ln("Usage: print [str]");
-                            return;
-                        }
+                    let text = match command.unwrap().args.first() {
+                        Some(text) => text,
+                        None =>  {self.print_string_ln("Usage: print [str]"); return},
                     };
                     self.print_string_ln(text);
                 }
@@ -474,12 +467,8 @@ impl Terminal {
                     }
                 }
                 _ => self.print_string("Command not found\n"),
-            },
-            None => {
-                return;
             }
         }
-    }
     fn handle_keyboard(&mut self, char: char) {
         match char {
             '\n' => {
