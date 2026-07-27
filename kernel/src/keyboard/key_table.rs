@@ -11,6 +11,9 @@ impl KeyTable {
         for key in SCANCODE_TABLE {
             if key.scancode == scancode {
                 if state.shift {
+                    if key.letter == '\'' {
+                        return '"';
+                    }
                     return key.letter.to_ascii_uppercase();
                 } else {
                     return key.letter;
