@@ -1,13 +1,7 @@
 use core::panic;
 
 use acpi_tables::{
-    dsdt::Dsdt,
-    fadt::Fadt,
-    func::{SLP_EN, SLP_TYP_SHIFT, find_s5_sleep_type},
-    get_table,
-    rsdp::Rsdp,
-    sdtheader::SdtHeader,
-    xsdt::Xsdt,
+    dsdt::Dsdt, fadt::Fadt, func::{SLP_EN, SLP_TYP_SHIFT, find_s5_sleep_type}, get_table, get_tables, rsdp::Rsdp, sdtheader::SdtHeader, ssdt::Ssdt, xsdt::Xsdt
 };
 use alloc::format;
 use bootinfo::time::KernelTime;
@@ -44,14 +38,31 @@ pub unsafe fn s5_soft_off() -> ! {
     } else {
         fadt.dsdt as usize
     };
-    let dsdt = unsafe {&*(dsdt_addr as *const Dsdt)};
+    let dsdt = unsafe { &*(dsdt_addr as *const Dsdt) };
 
-    let (slp_typa, slp_typb) = find_s5_sleep_type(unsafe {dsdt.aml_bytes()}).unwrap();
+    let mut s5_types = None;
+
+    if let Some(types) = find_s5_sleep_type(dsdt.aml_bytes()) {
+        s5_types = Some(types);
+    }
+
+    if s5_types.is_none() {
+        for ssdt_ptr in get_tables::<SdtHeader>(ACPI_TABLE.unwrap(), b"SSDT") {
+            let ssdt = &*(ssdt_ptr as *const Ssdt);
+
+            if let Some(types) = find_s5_sleep_type(ssdt.aml_bytes()) {
+                s5_types = Some(types);
+                break;
+            }
+        }
+    }
+
+    let (slp_typa, slp_typb) = s5_types.unwrap();
     let mut a: Port<u16> = Port::new(fadt.pm1a_control_block as u16);
-    unsafe {a.write(((slp_typa as u16) << SLP_TYP_SHIFT) | SLP_EN)};
+    unsafe { a.write(((slp_typa as u16) << SLP_TYP_SHIFT) | SLP_EN) };
     if fadt.pm1b_control_block != 0 {
         let mut b: Port<u16> = Port::new(fadt.pm1b_control_block as u16);
-        unsafe {b.write(((slp_typb as u16) << SLP_TYP_SHIFT) | SLP_EN)};
+        unsafe { b.write(((slp_typb as u16) << SLP_TYP_SHIFT) | SLP_EN) };
     }
     loop {
         hlt();
