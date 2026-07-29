@@ -126,18 +126,12 @@ impl Terminal {
         self.buf_x = 0;
 
         if self.buf_y + 1 >= self.rows {
-            // Already on the last visible row: scroll everything up
-            // instead of running off the bottom of the screen.
             self.scroll_up();
         } else {
             self.buf_y += 1;
             self.y += 16 * self.scale;
         }
     }
-    /// Drops the top row of `char_buffer`, appends a blank row at the
-    /// bottom, then repaints the whole screen from the buffer. This is
-    /// the "redraw" approach: instead of shifting pixels in the
-    /// framebuffer, we just re-render the known character grid.
     fn scroll_up(&mut self) {
         self.char_buffer.remove(0);
         self.char_buffer.push(vec![' '; self.cols]);
@@ -165,8 +159,6 @@ impl Terminal {
                 }
             }
         }
-
-        // Cursor stays pinned to the last visible row after a scroll.
         self.buf_y = self.rows - 1;
         self.y = (self.rows - 1) * 16 * self.scale;
     }

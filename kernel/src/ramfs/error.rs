@@ -1,4 +1,6 @@
 #[derive(Debug)]
 pub enum Error {
-    NotFound
+    NotFound,
+    NotDirectory,
+    AlreadyExists
 }
