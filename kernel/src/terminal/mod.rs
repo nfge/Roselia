@@ -1,11 +1,5 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
-    func::{get_time, reset, s5_soft_off},
-    gop::{color::Color, fonts::font8x16::FONT8X16, fonts::VGA_FONT, graphics::Graphics},
-    keyboard::KeyBoard,
-    memory::{get_free, get_used},
-    terminal::{command::Command, token::Token},
-    timer::sleep,
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::{VGA_FONT, font8x16::FONT8X16}, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, ramfs::{create_file, mkdir, read_file, write_file}, terminal::{command::Command, token::Token}, timer::sleep
 };
 use acpi_tables::{get_table, mcfg::Mcfg};
 use alloc::{string::{String, ToString}, vec::{Vec}, vec};

@@ -3,6 +3,8 @@ mod error;
 mod node;
 mod types;
 
+use core::ptr::slice_from_raw_parts;
+
 use alloc::{boxed::Box, string::String, vec::Vec};
 use error::Error;
 
@@ -77,16 +79,30 @@ impl RamFs {
         Ok(id)
     }
     pub fn read(&self, path: &str) -> Result<&Vec<u8>, Error> {
-        let nodeid = self.resolve_path(path)?;
-        let node: &Node = &self.nodes[nodeid];
+        let node_id = self.resolve_path(path)?;
+        let node: &Node = &self.nodes[node_id];
         if node.node_type != NodeType::File {
-            return Err(Error::NotFile)
+            return Err(Error::NotFile);
         }
         Ok(&node.data)
     }
-    pub fn write(&mut self, path: &str, data: &[u8]) -> Result<(), Error> {
+    pub fn write(&mut self, path: &str, offset: usize, data: &[u8]) -> Result<(), Error> {
+        let node_id = self.resolve_path(path)?;
+        let node: &mut Node = &mut self.nodes[node_id];
+        if node.node_type != NodeType::File {
+            return Err(Error::NotFile);
+        }
+
+        let end = offset.checked_add(data.len()).ok_or(Error::InvalidOffset)?;
+
+        if node.data.len() < end {
+            node.data.resize(end, 0);
+        }
+        node.data[offset..end].copy_from_slice(data);
+
         Ok(())
     }
+
     fn split_path<'a>(path: &'a str) -> Result<(&'a str, &'a str), Error> {
         let path = path.trim_end_matches('/');
 
@@ -132,17 +148,37 @@ impl RamFs {
     }
 }
 
-pub fn create_file(path: &str) {
+pub fn create_file(path: &str) -> Result<(), Error> {
     unsafe {
         if !RAMFS.is_null() {
-            (*RAMFS).create_file(path);
+            (*RAMFS).create_file(path)?;
+        }
+    }
+    Ok(())
+}
+pub fn mkdir(path: &str) -> Result<(), Error> {
+    unsafe {
+        if !RAMFS.is_null() {
+            (*RAMFS).mkdir(path)?;
+        }
+    }
+    Ok(())
+}
+pub fn read_file(path: &str) -> Result<&Vec<u8>, Error> {
+    unsafe {
+        if !RAMFS.is_null() {
+            let data = (*RAMFS).read(path)?;
+            return Ok(data);
+        } else {
+            return Err(Error::Null);
         }
     }
 }
-pub fn mkdir(path: &str) {
+pub fn write_file(path: &str, offset: usize, data: &[u8]) -> Result<(), Error> {
     unsafe {
         if !RAMFS.is_null() {
-            (*RAMFS).mkdir(path);
+            let _ = (*RAMFS).write(path, offset, data)?;
         }
     }
+    Ok(())
 }

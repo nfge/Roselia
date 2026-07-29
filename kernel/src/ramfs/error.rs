@@ -5,4 +5,6 @@ pub enum Error {
     NotFile,
     AlreadyExists,
     InvalidPath,
+    InvalidOffset,
+    Null
 }
