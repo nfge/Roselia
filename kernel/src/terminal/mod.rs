@@ -1,7 +1,7 @@
 use crate::{
     ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
     func::{get_time, reset, s5_soft_off},
-    gop::{color::Color, fonts::font8x16::FONT8X16, graphics::Graphics},
+    gop::{color::Color, fonts::font8x16::FONT8X16, fonts::VGA_FONT, graphics::Graphics},
     keyboard::KeyBoard,
     memory::{get_free, get_used},
     terminal::{command::Command, token::Token},
@@ -60,7 +60,7 @@ impl Terminal {
             '\n' => self.new_line(),
             '>' => {
                 self.graphics
-                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
+                    .draw_char(char, VGA_FONT, self.x, self.y, self.scale, self.color);
                 self.x += 8 * self.scale;
             }
             '\r' => {
@@ -71,7 +71,7 @@ impl Terminal {
                     self.new_line();
                 }
                 self.graphics
-                    .draw_char(char, FONT8X16, self.x, self.y, self.scale, self.color);
+                    .draw_char(char, VGA_FONT, self.x, self.y, self.scale, self.color);
                 self.x += 8 * self.scale;
                 self.push(char);
             }
@@ -156,7 +156,7 @@ impl Terminal {
                 if c != ' ' {
                     self.graphics.draw_char(
                         c,
-                        FONT8X16,
+                        VGA_FONT,
                         col * 8 * self.scale,
                         row * 16 * self.scale,
                         self.scale,
