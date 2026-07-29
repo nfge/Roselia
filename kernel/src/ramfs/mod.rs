@@ -28,7 +28,67 @@ impl RamFs {
             root: 0,
         }
     }
-    pub fn create(&mut self, path: &str) -> Result<(), Error> {
+    pub fn create_file(&mut self, path: &str) -> Result<(), Error> {
+        let (parent_path, name) = Self::split_path(path)?;
+
+        let parent = self.resolve_path(parent_path)?;
+
+        let parent_node = &self.nodes[parent];
+
+        for &child_id in &parent_node.children {
+            if self.nodes[child_id].name == name {
+                return Err(Error::AlreadyExists);
+            }
+        }
+
+        let id = self.nodes.len();
+
+        let node = Node::new(name, NodeType::File, Some(parent));
+
+        self.nodes.push(node);
+        self.nodes[parent].children.push(id);
+
+        Ok(())
+    }
+    pub fn mkdir(&mut self, path: &str) -> Result<(), Error> {
+       let (parent_path, name) = Self::split_path(path)?;
+
+        let parent = self.resolve_path(parent_path)?;
+
+        let parent_node = &self.nodes[parent];
+
+        for &child_id in &parent_node.children {
+            if self.nodes[child_id].name == name {
+                return Err(Error::AlreadyExists);
+            }
+        }
+
+        let id = self.nodes.len();
+
+        let node = Node::new(name, NodeType::Directory, Some(parent));
+
+        self.nodes.push(node);
+        self.nodes[parent].children.push(id);
+
+        Ok(())
+    }
+    // pub fn open(path: &str) -> Result<NodeId, Error> {
+    //     Ok()
+    // }
+    fn split_path<'a>(path: &'a str) -> Result<(&'a str, &'a str), Error> {
+        let path = path.trim_end_matches('/');
+
+        if path.is_empty() {
+            return Err(Error::InvalidPath);
+        }
+
+        match path.rsplit_once('/') {
+            Some(("", name)) => Ok(("/", name)),
+            Some((parent, name)) => Ok((parent, name)),
+            None => Err(Error::InvalidPath),
+        }
+    }
+    fn resolve_path(&self, path: &str) -> Result<NodeId, Error> {
         let parts: Vec<_> = path.split('/').filter(|s| !s.is_empty()).collect();
 
         let mut current = self.root;
@@ -47,87 +107,23 @@ impl RamFs {
                     if !is_last && child.node_type != NodeType::Directory {
                         return Err(Error::NotDirectory);
                     }
-                    if is_last {
-                        return Err(Error::AlreadyExists);
-                    }
                     found = Some(child_id);
                     break;
                 }
             }
-
             match found {
-                Some(id) => {
-                    current = id;
-                }
-                None => {
-                    let id = self.nodes.len();
-
-                    let node_type = if is_last {
-                        types::NodeType::File
-                    } else {
-                        types::NodeType::Directory
-                    };
-
-                    let node = Node::new(part, node_type, Some(current));
-
-                    self.nodes.push(node);
-                    self.nodes[current].children.push(id);
-
-                    current = id;
-                }
+                Some(id) => current = id,
+                None => return Err(Error::NotFound),
             }
         }
-        Ok(())
-    }
-    pub fn mkdir(&mut self, path: &str) -> Result<(), Error> {
-        let mut current: NodeId = self.root;
-
-        for part in path.split('/') {
-            if part.is_empty() {
-                continue;
-            }
-
-            let mut found = None;
-
-            let current_node = &self.nodes[current];
-
-            for &child_id in &current_node.children {
-                let child = &self.nodes[child_id];
-
-                if child.name == part {
-                    found = Some(child_id);
-                    break;
-                }
-            }
-
-            match found {
-                Some(id) => {
-                    current = id;
-                }
-                None => {
-                    let id = self.nodes.len();
-
-                    let node = Node::new(part, types::NodeType::Directory, Some(current));
-
-                    self.nodes.push(node);
-                    self.nodes[current].children.push(id);
-
-                    current = id;
-                }
-            }
-        }
-        Ok(())
-    }
-    pub fn open(path: &str) -> Result<(),Error>{
-        
-        Ok(())
+        Ok(current)
     }
 }
 
 pub fn create_file(path: &str) {
     unsafe {
         if !RAMFS.is_null() {
-            (*RAMFS).create(path);
+            (*RAMFS).create_file(path);
         }
     }
 }
