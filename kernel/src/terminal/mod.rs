@@ -52,11 +52,6 @@ impl Terminal {
     pub fn print_char(&mut self, char: char) {
         match char {
             '\n' => self.new_line(),
-            '>' => {
-                self.graphics
-                    .draw_char(char, VGA_FONT, self.x, self.y, self.scale, self.color);
-                self.x += 8 * self.scale;
-            }
             '\r' => {
                 self.x = 0;
             }
