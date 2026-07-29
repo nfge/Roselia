@@ -2,6 +2,7 @@
 pub enum Error {
     NotFound,
     NotDirectory,
+    NotFile,
     AlreadyExists,
-    InvalidPath
+    InvalidPath,
 }

@@ -51,7 +51,7 @@ impl RamFs {
         Ok(())
     }
     pub fn mkdir(&mut self, path: &str) -> Result<(), Error> {
-       let (parent_path, name) = Self::split_path(path)?;
+        let (parent_path, name) = Self::split_path(path)?;
 
         let parent = self.resolve_path(parent_path)?;
 
@@ -72,9 +72,21 @@ impl RamFs {
 
         Ok(())
     }
-    // pub fn open(path: &str) -> Result<NodeId, Error> {
-    //     Ok()
-    // }
+    pub fn open(&self, path: &str) -> Result<NodeId, Error> {
+        let id = self.resolve_path(path)?;
+        Ok(id)
+    }
+    pub fn read(&self, path: &str) -> Result<&Vec<u8>, Error> {
+        let nodeid = self.resolve_path(path)?;
+        let node: &Node = &self.nodes[nodeid];
+        if node.node_type != NodeType::File {
+            return Err(Error::NotFile)
+        }
+        Ok(&node.data)
+    }
+    pub fn write(&mut self, path: &str, data: &[u8]) -> Result<(), Error> {
+        Ok(())
+    }
     fn split_path<'a>(path: &'a str) -> Result<(&'a str, &'a str), Error> {
         let path = path.trim_end_matches('/');
 
