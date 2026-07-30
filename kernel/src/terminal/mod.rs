@@ -1,9 +1,25 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu, func::{get_time, reset, s5_soft_off}, gop::{color::Color, fonts::{VGA_FONT, font8x16::FONT8X16}, graphics::Graphics}, keyboard::KeyBoard, memory::{get_free, get_used}, ramfs::{create_file, mkdir, read_file, write_file}, terminal::{command::Command, token::Token}, timer::sleep
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
+    func::{get_time, reset, s5_soft_off},
+    gop::{
+        color::Color,
+        fonts::{VGA_FONT, font8x16::FONT8X16},
+        graphics::Graphics,
+    },
+    keyboard::KeyBoard,
+    log,
+    memory::{get_free, get_used},
+    ramfs::{create_file, mkdir, read_file, write_file},
+    terminal::{command::Command, token::Token},
+    timer::sleep,
 };
 use acpi_tables::{get_table, mcfg::Mcfg};
-use alloc::{string::{String, ToString}, vec::{Vec}, vec};
-use core::{fmt::Write};
+use alloc::{
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt::Write;
 
 mod command;
 mod lexer;
@@ -221,9 +237,10 @@ impl Terminal {
             .map(|(_, s)| s.trim_start())
             .unwrap_or(&line);
         let tokens = lexer::Lexer::tokenize(&command_line);
-        let command = parser::Parser::parse(tokens).unwrap_or(Command::new(" ".to_string(), Vec::new()));
+        let command =
+            parser::Parser::parse(tokens).unwrap_or(Command::new(" ".to_string(), Vec::new()));
         self.new_line();
-
+        if command.name == " " {return};
         match command.name.as_str() {
             "help" => self
                 .print_string("Commands: help, info, reset, poweroff, flush, time, date, heap\n"),
@@ -338,20 +355,18 @@ impl Terminal {
                 let _ = write!(self, "{:?}s\n", seconds);
             }
             "panic" => panic!(),
-            "heap" => {
-                match command.args.first() {
-                    Some(text) => match text.as_str() {
-                        "free" => {
-                            let _ = write!(self, "Free memory: {}KB\n", get_free() / 1024);
-                        }
-                        "used" => {
-                            let _ = write!(self, "Used memory: {}KB\n", get_used() / 1024);
-                        }
-                        _ => self.print_string_ln("Usage: heap [free || used]"),
-                    },
-                    None => self.print_string_ln("Usage: heap [free || used]")
-                }
-            }
+            "heap" => match command.args.first() {
+                Some(text) => match text.as_str() {
+                    "free" => {
+                        let _ = write!(self, "Free memory: {}KB\n", get_free() / 1024);
+                    }
+                    "used" => {
+                        let _ = write!(self, "Used memory: {}KB\n", get_used() / 1024);
+                    }
+                    _ => self.print_string_ln("Usage: heap [free || used]"),
+                },
+                None => self.print_string_ln("Usage: heap [free || used]"),
+            },
             "resolution" => {
                 let width = self.width;
                 let height = self.height;

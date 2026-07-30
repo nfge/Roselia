@@ -12,13 +12,14 @@ mod memory;
 mod ramfs;
 mod terminal;
 mod timer;
+mod logger;
 // mod uart;
 use crate::{
     func::reset,
     gop::{color::Color, graphics::Graphics},
-    ramfs::RamFs,
+    ramfs::{RamFs, create_file, mkdir},
     terminal::Terminal,
-    timer::{sleep},
+    timer::sleep,
 };
 
 use alloc::boxed::Box;
@@ -62,6 +63,8 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
+        let _ = mkdir("/kernel").unwrap();
+        let _ = create_file("/kernel/log").unwrap();
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
             Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info),
             0,

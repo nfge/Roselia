@@ -102,7 +102,10 @@ impl RamFs {
 
         Ok(())
     }
-
+    pub fn is_valid(&self, path: &str) -> Result<(), Error> {
+        let node_id = self.resolve_path(path)?;
+        Ok(())
+    }
     fn split_path<'a>(path: &'a str) -> Result<(&'a str, &'a str), Error> {
         let path = path.trim_end_matches('/');
 
@@ -178,6 +181,15 @@ pub fn write_file(path: &str, offset: usize, data: &[u8]) -> Result<(), Error> {
     unsafe {
         if !RAMFS.is_null() {
             let _ = (*RAMFS).write(path, offset, data)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn is_valid(path: &str) -> Result<(), Error> {
+    unsafe {
+        if !RAMFS.is_null() {
+            let _ = (*RAMFS).is_valid(path)?;
         }
     }
     Ok(())
