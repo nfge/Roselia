@@ -1,3 +1,5 @@
+use crate::keyboard::special_keys::check_special;
+
 use super::{scancode_table::SCANCODE_TABLE, KeyState};
 pub(super) struct Key {
     pub(super) scancode: u8,
@@ -11,8 +13,8 @@ impl KeyTable {
         for key in SCANCODE_TABLE {
             if key.scancode == scancode {
                 if state.shift {
-                    if key.letter == '\'' {
-                        return '"';
+                    if let Some(c) = check_special(key.letter) {
+                        return c;
                     }
                     return key.letter.to_ascii_uppercase();
                 } else {

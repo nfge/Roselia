@@ -209,17 +209,6 @@ impl Terminal {
         self.running = true;
         self.print_char('>');
         while self.running {
-            if self.keyboard.key_state.get_ctrl() && self.keyboard.key_state.get_shift() {
-                match self.keyboard.get_key() {
-                    Some('C') => {
-                        self.new_line();
-                        self.print_string_ln("Interrupt detected. Reseting...");
-                        sleep(1000);
-                        unsafe { reset() };
-                    }
-                    _ => {}
-                }
-            }
             if let Some(key) = self.keyboard.get_key() {
                 self.handle_keyboard(key);
             } else {
@@ -491,6 +480,9 @@ impl Terminal {
                 } else {
                     self.new_line();
                 }
+            },
+            '\x1B' => {
+                self.print_string_ln("ESC");
             }
             '\x08' => {
                 self.backspace();
