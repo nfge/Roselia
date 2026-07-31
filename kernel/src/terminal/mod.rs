@@ -342,8 +342,7 @@ impl Terminal {
                 let ticks = crate::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
                 let seconds = ticks / ticks_per_sec;
                 let _ = write!(self, "{:?}s\n", seconds);
-            }
-            "panic" => panic!(),
+            },
             "heap" => match command.args.first() {
                 Some(text) => match text.as_str() {
                     "free" => {

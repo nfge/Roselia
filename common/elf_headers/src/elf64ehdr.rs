@@ -1,4 +1,5 @@
 #[repr(C)]
+#[derive(Debug,Clone, Copy)]
 pub struct Elf64Ehdr {
     pub e_ident: [u8; 16],
     pub e_type: u16,

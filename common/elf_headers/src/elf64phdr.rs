@@ -1,4 +1,5 @@
 #[repr(C)]
+#[derive(Debug,Clone, Copy)]
 pub struct Elf64Phdr {
     pub p_type: u32,
     pub p_flags: u32,
