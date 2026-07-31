@@ -1,5 +1,5 @@
 mod frame_allocator;
-mod stack;
+mod page_allocator;
 use core::ptr::NonNull;
 
 use linked_list_allocator::LockedHeap;
