@@ -7,10 +7,12 @@ pub mod gop_table;
 pub mod reset;
 pub mod time;
 pub mod variable;
+pub mod kernelinfo;
 
 
 #[repr(C)]
 pub struct BootInfo {
+    pub kernel_info: crate::kernelinfo::KernelInfo,
     pub gop: gop_table::gop_table,
     pub time: *const (),
     pub reset: *const (),

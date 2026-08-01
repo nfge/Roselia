@@ -462,6 +462,11 @@ impl Terminal {
                         _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
                     }
                 }
+            },
+            "readlog" => {
+                let data = read_file("/kernel/log").unwrap();
+                let text = core::str::from_utf8(&data).unwrap();
+                let _ = write!(self, "{}", text);
             }
             _ => self.print_string("Command not found\n"),
         }

@@ -5,10 +5,7 @@ mod init;
 mod elf;
 
 use bootinfo::{
-    BootInfo,
-    reset::reset_fn,
-    time::get_uefi_time,
-    variable::{get_variable, set_variable},
+    BootInfo, kernelinfo::KernelInfo, reset::reset_fn, time::get_uefi_time, variable::{get_variable, set_variable}
 };
 
 use core::{panic::PanicInfo, ptr::null, time::Duration, usize};
@@ -80,7 +77,7 @@ fn main() -> Status {
     let handle = image_handle();
     let mut filesys = get_image_file_system(handle).expect("Failed to load file system");
 
-    let entry = get_kernel(&mut filesys).unwrap();
+    let (entry, kernel_start_addr, kernel_pages) = get_kernel(&mut filesys).unwrap();
 
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
@@ -100,6 +97,7 @@ fn main() -> Status {
     let mmap = unsafe { exit_boot_services(None) };
 
     let bootinfo = BootInfo {
+        kernel_info: KernelInfo {start_address: kernel_start_addr, pages: kernel_pages}, 
         gop: framebuffer,
         reset: reset_fn as *const (),
         time: get_uefi_time as *const (),

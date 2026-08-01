@@ -1,10 +1,9 @@
 mod frame_allocator;
-mod page_allocator;
-use core::ptr::NonNull;
-
+pub mod page_allocator;
+mod bitmap;
 use linked_list_allocator::LockedHeap;
 use uefi::{
-    boot::{MemoryDescriptor, MemoryType},
+    boot::{MemoryType},
     mem::memory_map::{MemoryMap, MemoryMapOwned},
 };
 
@@ -35,16 +34,4 @@ pub fn get_free() -> usize {
 }
 pub fn get_used() -> usize {
     ALLOCATOR.lock().used()
-}
-pub fn get_size() -> usize {
-    ALLOCATOR.lock().size()
-}
-pub fn alloc(layout: core::alloc::Layout) -> NonNull<u8> {
-    let ptr = ALLOCATOR.lock().allocate_first_fit(layout).unwrap();
-    ptr
-}
-pub fn dealloc(ptr: NonNull<u8>, layout: core::alloc::Layout) {
-    unsafe {
-        ALLOCATOR.lock().deallocate(ptr, layout);
-    }
 }
