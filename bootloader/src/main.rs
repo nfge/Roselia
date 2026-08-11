@@ -10,21 +10,17 @@ use bootinfo::{
 
 use core::{panic::PanicInfo, ptr::null, time::Duration, usize};
 use uefi::{
-    CStr16,
     boot::{
-        EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services,
-        get_handle_for_protocol, get_image_file_system, image_handle, memory_map,
+        EventType, TimerTrigger, Tpl, create_event, exit_boot_services,
+        get_handle_for_protocol, get_image_file_system, image_handle,
         open_protocol_exclusive, set_timer, stall,
     },
-    mem::memory_map::MemoryMapOwned,
     prelude::*,
     println,
     proto::{
-        acpi::AcpiTable,
         console::text::{Input, Key, ScanCode},
-        media::file::{self, File, FileAttribute, FileInfo, FileMode},
     },
-    runtime::{ResetType, VariableAttributes, VariableVendor, set_virtual_address_map},
+    runtime::{ResetType, VariableAttributes, VariableVendor},
     system::with_config_table,
     table::cfg::ConfigTableEntry,
 };
