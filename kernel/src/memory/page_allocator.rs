@@ -2,9 +2,12 @@ use uefi::{
     boot::MemoryType,
     mem::memory_map::{MemoryMap, MemoryMapOwned},
 };
-use x86_64::{PhysAddr, structures::paging::{PhysFrame, Size4KiB}};
+use x86_64::{
+    PhysAddr,
+    structures::paging::{PhysFrame, Size4KiB},
+};
 
-use crate::memory::bitmap::Bitmap;
+use crate::{PAGE_ALLOCATOR, kprintln, memory::bitmap::Bitmap};
 
 pub struct PageAllocator<'a> {
     bitmap: Bitmap,
@@ -24,14 +27,14 @@ impl<'a> PageAllocator<'a> {
             self.bitmap.set(i);
         }
         for entry in self.mmap.entries() {
-            if entry.ty == MemoryType::CONVENTIONAL {
+            if entry.ty == MemoryType::CONVENTIONAL || entry.ty == MemoryType::LOADER_DATA || entry.ty == MemoryType::LOADER_CODE {
                 let first_page = entry.phys_start / 4096;
                 for page in 0..entry.page_count {
                     self.bitmap.clear(first_page as usize + page as usize);
                 }
             }
         }
-        self.reserve_pages(kernel_start,kernel_pages);
+        self.reserve_pages(kernel_start, kernel_pages);
         self.reserve_pages(self.bitmap.bitmap_start, self.bitmap.bitmap_pages);
     }
     pub fn reserve_pages(&mut self, start_addr: usize, pages: usize) {
@@ -46,7 +49,9 @@ impl<'a> PageAllocator<'a> {
             if !self.bitmap.is_set(page) {
                 self.bitmap.set(page);
 
-                return Some(PhysFrame::containing_address(PhysAddr::new((page * 4096) as u64)));
+                return Some(PhysFrame::containing_address(PhysAddr::new(
+                    (page * 4096) as u64,
+                )));
             }
         }
         None
@@ -62,16 +67,15 @@ impl<'a> PageAllocator<'a> {
             if !self.bitmap.is_set(page) {
                 free += 1;
                 if free == count {
-                    let start = page + 1 -count;
+                    let start = page + 1 - count;
 
                     for p in start..=page {
                         self.bitmap.set(p);
                     }
                     let start_addr = start * 4096;
-                    return Some(PhysAddr::new(start_addr as u64))
+                    return Some(PhysAddr::new(start_addr as u64));
                 }
-            }
-            else {
+            } else {
                 free = 0;
             }
         }
@@ -83,4 +87,61 @@ impl<'a> PageAllocator<'a> {
             self.bitmap.clear(page);
         }
     }
+}
+
+pub fn alloc_pages(count: usize) -> Option<PhysAddr> {
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+            return Some(allocator.alloc_pages(count).expect("Failed alloc pages"));
+        }
+    }
+    None
+}
+pub fn free_pages(addr: PhysAddr, count: usize) {
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+            allocator.free_pages(addr, count);
+        }
+    }
+}
+pub fn get_free_mem() -> usize {
+    let mut free = 0;
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+            for entry in allocator.mmap.entries() {
+                if entry.ty == MemoryType::CONVENTIONAL {
+                    let start_page = entry.phys_start as usize / 4096;
+
+                    for i in 0..entry.page_count as usize {
+                        if !allocator.bitmap.is_set(start_page + i) {
+                            free += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    free * 4
+}
+pub fn get_used_mem() -> usize {
+    let mut used = 0;
+
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+            for entry in allocator.mmap.entries() {
+                if entry.ty == MemoryType::CONVENTIONAL {
+                    let start_page = entry.phys_start as usize / 4096;
+
+                    for i in 0..entry.page_count as usize {
+                        if allocator.bitmap.is_set(start_page + i) {
+                            used += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    used * 4
 }

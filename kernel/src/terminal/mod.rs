@@ -8,7 +8,7 @@ use crate::{
     },
     keyboard::KeyBoard,
     log,
-    memory::{get_free, get_used},
+    memory::{get_heap_free, get_heap_used, page_allocator::{get_free_mem, get_used_mem}},
     ramfs::{create_file, mkdir, read_file, write_file},
     terminal::{command::Command, token::Token},
     timer::sleep,
@@ -346,14 +346,26 @@ impl Terminal {
             "heap" => match command.args.first() {
                 Some(text) => match text.as_str() {
                     "free" => {
-                        let _ = write!(self, "Free memory: {}KB\n", get_free() / 1024);
+                        let _ = write!(self, "Free memory: {}KB\n", get_heap_free() / 1024);
                     }
                     "used" => {
-                        let _ = write!(self, "Used memory: {}KB\n", get_used() / 1024);
+                        let _ = write!(self, "Used memory: {}KB\n", get_heap_used() / 1024);
                     }
                     _ => self.print_string_ln("Usage: heap [free || used]"),
                 },
                 None => self.print_string_ln("Usage: heap [free || used]"),
+            },
+            "mem" => match command.args.first() {
+                Some(text) => match text.as_str() {
+                    "free" => {
+                        let _ = write!(self, "Free memory: {}KB\n", get_free_mem());
+                    }
+                    "used" => {
+                        let _ = write!(self, "Used memory: {}KB\n", get_used_mem());
+                    }
+                    _ => self.print_string_ln("Usage: mem [free || used]"),
+                },
+                None => self.print_string_ln("Usage: mem [free || used]"),
             },
             "resolution" => {
                 let width = self.width;
