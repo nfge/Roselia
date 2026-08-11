@@ -76,8 +76,6 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();
-        }
-        if !TERMINAL.is_null() {
             (*TERMINAL).run();
         }
     }

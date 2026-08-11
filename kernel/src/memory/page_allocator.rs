@@ -2,6 +2,7 @@ use uefi::{
     boot::MemoryType,
     mem::memory_map::{MemoryMap, MemoryMapOwned},
 };
+use x86_64::structures::paging::{PhysFrame, Size4KiB};
 
 use crate::memory::bitmap::Bitmap;
 
@@ -40,4 +41,9 @@ impl<'a> PageAllocator<'a> {
             self.bitmap.set(page);
         }
     }
+    // pub fn alloc_page(&mut self) -> PhysFrame {
+    //     // PhysFrame::from_start_address::<Size4KiB>(address).unwrap()
+    // }
+    // pub fn free_page(&mut self, page: PhysFrame) {
+    // }
 }
