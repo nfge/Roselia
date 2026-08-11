@@ -130,7 +130,7 @@ pub fn get_used_mem() -> usize {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
             for entry in allocator.mmap.entries() {
-                if entry.ty == MemoryType::CONVENTIONAL {
+                if entry.ty == MemoryType::CONVENTIONAL || entry.ty == MemoryType::LOADER_DATA || entry.ty == MemoryType::LOADER_CODE {
                     let start_page = entry.phys_start as usize / 4096;
 
                     for i in 0..entry.page_count as usize {
