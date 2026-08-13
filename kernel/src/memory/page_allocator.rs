@@ -44,7 +44,7 @@ impl<'a> PageAllocator<'a> {
             self.bitmap.set(page);
         }
     }
-    pub fn alloc_page(&mut self) -> Option<PhysFrame> {
+    pub fn alloc_frame(&mut self) -> Option<PhysFrame> {
         for page in 0..self.bitmap.total_pages {
             if !self.bitmap.is_set(page) {
                 self.bitmap.set(page);
@@ -56,12 +56,12 @@ impl<'a> PageAllocator<'a> {
         }
         None
     }
-    pub fn free_page(&mut self, page: PhysFrame) {
-        let address = page.start_address().as_u64() as usize;
-        let page = address / 4096;
-        self.bitmap.clear(page);
+    pub fn free_frame(&mut self, frame: PhysFrame) {
+        let address = frame.start_address().as_u64() as usize;
+        let frame = address / 4096;
+        self.bitmap.clear(frame);
     }
-    pub fn alloc_pages(&mut self, count: usize) -> Option<PhysAddr> {
+    pub fn alloc_frames(&mut self, count: usize) -> Option<PhysAddr> {
         let mut free = 0;
         for page in 0..self.bitmap.total_pages {
             if !self.bitmap.is_set(page) {
@@ -81,7 +81,7 @@ impl<'a> PageAllocator<'a> {
         }
         None
     }
-    pub fn free_pages(&mut self, addr: PhysAddr, count: usize) {
+    pub fn free_frames(&mut self, addr: PhysAddr, count: usize) {
         for i in 0..count {
             let page = (addr.as_u64() as usize / 4096) + i;
             self.bitmap.clear(page);
@@ -89,21 +89,41 @@ impl<'a> PageAllocator<'a> {
     }
 }
 
-pub fn alloc_pages(count: usize) -> Option<PhysAddr> {
+#[allow(unused)]
+pub fn alloc_frame() -> Option<PhysFrame> {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
-            return Some(allocator.alloc_pages(count).expect("Failed alloc pages"));
+            return Some(allocator.alloc_frame().expect("Failed alloc pages"));
         }
     }
     None
 }
-pub fn free_pages(addr: PhysAddr, count: usize) {
+#[allow(unused)]
+pub fn free_frame(frame: PhysFrame) {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
-            allocator.free_pages(addr, count);
+            allocator.free_frame(frame);
         }
     }
 }
+#[allow(unused)]
+pub fn alloc_frames(count: usize) -> Option<PhysAddr> {
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+            return Some(allocator.alloc_frames(count).expect("Failed alloc pages"));
+        }
+    }
+    None
+}
+#[allow(unused)]
+pub fn free_frames(addr: PhysAddr, count: usize) {
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+            allocator.free_frames(addr, count);
+        }
+    }
+}
+#[allow(unused)]
 pub fn get_free_mem() -> usize {
     let mut free = 0;
     unsafe {
@@ -124,6 +144,7 @@ pub fn get_free_mem() -> usize {
 
     free * 4
 }
+#[allow(unused)]
 pub fn get_used_mem() -> usize {
     let mut used = 0;
 

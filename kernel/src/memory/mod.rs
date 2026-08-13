@@ -1,13 +1,8 @@
-mod frame_allocator;
 pub mod page_allocator;
 mod bitmap;
 use linked_list_allocator::LockedHeap;
-use uefi::{
-    boot::{MemoryType},
-    mem::memory_map::{MemoryMap, MemoryMapOwned},
-};
 
-use crate::memory::page_allocator::alloc_pages;
+use crate::memory::page_allocator::alloc_frames;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -15,7 +10,7 @@ static ALLOCATOR: LockedHeap = LockedHeap::empty();
 pub fn init_heap() {
     let heap_size = 24 * 1024 * 1024;
     let pages = (heap_size + 4096 - 1) / 4096;
-    let heap_start = alloc_pages(pages).unwrap();
+    let heap_start = alloc_frames(pages).unwrap();
     unsafe {ALLOCATOR.lock().init(heap_start.as_u64() as *mut u8, heap_size)};
 }
 pub fn get_heap_free() -> usize {
