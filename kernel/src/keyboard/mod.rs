@@ -1,26 +1,23 @@
 pub mod irq;
-pub mod key_state;
-pub mod key_table;
+// pub mod key_state;
+// pub mod key_table;
 mod ringbuffer;
-pub mod scancode_table;
+// pub mod scancode_table;
 mod special_keys;
+pub mod keycode;
+pub mod keyevent;
 
 use x86_64::instructions::port::Port;
 
-use key_state::KeyState;
-use key_table::KeyTable;
-pub static KEYBOARD_BUFFER: spin::Mutex<ringbuffer::RingBuffer> =
+use crate::keyboard::{keycode::{KeyCode, scancode_to_keycode}, keyevent::KeyEvent};
+pub static KEYBOARD_BUFFER: spin::Mutex<ringbuffer::RingBuffer<KeyEvent, 64>> =
     spin::Mutex::new(ringbuffer::RingBuffer::new());
 
-pub struct KeyBoard {
-    pub key_state: KeyState,
-}
+pub struct KeyBoard {}
 
 impl KeyBoard {
     pub fn new() -> Self {
-        Self {
-            key_state: KeyState::new(),
-        }
+        Self {}
     }
     fn get_checkport() -> u8 {
         let mut scan_port: Port<u8> = Port::new(0x64);
@@ -37,15 +34,10 @@ impl KeyBoard {
         }
         return true;
     }
-    pub fn get_key(&mut self) -> Option<char> {
+    pub fn get_key(&mut self) -> Option<KeyEvent> {
         x86_64::instructions::interrupts::without_interrupts(|| {
-            if let Some(keycode) = KEYBOARD_BUFFER.lock().pop() {
-                self.key_state.set_state(keycode);
-                let key = KeyTable::get_letter(keycode, &mut self.key_state);
-                let released = (keycode & 0x80) != 0;
-                if !released && key != '\0' {
-                    return Some(key);
-                }
+            if let Some(keyevent) = KEYBOARD_BUFFER.lock().pop() {
+                return Some(keyevent)
             }
             None
         })

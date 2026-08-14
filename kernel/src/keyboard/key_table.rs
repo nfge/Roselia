@@ -1,10 +1,10 @@
 use crate::keyboard::special_keys::check_special;
 
-use super::{scancode_table::SCANCODE_TABLE, KeyState};
-pub(super) struct Key {
-    pub(super) scancode: u8,
-    pub(super) letter: char,
-}
+use super::{KeyState, keycode::KeyCode};
+// pub(super) struct Key {
+//     pub(super) scancode: u8,
+//     pub(super) letter: char,
+// }
 pub struct KeyTable;
 
 

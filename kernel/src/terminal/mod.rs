@@ -6,9 +6,16 @@ use crate::{
         fonts::{VGA_FONT, font8x16::FONT8X16},
         graphics::Graphics,
     },
-    keyboard::KeyBoard,
+    keyboard::{
+        KeyBoard,
+        keycode::{KeyCode, handle_scancode, key_event_to_char},
+        keyevent::KeyEvent,
+    },
     log,
-    memory::{get_heap_free, get_heap_used, page_allocator::{get_free_mem, get_used_mem}},
+    memory::{
+        get_heap_free, get_heap_used,
+        page_allocator::{get_free_mem, get_used_mem},
+    },
     ramfs::{create_file, mkdir, read_file, write_file},
     terminal::{command::Command, token::Token},
     timer::sleep,
@@ -199,7 +206,11 @@ impl Terminal {
         self.print_string_ln("Press Enter to start terminal");
         loop {
             match self.keyboard.get_key() {
-                Some('\n') => break,
+                Some(event) => {
+                    if KeyCode::Enter == event.code {
+                        break;
+                    }
+                }
                 _ => {
                     x86_64::instructions::hlt();
                 }
@@ -229,7 +240,9 @@ impl Terminal {
         let command =
             parser::Parser::parse(tokens).unwrap_or(Command::new(" ".to_string(), Vec::new()));
         self.new_line();
-        if command.name == " " {return};
+        if command.name == " " {
+            return;
+        };
         match command.name.as_str() {
             "help" => self
                 .print_string("Commands: help, info, reset, poweroff, flush, time, date, heap\n"),
@@ -342,7 +355,7 @@ impl Terminal {
                 let ticks = crate::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
                 let seconds = ticks / ticks_per_sec;
                 let _ = write!(self, "{:?}s\n", seconds);
-            },
+            }
             "heap" => match command.args.first() {
                 Some(text) => match text.as_str() {
                     "free" => {
@@ -388,22 +401,25 @@ impl Terminal {
                     self.print_string("K");
                     self.set_cursor(x, self.y);
                     match self.keyboard.get_key() {
-                        Some('w') => {
-                            self.clear_line();
-                            x += 8;
-                            self.set_cursor(x, self.y);
-                            self.print_string("P");
-                        }
-                        Some('s') => {
-                            self.clear_line();
-                            x -= 8;
-                            self.set_cursor(x, self.y);
-                            self.print_string("P");
-                        }
-                        Some('z') => break,
-                        _ => {
-                            x86_64::instructions::hlt();
-                        }
+                        Some(event) => match event.code {
+                            KeyCode::W => {
+                                self.clear_line();
+                                x += 8;
+                                self.set_cursor(x, self.y);
+                                self.print_string("P");
+                            }
+                            KeyCode::S => {
+                                self.clear_line();
+                                x -= 8;
+                                self.set_cursor(x, self.y);
+                                self.print_string("P");
+                            }
+                            KeyCode::Z => break,
+                            _ => {
+                                x86_64::instructions::hlt();
+                            }
+                        },
+                        None => {}
                     }
                     if x == key_x {
                         self.new_line();
@@ -474,7 +490,7 @@ impl Terminal {
                         _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
                     }
                 }
-            },
+            }
             "readlog" => {
                 let data = read_file("/kernel/log").unwrap();
                 let text = core::str::from_utf8(&data).unwrap();
@@ -483,10 +499,10 @@ impl Terminal {
             _ => self.print_string("Command not found\n"),
         }
     }
-    fn handle_keyboard(&mut self, char: char) {
-        match char {
-            '\n' => {
-                if !self.keyboard.key_state.get_shift() {
+    fn handle_keyboard(&mut self, event: KeyEvent) {
+        match event.code {
+            KeyCode::Enter => {
+                if !event.shift {
                     self.handle_command();
                     if self.running {
                         self.print_char('>');
@@ -496,15 +512,15 @@ impl Terminal {
                 } else {
                     self.new_line();
                 }
-            },
-            '\x1B' => {
+            }
+            KeyCode::Escape => {
                 self.print_string_ln("ESC");
             }
-            '\x08' => {
+            KeyCode::Backspace => {
                 self.backspace();
             }
             _ => {
-                self.print_char(char);
+                self.print_char(key_event_to_char(event).unwrap());
             }
         }
     }
