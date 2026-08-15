@@ -22,7 +22,7 @@ jobs:
     - name: Build
       run: |
         cargo +nightly build -Z json-target-spec -p kernel --target x86_64.json --release
-        cargo build -p bootloader --target x86_64-unknown-uefi --release --locked
+        RUSTFLAGS="-C llvm-args=-disable-loop-idiom-wcslen" cargo build -p bootloader --target x86_64-unknown-uefi --release
     - name: Prepare artifacts
       run: |
         mkdir out
