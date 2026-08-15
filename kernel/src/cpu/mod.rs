@@ -4,3 +4,4 @@ pub mod interrupts;
 pub mod pic;
 pub mod sse;
 pub mod gdt;
+pub mod random;

@@ -1,14 +1,14 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu,
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu::{self},
     func::{get_time, reset, s5_soft_off},
     gop::{
         color::Color,
-        fonts::{VGA_FONT, font8x16::FONT8X16},
+        fonts::{VGA_FONT},
         graphics::Graphics,
     },
     keyboard::{
         KeyBoard,
-        keycode::{KeyCode, handle_scancode, key_event_to_char},
+        keycode::{KeyCode, key_event_to_char},
         keyevent::KeyEvent,
     },
     log,
