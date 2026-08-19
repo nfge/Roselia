@@ -82,6 +82,17 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 total, free, used
             ).into_bytes()
         }));
+        let _ = create_file("/sys/kernelinfo", ramfs::data::NodeData::Virtual(|| {
+            let version = env!("CARGO_PKG_VERSION");
+            let git_commit = env!("GIT_COMMIT");
+            format!(
+                "Roselia Kernel {} ({})\nkernel.{}-{}",
+                version,
+                git_commit,
+                version,
+                git_commit
+            ).into_bytes()
+        }));
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
             Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info),
             0,

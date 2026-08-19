@@ -242,15 +242,17 @@ impl Terminal {
         };
         match command.name.as_str() {
             "help" => self
-                .print_string("Commands: help, info, reset, poweroff, flush, time, date, heap\n"),
+                .print_string("Commands: help, info, reset, poweroff, flush, time, date, mem, heap\n"),
             "info" => {
-                let _ = write!(
-                    self,
-                    "Roselia Kernel {} ({})",
-                    env!("CARGO_PKG_VERSION"),
-                    env!("GIT_COMMIT")
-                );
-                self.new_line();
+                match read_file("/sys/kernelinfo") {
+                    Ok(data) => {
+                        let s = core::str::from_utf8(&data).unwrap();
+                        let _ = write!(self, "{s}\n");
+                    },
+                    Err(e) => {
+                        let _ = write!(self, "{:#?}\n", e);
+                    }
+                }
             }
             "reset" => {
                 self.print_string_ln("Reseting...");
