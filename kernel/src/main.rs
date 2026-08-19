@@ -15,10 +15,10 @@ mod timer;
 mod logger;
 // mod uart;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics}, memory::page_allocator::PageAllocator, ramfs::{RamFs, create_file, mkdir}, terminal::Terminal, timer::sleep
+    func::reset, gop::{color::Color, graphics::Graphics}, memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem}, ramfs::{RamFs, create_file, mkdir}, terminal::Terminal, timer::sleep
 };
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, format, vec::Vec};
 use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn}, variable::{GetVar, SetVar}};
 use utils::serial_println;
 use core::{ffi::c_void, panic::PanicInfo, ptr::{null, null_mut}};
@@ -71,7 +71,17 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe { 
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
         let _ = mkdir("/kernel").unwrap();
-        let _ = create_file("/kernel/log").unwrap();
+        let _ = create_file("/kernel/log",ramfs::data::NodeData::File(Vec::new())).unwrap();
+        let _ = mkdir("/sys").unwrap();
+        let _ = create_file("/sys/memory", ramfs::data::NodeData::Virtual(|| {
+            let used = get_used_mem();
+            let free = get_free_mem();
+            let total = get_total_memory();
+            format!(
+                "total: {}KB\nfree: {}KB\nused: {}KB\n",
+                total, free, used
+            ).into_bytes()
+        }));
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
             Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info),
             0,

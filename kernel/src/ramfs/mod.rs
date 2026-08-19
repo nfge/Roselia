@@ -2,11 +2,11 @@
 mod error;
 mod node;
 mod types;
+pub mod data;
 
-use core::ptr::slice_from_raw_parts;
-
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{vec::Vec};
 use error::Error;
+use data::NodeData;
 
 use crate::{
     RAMFS,
@@ -24,13 +24,13 @@ pub struct RamFs {
 impl RamFs {
     pub fn new() -> Self {
         let mut nodes = Vec::new();
-        nodes.push(Node::new("/", types::NodeType::Directory, None));
+        nodes.push(Node::new("/", types::NodeType::Directory, None, NodeData::Empty));
         Self {
             nodes: nodes,
             root: 0,
         }
     }
-    pub fn create_file(&mut self, path: &str) -> Result<(), Error> {
+    pub fn create_file(&mut self, path: &str, data: NodeData) -> Result<(), Error> {
         let (parent_path, name) = Self::split_path(path)?;
 
         let parent = self.resolve_path(parent_path)?;
@@ -44,8 +44,7 @@ impl RamFs {
         }
 
         let id = self.nodes.len();
-
-        let node = Node::new(name, NodeType::File, Some(parent));
+        let node = Node::new(name, NodeType::File, Some(parent), data);
 
         self.nodes.push(node);
         self.nodes[parent].children.push(id);
@@ -67,7 +66,7 @@ impl RamFs {
 
         let id = self.nodes.len();
 
-        let node = Node::new(name, NodeType::Directory, Some(parent));
+        let node = Node::new(name, NodeType::Directory, Some(parent), NodeData::Empty);
 
         self.nodes.push(node);
         self.nodes[parent].children.push(id);
@@ -78,13 +77,18 @@ impl RamFs {
         let id = self.resolve_path(path)?;
         Ok(id)
     }
-    pub fn read(&self, path: &str) -> Result<&Vec<u8>, Error> {
+    pub fn read(&self, path: &str) -> Result<Vec<u8>, Error> {
         let node_id = self.resolve_path(path)?;
         let node: &Node = &self.nodes[node_id];
         if node.node_type != NodeType::File {
             return Err(Error::NotFile);
         }
-        Ok(&node.data)
+
+        match &node.data {
+            NodeData::Empty => Ok(Vec::new()),
+            NodeData::File(data) => Ok(data.clone()),
+            NodeData::Virtual(f) => Ok(f()),
+        }
     }
     pub fn write(&mut self, path: &str, offset: usize, data: &[u8]) -> Result<(), Error> {
         let node_id = self.resolve_path(path)?;
@@ -93,17 +97,26 @@ impl RamFs {
             return Err(Error::NotFile);
         }
 
+        if matches!(node.data, NodeData::Virtual(_)) {
+            return Err(Error::NotFile);
+        }
+        if matches!(node.data, NodeData::Empty) {
+            node.data = NodeData::File(Vec::new());
+        }
+
         let end = offset.checked_add(data.len()).ok_or(Error::InvalidOffset)?;
 
-        if node.data.len() < end {
-            node.data.resize(end, 0);
+        if let NodeData::File(buf) = &mut node.data {
+            if buf.len() < end {
+                buf.resize(end, 0);
+            }
+            buf[offset..end].copy_from_slice(data);
         }
-        node.data[offset..end].copy_from_slice(data);
 
         Ok(())
     }
     pub fn is_valid(&self, path: &str) -> Result<(), Error> {
-        let node_id = self.resolve_path(path)?;
+        let _ = self.resolve_path(path)?;
         Ok(())
     }
     fn split_path<'a>(path: &'a str) -> Result<(&'a str, &'a str), Error> {
@@ -151,10 +164,10 @@ impl RamFs {
     }
 }
 
-pub fn create_file(path: &str) -> Result<(), Error> {
+pub fn create_file(path: &str, data: NodeData) -> Result<(), Error> {
     unsafe {
         if !RAMFS.is_null() {
-            (*RAMFS).create_file(path)?;
+            (*RAMFS).create_file(path, data)?;
         }
     }
     Ok(())
@@ -167,7 +180,7 @@ pub fn mkdir(path: &str) -> Result<(), Error> {
     }
     Ok(())
 }
-pub fn read_file(path: &str) -> Result<&Vec<u8>, Error> {
+pub fn read_file(path: &str) -> Result<Vec<u8>, Error> {
     unsafe {
         if !RAMFS.is_null() {
             let data = (*RAMFS).read(path)?;

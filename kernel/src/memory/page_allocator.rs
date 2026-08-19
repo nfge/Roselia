@@ -123,6 +123,17 @@ pub fn free_frames(addr: PhysAddr, count: usize) {
         }
     }
 }
+
+#[allow(dead_code)]
+pub fn get_total_memory() -> usize {
+    let mut total = 0;
+    unsafe {
+        if let Some(alloc) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+            total += alloc.bitmap.total_pages
+        }
+    }
+    total * 4
+}
 #[allow(unused)]
 pub fn get_free_mem() -> usize {
     let mut free = 0;

@@ -1,11 +1,8 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN, cpu::{self},
+    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN,
+    cpu::{self},
     func::{get_time, reset, s5_soft_off},
-    gop::{
-        color::Color,
-        fonts::{VGA_FONT},
-        graphics::Graphics,
-    },
+    gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
     keyboard::{
         KeyBoard,
         keycode::{KeyCode, key_event_to_char},
@@ -368,18 +365,17 @@ impl Terminal {
                 },
                 None => self.print_string_ln("Usage: heap [free || used]"),
             },
-            "mem" => match command.args.first() {
-                Some(text) => match text.as_str() {
-                    "free" => {
-                        let _ = write!(self, "Free memory: {}KB\n", get_free_mem());
+            "mem" => {
+                match read_file("/sys/memory") {
+                    Ok(data) => {
+                        let s = core::str::from_utf8(&data).unwrap();
+                        let _ = write!(self, "{}", s);
                     }
-                    "used" => {
-                        let _ = write!(self, "Used memory: {}KB\n", get_used_mem());
+                    Err(e) => {
+                        let _ = write!(self, "{:#?}\n", e);
                     }
-                    _ => self.print_string_ln("Usage: mem [free || used]"),
-                },
-                None => self.print_string_ln("Usage: mem [free || used]"),
-            },
+                }
+            }
             "resolution" => {
                 let width = self.width;
                 let height = self.height;
