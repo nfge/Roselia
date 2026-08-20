@@ -1,12 +1,12 @@
 // mod file;
+pub mod data;
 mod error;
 mod node;
 mod types;
-pub mod data;
 
-use alloc::{vec::Vec};
-use error::Error;
+use alloc::vec::Vec;
 use data::NodeData;
+use error::Error;
 
 use crate::{
     RAMFS,
@@ -24,7 +24,12 @@ pub struct RamFs {
 impl RamFs {
     pub fn new() -> Self {
         let mut nodes = Vec::new();
-        nodes.push(Node::new("/", types::NodeType::Directory, None, NodeData::Empty));
+        nodes.push(Node::new(
+            "/",
+            types::NodeType::Directory,
+            None,
+            NodeData::Empty,
+        ));
         Self {
             nodes: nodes,
             root: 0,
@@ -106,11 +111,20 @@ impl RamFs {
 
         let end = offset.checked_add(data.len()).ok_or(Error::InvalidOffset)?;
 
-        if let NodeData::File(buf) = &mut node.data {
-            if buf.len() < end {
-                buf.resize(end, 0);
+        // if let NodeData::File(buf) = &mut node.data {
+        //     if buf.len() < end {
+        //         buf.resize(end, 0);
+        //     }
+        //     buf[offset..end].copy_from_slice(data);
+        // }
+        match &mut node.data {
+            NodeData::File(buf) => {
+                if buf.len() < end {
+                    buf.resize(end, 0);
+                }
+                buf[offset..end].copy_from_slice(data);
             }
-            buf[offset..end].copy_from_slice(data);
+            _ => {}
         }
 
         Ok(())

@@ -8,20 +8,35 @@ mod cpu;
 mod func;
 mod gop;
 mod keyboard;
+mod logger;
 mod memory;
 mod ramfs;
 mod terminal;
 mod timer;
-mod logger;
 // mod uart;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics}, memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem}, ramfs::{RamFs, create_file, mkdir}, terminal::Terminal, timer::sleep
+    cpu::random::hardware_random,
+    func::reset,
+    gop::{color::Color, graphics::Graphics},
+    memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem},
+    ramfs::{RamFs, create_file, mkdir},
+    terminal::Terminal,
+    timer::sleep,
 };
 
 use alloc::{boxed::Box, format, vec::Vec};
-use bootinfo::{BootInfo, reset::ResetFn, time::{GetTimeFn}, variable::{GetVar, SetVar}};
+use bootinfo::{
+    BootInfo,
+    reset::ResetFn,
+    time::GetTimeFn,
+    variable::{GetVar, SetVar},
+};
+use core::{
+    ffi::c_void,
+    panic::PanicInfo,
+    ptr::{null, null_mut},
+};
 use utils::serial_println;
-use core::{ffi::c_void, panic::PanicInfo, ptr::{null, null_mut}};
 
 static mut FB_PTR: Option<*mut u32> = None;
 static mut RESET_FN: Option<ResetFn> = None;
@@ -44,7 +59,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         GET_VAR_FN = Some(core::mem::transmute(info.get_var));
         ACPI_TABLE = Some(info.acpi_table_ptr)
     };
-    
+
     cpu::gdt::init();
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
@@ -60,39 +75,40 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         PAGE_ALLOCATOR = Some(PageAllocator::new(&info.memory_map));
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
-            allocator.init(
-            info.kernel_info.start_address,
-            info.kernel_info.pages,
-            );
+            allocator.init(info.kernel_info.start_address, info.kernel_info.pages);
         }
     }
     memory::init_heap();
-    
-    unsafe { 
+
+    unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
-        let _ = mkdir("/kernel").unwrap();
-        let _ = create_file("/kernel/log",ramfs::data::NodeData::File(Vec::new())).unwrap();
-        let _ = mkdir("/sys").unwrap();
-        let _ = create_file("/sys/memory", ramfs::data::NodeData::Virtual(|| {
+    }
+    let _ = mkdir("/kernel").unwrap();
+    let _ = mkdir("/sys").unwrap();
+    let _ = mkdir("/dev").unwrap();
+    let _ = create_file("/kernel/log", ramfs::data::NodeData::File(Vec::new())).unwrap();
+    let _ = create_file(
+        "/sys/memory",
+        ramfs::data::NodeData::Virtual(|| {
             let used = get_used_mem();
             let free = get_free_mem();
             let total = get_total_memory();
-            format!(
-                "total: {}KB\nfree: {}KB\nused: {}KB\n",
-                total, free, used
-            ).into_bytes()
-        }));
-        let _ = create_file("/sys/kernelinfo", ramfs::data::NodeData::Virtual(|| {
+            format!("total: {}KB\nfree: {}KB\nused: {}KB\n", total, free, used).into_bytes()
+        }),
+    );
+    let _ = create_file(
+        "/sys/kernelinfo",
+        ramfs::data::NodeData::Virtual(|| {
             let version = env!("CARGO_PKG_VERSION");
             let git_commit = env!("GIT_COMMIT");
             format!(
                 "Roselia Kernel {} ({})\nkernel.{}-{}\n",
-                version,
-                git_commit,
-                version,
-                git_commit
-            ).into_bytes()
-        }));
+                version, git_commit, version, git_commit
+            )
+            .into_bytes()
+        }),
+    );
+    unsafe {
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
             Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info),
             0,
@@ -118,5 +134,5 @@ fn panic(_info: &PanicInfo) -> ! {
     serial_println!("{}", _info);
     kprintln!("Kernel Panic: {}", _info);
     sleep(3000);
-    unsafe {reset()};
+    unsafe { reset() };
 }
