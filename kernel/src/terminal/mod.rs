@@ -13,7 +13,7 @@ use crate::{
         get_heap_free, get_heap_used,
         page_allocator::{get_free_mem, get_used_mem},
     },
-    ramfs::{create_file, is_valid, mkdir, read_file, write_file},
+    ramfs::{check_directory, create_file, is_valid, mkdir, read_file, write_file},
     terminal::{command::Command, token::Token},
     timer::sleep,
 };
@@ -241,19 +241,18 @@ impl Terminal {
             return;
         };
         match command.name.as_str() {
-            "help" => self
-                .print_string("Commands: help, info, reset, poweroff, flush, time, date, mem, heap\n"),
-            "info" => {
-                match read_file("/sys/kernelinfo") {
-                    Ok(data) => {
-                        let s = core::str::from_utf8(&data).unwrap();
-                        let _ = write!(self, "{s}");
-                    },
-                    Err(e) => {
-                        let _ = write!(self, "{:#?}\n", e);
-                    }
+            "help" => self.print_string(
+                "Commands: help, info, reset, poweroff, flush, time, date, mem, heap\n",
+            ),
+            "info" => match read_file("/kernel/info") {
+                Ok(data) => {
+                    let s = core::str::from_utf8(&data).unwrap();
+                    let _ = write!(self, "{s}");
                 }
-            }
+                Err(e) => {
+                    let _ = write!(self, "{:#?}\n", e);
+                }
+            },
             "reset" => {
                 self.print_string_ln("Reseting...");
                 sleep(1000);
@@ -277,6 +276,38 @@ impl Terminal {
                     }
                 };
                 self.print_string_ln(text);
+            }
+            "cat" => match command.args.first() {
+                Some(arg) => {
+                    match is_valid(arg.as_str()) {
+                        Ok(_) => match read_file(arg.as_str()) {
+                            Ok(data) => {
+                                let text = core::str::from_utf8(&data).unwrap();
+                                let _ = write!(self, "{}", text);
+                            }
+                            Err(e) => {
+                                let _ = write!(self, "{:#?}\n", e);
+                            }
+                        },
+                        Err(e) => {
+                            let _ = write!(self, "{:#?}\n", e);
+                        }
+                    }
+                }
+                None => {}
+            },
+            "ls" => match command.args.first() {
+                Some(path) => {
+                    match check_directory(path.as_str()) {
+                        Ok(nodes) => {
+                            for node in nodes {
+                                let _ = write!(self, "{}\n", node.name.as_str());
+                            }
+                        },
+                        Err(e) => {let _ = write!(self, "{:#?}\n", e);}
+                    }
+                },
+                None => {}
             }
             "time" => {
                 let t = get_time();
@@ -367,17 +398,15 @@ impl Terminal {
                 },
                 None => self.print_string_ln("Usage: heap [free || used]"),
             },
-            "mem" => {
-                match read_file("/sys/memory") {
-                    Ok(data) => {
-                        let s = core::str::from_utf8(&data).unwrap();
-                        let _ = write!(self, "{}", s);
-                    }
-                    Err(e) => {
-                        let _ = write!(self, "{:#?}\n", e);
-                    }
+            "mem" => match read_file("/sys/memory") {
+                Ok(data) => {
+                    let s = core::str::from_utf8(&data).unwrap();
+                    let _ = write!(self, "{}", s);
                 }
-            }
+                Err(e) => {
+                    let _ = write!(self, "{:#?}\n", e);
+                }
+            },
             "resolution" => {
                 let width = self.width;
                 let height = self.height;
@@ -494,20 +523,7 @@ impl Terminal {
                 let text = core::str::from_utf8(&data).unwrap();
                 let _ = write!(self, "{}", text);
             }
-            _ => {
-                match is_valid(&command.name.as_str()) {
-                    Ok(_) => {
-                        match read_file(&command.name.as_str()) {
-                            Ok(data) => {
-                                let text = core::str::from_utf8(&data).unwrap();
-                                let _ = write!(self, "{}", text);
-                            },
-                            Err(e) => {let _ = write!(self, "{:#?}\n", e);}
-                        }
-                    }
-                    Err(_) => {self.print_string_ln("Command not found");},
-                }
-            }
+            _ => self.print_string_ln("Command not found"),
         }
     }
     fn handle_keyboard(&mut self, event: KeyEvent) {

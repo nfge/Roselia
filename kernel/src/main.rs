@@ -97,7 +97,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         }),
     );
     let _ = create_file(
-        "/sys/kernelinfo",
+        "/kernel/info",
         ramfs::data::NodeData::Virtual(|| {
             let version = env!("CARGO_PKG_VERSION");
             let git_commit = env!("GIT_COMMIT");

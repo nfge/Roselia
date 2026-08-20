@@ -176,6 +176,18 @@ impl RamFs {
         }
         Ok(current)
     }
+    pub fn check_directory(&self, path: &str) -> Result<Vec<&Node>, Error> {
+        let nodeid = self.resolve_path(path)?;
+        let node: &Node = &self.nodes[nodeid];
+
+        if node.node_type != NodeType::Directory {
+            return Err(Error::NotDirectory);
+        }
+
+        let childrens: Vec<&Node> = node.children.iter().map(|id| &self.nodes[*id]).collect();
+
+        Ok(childrens)
+    }
 }
 
 pub fn create_file(path: &str, data: NodeData) -> Result<(), Error> {
@@ -220,4 +232,16 @@ pub fn is_valid(path: &str) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+pub fn check_directory(path: &str) -> Result<Vec<&Node>, Error> {
+    let childrens: Vec<&Node>;
+    unsafe {
+        if !RAMFS.is_null() {
+            childrens = (*RAMFS).check_directory(path)?;
+        } else {
+            childrens = Vec::new()
+        }
+    }
+    Ok(childrens)
 }
