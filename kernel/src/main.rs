@@ -86,7 +86,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             let version = env!("CARGO_PKG_VERSION");
             let git_commit = env!("GIT_COMMIT");
             format!(
-                "Roselia Kernel {} ({})\nkernel.{}-{}",
+                "Roselia Kernel {} ({})\nkernel.{}-{}\n",
                 version,
                 git_commit,
                 version,

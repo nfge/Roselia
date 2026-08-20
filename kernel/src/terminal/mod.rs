@@ -13,7 +13,7 @@ use crate::{
         get_heap_free, get_heap_used,
         page_allocator::{get_free_mem, get_used_mem},
     },
-    ramfs::{create_file, mkdir, read_file, write_file},
+    ramfs::{create_file, is_valid, mkdir, read_file, write_file},
     terminal::{command::Command, token::Token},
     timer::sleep,
 };
@@ -247,7 +247,7 @@ impl Terminal {
                 match read_file("/sys/kernelinfo") {
                     Ok(data) => {
                         let s = core::str::from_utf8(&data).unwrap();
-                        let _ = write!(self, "{s}\n");
+                        let _ = write!(self, "{s}");
                     },
                     Err(e) => {
                         let _ = write!(self, "{:#?}\n", e);
@@ -494,7 +494,20 @@ impl Terminal {
                 let text = core::str::from_utf8(&data).unwrap();
                 let _ = write!(self, "{}", text);
             }
-            _ => self.print_string("Command not found\n"),
+            _ => {
+                match is_valid(&command.name.as_str()) {
+                    Ok(_) => {
+                        match read_file(&command.name.as_str()) {
+                            Ok(data) => {
+                                let text = core::str::from_utf8(&data).unwrap();
+                                let _ = write!(self, "{}", text);
+                            },
+                            Err(e) => {let _ = write!(self, "{:#?}\n", e);}
+                        }
+                    }
+                    Err(_) => {self.print_string_ln("Command not found");},
+                }
+            }
         }
     }
     fn handle_keyboard(&mut self, event: KeyEvent) {

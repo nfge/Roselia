@@ -115,9 +115,9 @@ impl RamFs {
 
         Ok(())
     }
-    pub fn is_valid(&self, path: &str) -> Result<(), Error> {
+    pub fn is_valid(&self, path: &str) -> Result<bool, Error> {
         let _ = self.resolve_path(path)?;
-        Ok(())
+        Ok(true)
     }
     fn split_path<'a>(path: &'a str) -> Result<(&'a str, &'a str), Error> {
         let path = path.trim_end_matches('/');
