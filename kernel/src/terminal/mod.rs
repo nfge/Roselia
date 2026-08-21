@@ -1,7 +1,7 @@
 use crate::{
     ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN,
     cpu::{self},
-    func::{get_time, reset, s5_soft_off},
+    func::{get_time, poweroff, reset},
     gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
     keyboard::{
         KeyBoard,
@@ -258,7 +258,7 @@ impl Terminal {
                 sleep(1000);
                 unsafe { reset() };
             }
-            "poweroff" => unsafe { s5_soft_off() },
+            "poweroff" => unsafe { poweroff() },
             "flush" => self.flush_screen(),
             "cpu" => {
                 let cpu = cpu::cpuinfo::get_cpu();
@@ -278,37 +278,35 @@ impl Terminal {
                 self.print_string_ln(text);
             }
             "cat" => match command.args.first() {
-                Some(arg) => {
-                    match is_valid(arg.as_str()) {
-                        Ok(_) => match read_file(arg.as_str()) {
-                            Ok(data) => {
-                                let text = core::str::from_utf8(&data).unwrap();
-                                let _ = write!(self, "{}", text);
-                            }
-                            Err(e) => {
-                                let _ = write!(self, "{:#?}\n", e);
-                            }
-                        },
+                Some(arg) => match is_valid(arg.as_str()) {
+                    Ok(_) => match read_file(arg.as_str()) {
+                        Ok(data) => {
+                            let text = core::str::from_utf8(&data).unwrap();
+                            let _ = write!(self, "{}", text);
+                        }
                         Err(e) => {
                             let _ = write!(self, "{:#?}\n", e);
                         }
-                    }
-                }
-                None => {}
-            },
-            "ls" => match command.args.first() {
-                Some(path) => {
-                    match check_directory(path.as_str()) {
-                        Ok(nodes) => {
-                            for node in nodes {
-                                let _ = write!(self, "{}\n", node.name.as_str());
-                            }
-                        },
-                        Err(e) => {let _ = write!(self, "{:#?}\n", e);}
+                    },
+                    Err(e) => {
+                        let _ = write!(self, "{:#?}\n", e);
                     }
                 },
                 None => {}
-            }
+            },
+            "ls" => match command.args.first() {
+                Some(path) => match check_directory(path.as_str()) {
+                    Ok(nodes) => {
+                        for node in nodes {
+                            let _ = write!(self, "{}\n", node.name.as_str());
+                        }
+                    }
+                    Err(e) => {
+                        let _ = write!(self, "{:#?}\n", e);
+                    }
+                },
+                None => {}
+            },
             "time" => {
                 let t = get_time();
                 match t {
@@ -476,7 +474,7 @@ impl Terminal {
                                         );
                                         let _ = write!(
                                             self,
-                                            "Bus: {}, device: {}, function: {}\n",
+                                            "{}:{}.{}\n",
                                             device.bus, device.device, device.function
                                         );
                                         let _ = write!(
@@ -498,7 +496,7 @@ impl Terminal {
                                         );
                                         let _ = write!(
                                             self,
-                                            "Bus: {}, device: {}, function: {}\n",
+                                            "{}:{}.{}\n",
                                             device.bus, device.device, device.function
                                         );
                                         let _ = write!(
@@ -511,7 +509,36 @@ impl Terminal {
                                         );
                                     }
                                 }
-                                _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
+                                "id" => match command.args.get(1) {
+                                    Some(s) => {
+                                        let s = s as &str;
+                                        if let Some((vendor, device)) = s.split_once(":") {
+                                            let vendor_id: u16 = vendor.parse().unwrap();
+                                            let device_id: u16 = device.parse().unwrap();
+                                            let device =
+                                                pci::enumerate_by_id(entry, vendor_id, device_id).unwrap();
+                                            let (vendor_name, device_name) =
+                                                unsafe { pci::check(vendor_id, device_id) };
+                                            let _ = write!(
+                                                self,
+                                                "{}:{}.{}\n",
+                                                device.bus, device.device, device.function
+                                            );
+                                            let _ = write!(
+                                                self,
+                                                "{:04x} {}\n{:04x} {}\n\n",
+                                                device.header.vendor_id as u16,
+                                                vendor_name.unwrap_or("Not found in pci.ids"),
+                                                device.header.device_id as u16,
+                                                device_name.unwrap_or("Not found in pci.ids")
+                                            );
+                                        } else {
+                                            self.print_string_ln("Using: pci id vendor:device");
+                                        }
+                                    }
+                                    None => self.print_string_ln("Using: pci id vendor:device"),
+                                },
+                                _ => self.print_string_ln("Using: pci [legacy || mcfg || id]"),
                             }
                         }
                         _ => self.print_string_ln("Using: pci [legacy || mcfg]"),

@@ -14,11 +14,11 @@ pub mod headers;
 
 pub const PCI_IDS: &[u8] = include_bytes!("pci.ids");
 
-pub unsafe fn read_header(addr: u64) -> PciHeader {
+unsafe fn read_header(addr: u64) -> PciHeader {
     (addr as *const PciHeader).read_volatile()
 }
 
-pub unsafe fn read_header_legacy(
+unsafe fn read_header_legacy(
     bus: u8,
     device: u8,
     function: u8,
@@ -69,17 +69,40 @@ pub unsafe fn read_u8(bus: u8, device: u8, function: u8, offset: u8) -> u8 {
 
 pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
     let mut devices = Vec::new();
+
     for bus in entry.start_bus..=entry.end_bus {
         for device in 0..32 {
-            for function in 0..8 {
-                let addr = entry.base_address
-                    + ((bus as u64) << 20)
-                    + ((device as u64) << 15)
-                    + ((function as u64) << 12);
+            let addr = entry.base_address
+                + ((bus as u64) << 20)
+                + ((device as u64) << 15)
+                + ((0u64) << 12);
 
-                let header = unsafe { read_header(addr) };
+            let header = unsafe { read_header(addr) };
 
-                if header.vendor_id != 0xFFFF {
+            if header.vendor_id == 0xFFFF {
+                continue;
+            }
+
+            devices.push(PciDevice {
+                bus,
+                device,
+                function: 0,
+                header,
+            });
+
+            if header.header_type & 0x80 != 0 {
+                for function in 1..8 {
+                    let addr = entry.base_address
+                        + ((bus as u64) << 20)
+                        + ((device as u64) << 15)
+                        + ((function as u64) << 12);
+
+                    let header = unsafe { read_header(addr) };
+
+                    if header.vendor_id == 0xFFFF {
+                        continue;
+                    }
+
                     devices.push(PciDevice {
                         bus,
                         device,
@@ -90,6 +113,7 @@ pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
             }
         }
     }
+
     devices
 }
 pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
@@ -139,6 +163,21 @@ pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
     devices
 }
 
+pub fn enumerate_by_id(mcfg_entry: &McfgEntry, vendor_id: u16, device_id: u16) -> Option<PciDevice> {
+    let devices = unsafe {enumerate_mcfg(mcfg_entry)};
+    for device in devices {
+        if device.header.vendor_id == vendor_id && device.header.device_id == device_id {
+            return Some(PciDevice { bus: device.bus, device: device.device, function: device.function, header: device.header })
+        }
+    }
+    let devices = unsafe { enumerate_legacy() };
+    for device in devices {
+        if device.header.vendor_id == vendor_id && device.header.device_id == device_id {
+            return Some(PciDevice { bus: device.bus, device: device.device, function: device.function, header: device.header })
+        }
+    }
+    None
+}
 
 pub fn check(vendor_id: u16, device_id: u16) -> (Option<&'static str>, Option<&'static str>) {
     let text = core::str::from_utf8(PCI_IDS).unwrap();
