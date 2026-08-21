@@ -29,7 +29,7 @@ pub unsafe fn reset() -> ! {
         hlt();
     }
 }
-pub unsafe fn s5_soft_off() -> ! {
+pub unsafe fn poweroff() -> ! {
     use x86_64::instructions::port::Port;
     let fadt_ptr = unsafe { get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap() };
     let fadt = unsafe { &*fadt_ptr };
