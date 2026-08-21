@@ -163,7 +163,7 @@ pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
     devices
 }
 
-pub fn enumerate_by_id(mcfg_entry: &McfgEntry, vendor_id: u16, device_id: u16) -> Option<PciDevice> {
+pub fn find_by_id(mcfg_entry: &McfgEntry, vendor_id: u16, device_id: u16) -> Option<PciDevice> {
     let devices = unsafe {enumerate_mcfg(mcfg_entry)};
     for device in devices {
         if device.header.vendor_id == vendor_id && device.header.device_id == device_id {

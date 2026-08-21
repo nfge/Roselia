@@ -23,6 +23,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
+use utils::serial_println;
 use core::fmt::Write;
 
 mod command;
@@ -513,12 +514,16 @@ impl Terminal {
                                     Some(s) => {
                                         let s = s as &str;
                                         if let Some((vendor, device)) = s.split_once(":") {
-                                            let vendor_id: u16 = vendor.parse().unwrap();
-                                            let device_id: u16 = device.parse().unwrap();
-                                            let device =
-                                                pci::enumerate_by_id(entry, vendor_id, device_id).unwrap();
+                                            let vendor_id = u16::from_str_radix(vendor, 16).unwrap();
+                                            let device_id = u16::from_str_radix(device, 16).unwrap();
+                                            let device = match pci::find_by_id(
+                                                entry, vendor_id, device_id
+                                            ) {
+                                                Some(data) => data,
+                                                None => return self.print_string_ln("Not found"),
+                                            };
                                             let (vendor_name, device_name) =
-                                                unsafe { pci::check(vendor_id, device_id) };
+                                                pci::check(vendor_id, device_id);
                                             let _ = write!(
                                                 self,
                                                 "{}:{}.{}\n",
@@ -541,7 +546,7 @@ impl Terminal {
                                 _ => self.print_string_ln("Using: pci [legacy || mcfg || id]"),
                             }
                         }
-                        _ => self.print_string_ln("Using: pci [legacy || mcfg]"),
+                        _ => self.print_string_ln("Using: pci [legacy || mcfg || id]"),
                     }
                 }
             }

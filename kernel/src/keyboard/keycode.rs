@@ -60,6 +60,8 @@ pub enum KeyCode {
     RightBracket = ']' as u32,
     Backslash = '\\' as u32,
     Slash = '/' as u32,
+    Semicolon = ';' as u32,
+    Colon = ':' as u32,
 
     ArrowLeft = 0x100,
     ArrowRight = 0x101,
@@ -76,8 +78,6 @@ impl KeyCode {
         }
     }
 }
-
-
 
 pub(super) fn scancode_to_keycode(scancode: u8) -> Option<KeyCode> {
     Some(match scancode {
@@ -138,44 +138,46 @@ pub(super) fn scancode_to_keycode(scancode: u8) -> Option<KeyCode> {
         0x1B => KeyCode::RightBracket,
         0x2B => KeyCode::Backslash,
         0x35 => KeyCode::Slash,
+        0x27 => KeyCode::Semicolon,
 
         _ => return None,
     })
 }
 
 pub fn key_event_to_char(evt: KeyEvent) -> Option<char> {
-        let base = evt.code.to_char()?;
-        if !evt.shift {
-            return Some(base);
-        }
-
-        if base.is_ascii_alphabetic() {
-            return Some(base.to_ascii_uppercase());
-        }
-
-        Some(match base {
-            '1' => '!',
-            '2' => '@',
-            '3' => '#',
-            '4' => '$',
-            '5' => '%',
-            '6' => '^',
-            '7' => '&',
-            '8' => '*',
-            '9' => '(',
-            '0' => ')',
-            '-' => '_',
-            '=' => '+',
-            ',' => '<',
-            '.' => '>',
-            '/' => '?',
-            '\'' => '"',
-            '[' => '{',
-            ']' => '}',
-            '\\' => '|',
-            _ => base,
-        })
+    let base = evt.code.to_char()?;
+    if !evt.shift {
+        return Some(base);
     }
+
+    if base.is_ascii_alphabetic() {
+        return Some(base.to_ascii_uppercase());
+    }
+
+    Some(match base {
+        '1' => '!',
+        '2' => '@',
+        '3' => '#',
+        '4' => '$',
+        '5' => '%',
+        '6' => '^',
+        '7' => '&',
+        '8' => '*',
+        '9' => '(',
+        '0' => ')',
+        '-' => '_',
+        '=' => '+',
+        ',' => '<',
+        '.' => '>',
+        '/' => '?',
+        '\'' => '"',
+        '[' => '{',
+        ']' => '}',
+        '\\' => '|',
+        ';' => ':',
+        _ => base,
+    })
+}
 
 pub fn handle_scancode(scancode: u8) {
     match scancode {
@@ -189,11 +191,11 @@ pub fn handle_scancode(scancode: u8) {
         }
         0x1D => {
             CTRL.store(true, Ordering::Relaxed);
-            return
-        },
+            return;
+        }
         0x9D => {
             CTRL.store(false, Ordering::Relaxed);
-            return
+            return;
         }
         _ => {}
     }
@@ -206,7 +208,7 @@ pub fn handle_scancode(scancode: u8) {
         KEYBOARD_BUFFER.lock().push(KeyEvent {
             code,
             shift: SHIFT.load(Ordering::Relaxed),
-            ctrl: CTRL.load(Ordering::Relaxed)
+            ctrl: CTRL.load(Ordering::Relaxed),
         });
     }
 }
