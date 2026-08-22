@@ -1,8 +1,6 @@
 #![no_main]
 #![no_std]
 
-extern crate alloc;
-
 pub mod elf;
 pub mod acpi_tables;
 pub mod pci;
