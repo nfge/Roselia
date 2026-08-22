@@ -6,3 +6,4 @@ pub mod acpi_tables;
 pub mod pci;
 pub mod time;
 pub mod keyboard;
+pub mod module;
