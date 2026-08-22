@@ -1,13 +1,25 @@
-
-use kernel_api::elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
-use uefi::{CStr16, Status, boot::{self, MemoryType, ScopedProtocol, allocate_pages}, cstr16, println, proto::media::{file::{self, File, FileAttribute, FileInfo, FileMode}, fs::SimpleFileSystem}};
+use kernel_api::{
+    elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr},
+    module::Module,
+};
+use uefi::{
+    CStr16, Status,
+    boot::{self, MemoryType, ScopedProtocol, allocate_pages},
+    cstr16, println,
+    proto::media::{
+        file::{self, Directory, File, FileAttribute, FileInfo, FileMode},
+        fs::SimpleFileSystem,
+    },
+};
 
 use crate::PT_LOAD;
 
 pub mod init_gop;
 
-pub fn get_kernel(filesys: &mut ScopedProtocol<SimpleFileSystem>) -> Result<(u64, usize,usize), uefi::Status> {
-    let mut kernel_start_addr:usize = 0;
+pub fn get_kernel(
+    filesys: &mut ScopedProtocol<SimpleFileSystem>,
+) -> Result<(u64, usize, usize), uefi::Status> {
+    let mut kernel_start_addr: usize = 0;
     let mut kernel_pages: usize = 0;
     let mut root = filesys.open_volume().expect("Failed to open volume");
     let kernel_name: &CStr16 = cstr16!("kernel.elf");
@@ -15,7 +27,7 @@ pub fn get_kernel(filesys: &mut ScopedProtocol<SimpleFileSystem>) -> Result<(u64
         Ok(f) => match f.into_type() {
             Ok(file::FileType::Regular(file)) => file,
             _ => {
-                println!("kernel.efi is not a regular file");
+                println!("kernel.elf is not a regular file");
                 return Err(Status::UNSUPPORTED);
             }
         },
@@ -100,4 +112,112 @@ pub fn get_kernel(filesys: &mut ScopedProtocol<SimpleFileSystem>) -> Result<(u64
     }
     let entry = ehdr.e_entry;
     Ok((entry, kernel_start_addr, kernel_pages))
+}
+
+pub fn load_modules(
+    file_system: &mut ScopedProtocol<SimpleFileSystem>,
+) -> Result<(*mut Module, usize), uefi::Status> {
+    let mut root = file_system.open_volume().unwrap();
+    let mut modules_dir = root
+        .open(
+            cstr16!("modules"),
+            uefi::proto::media::file::FileMode::Read,
+            FileAttribute::empty(),
+        )
+        .expect("Failed to open directory")
+        .into_directory()
+        .expect("Not a directory");
+
+    let mut buf = [0u8; 512];
+
+    let mut module_count = 0;
+
+    loop {
+        match modules_dir.read_entry(&mut buf) {
+            Ok(Some(entry)) => {
+                if entry.attribute().contains(FileAttribute::DIRECTORY) {
+                    continue;
+                }
+
+                module_count += 1;
+            }
+
+            Ok(None) => {
+                break;
+            }
+
+            Err(e) => {
+                println!("Failed to read directory: {:?}", e);
+                return Err(Status::LOAD_ERROR);
+            }
+        }
+    }
+
+    let ptr = if module_count == 0 {
+        core::ptr::null_mut()
+    } else {
+        let size = module_count * core::mem::size_of::<Module>();
+
+        let pages = (size + 0xFFF) / 0x1000;
+        allocate_pages(
+            uefi::boot::AllocateType::AnyPages,
+            MemoryType::LOADER_DATA,
+            pages,
+        )
+        .expect("Failed to allocate modules")
+        .as_ptr() as *mut Module
+    };
+
+    let mut modules_dir = root
+        .open(
+            cstr16!("modules"),
+            uefi::proto::media::file::FileMode::Read,
+            FileAttribute::empty(),
+        )
+        .expect("Failed to open directory")
+        .into_directory()
+        .expect("Not a directory");
+
+    let mut module_index = 0;
+
+    loop {
+        match modules_dir.read_entry(&mut buf) {
+            Ok(Some(entry)) => {
+                if entry.attribute().contains(FileAttribute::DIRECTORY) {
+                    continue;
+                }
+
+                if module_index >= module_count {
+                    break;
+                }
+
+                let name = entry.file_name();
+
+                let module = elf_loader::load_elf(name, file_system)?;
+
+                unsafe {
+                    ptr.add(module_index).write(module);
+                }
+
+                module_index += 1;
+            }
+
+            Ok(None) => {
+                break;
+            }
+
+            Err(e) => {
+                println!("Failed to read directory: {:?}", e);
+                return Err(Status::LOAD_ERROR);
+            }
+        }
+    }
+
+    if module_index != module_count {
+        println!(
+            "Warning: expected {}, loaded {} modules",
+            module_count, module_index
+        );
+    }
+    Ok((ptr, module_count))
 }

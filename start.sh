@@ -30,6 +30,7 @@ build_dev() {
     mkdir -p os/EFI/BOOT
     mkdir -p os/EFI/Roselia
     mkdir -p os/OVMF
+    mkdir -p os/modules
 
     if [ ! -f os/OVMF/vars.fd ]; then
     cp usr/share/OVMF/OVMF_VARS.fd os/OVMF/vars.fd
@@ -47,6 +48,7 @@ build_release() {
     mkdir -p os/EFI/BOOT
     mkdir -p os/EFI/Roselia
     mkdir -p os/OVMF
+    mkdir -p os/modules
 
     if [ ! -f os/OVMF/vars.fd ]; then
     cp usr/share/OVMF/OVMF_VARS.fd os/OVMF/vars.fd

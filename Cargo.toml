@@ -1,5 +1,5 @@
 [workspace]
-members = ["kernel","bootloader", "common/bootinfo", "tools/mem", "common/acpi", "common/pci", "utils", "kernel_api"]
+members = ["kernel","bootloader", "common/bootinfo", "tools/mem", "common/acpi", "common/pci", "utils", "kernel_api", "common/elf_loader"]
 resolver = "3"
 
 

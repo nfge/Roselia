@@ -2,30 +2,32 @@
 #![no_main]
 
 mod init;
-mod modules;
-
 use bootinfo::{
-    BootInfo, kernelinfo::KernelInfo, reset::reset_fn, time::get_uefi_time, variable::{get_variable, set_variable}
+    BootInfo,
+    kernelinfo::KernelInfo,
+    reset::reset_fn,
+    time::get_uefi_time,
+    variable::{get_variable, set_variable},
 };
+use kernel_api::module::{Module, Modules};
 
 use core::{panic::PanicInfo, ptr::null, time::Duration, usize};
 use uefi::{
     boot::{
-        EventType, TimerTrigger, Tpl, create_event, exit_boot_services,
-        get_handle_for_protocol, get_image_file_system, image_handle,
-        open_protocol_exclusive, set_timer, stall,
+        EventType, MemoryType, TimerTrigger, Tpl, allocate_pages, create_event, exit_boot_services, get_handle_for_protocol, get_image_file_system, image_handle, open_protocol_exclusive, set_timer, stall
     },
     prelude::*,
     println,
     proto::{
         console::text::{Input, Key, ScanCode},
+        media::file::{File, FileAttribute},
     },
     runtime::{ResetType, VariableAttributes, VariableVendor},
     system::with_config_table,
     table::cfg::ConfigTableEntry,
 };
 
-use crate::init::{get_kernel,init_gop::init_gop};
+use crate::init::{get_kernel, init_gop::init_gop, load_modules};
 
 const PT_LOAD: u32 = 1;
 
@@ -75,9 +77,11 @@ fn main() -> Status {
 
     let (entry, kernel_start_addr, kernel_pages) = get_kernel(&mut filesys).unwrap();
 
+    let (modules, modules_count) = load_modules(&mut filesys).unwrap();
+
     let kernel_entry: extern "sysv64" fn(boot_ptr: *const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
-    
+
     let framebuffer = init_gop();
 
     let mut acpi_ptr: *const core::ffi::c_void = null();
@@ -93,7 +97,10 @@ fn main() -> Status {
     let mmap = unsafe { exit_boot_services(None) };
 
     let bootinfo = BootInfo {
-        kernel_info: KernelInfo {start_address: kernel_start_addr, pages: kernel_pages}, 
+        kernel_info: KernelInfo {
+            start_address: kernel_start_addr,
+            pages: kernel_pages,
+        },
         gop: framebuffer,
         reset: reset_fn as *const (),
         time: get_uefi_time as *const (),
@@ -101,6 +108,7 @@ fn main() -> Status {
         set_var: set_variable as *const (),
         memory_map: mmap,
         acpi_table_ptr: acpi_ptr,
+        modules: Modules {ptr: modules, count: modules_count}
     };
 
     kernel_entry(&bootinfo as *const BootInfo);

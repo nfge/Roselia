@@ -31,6 +31,7 @@ use bootinfo::{
     time::GetTimeFn,
     variable::{GetVar, SetVar},
 };
+use kernel_api::module::{Module, Modules};
 use core::{
     ffi::c_void,
     panic::PanicInfo,
@@ -44,6 +45,7 @@ static mut TIME_FN: Option<GetTimeFn> = None;
 static mut SET_VAR_FN: Option<SetVar> = None;
 static mut GET_VAR_FN: Option<GetVar> = None;
 static mut ACPI_TABLE: Option<*const c_void> = None;
+
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 static mut PAGE_ALLOCATOR: Option<PageAllocator<'static>> = None;
@@ -57,9 +59,8 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         TIME_FN = Some(core::mem::transmute(info.time));
         SET_VAR_FN = Some(core::mem::transmute(info.set_var));
         GET_VAR_FN = Some(core::mem::transmute(info.get_var));
-        ACPI_TABLE = Some(info.acpi_table_ptr)
+        ACPI_TABLE = Some(info.acpi_table_ptr);
     };
-
     cpu::gdt::init();
     cpu::interrupts::init_idt();
     cpu::pic::disable_pic();
@@ -75,7 +76,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         PAGE_ALLOCATOR = Some(PageAllocator::new(&info.memory_map));
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
-            allocator.init(info.kernel_info.start_address, info.kernel_info.pages);
+            allocator.init(info.kernel_info.start_address, info.kernel_info.pages, Modules { ptr: info.modules.ptr, count: info.modules.count });
         }
     }
     memory::init_heap();

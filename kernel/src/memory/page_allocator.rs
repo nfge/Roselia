@@ -1,3 +1,6 @@
+use core::ops::Add;
+
+use kernel_api::module::{Module, Modules};
 use uefi::{
     boot::MemoryType,
     mem::memory_map::{MemoryMap, MemoryMapOwned},
@@ -22,20 +25,33 @@ impl<'a> PageAllocator<'a> {
             mmap: mmap,
         }
     }
-    pub fn init(&mut self, kernel_start: usize, kernel_pages: usize) {
+    pub fn init(&mut self, kernel_start: usize, kernel_pages: usize, modules: Modules) {
         for i in 0..self.bitmap.total_pages {
             self.bitmap.set(i);
         }
         for entry in self.mmap.entries() {
-            if entry.ty == MemoryType::CONVENTIONAL || entry.ty == MemoryType::LOADER_DATA || entry.ty == MemoryType::LOADER_CODE {
+            if entry.ty == MemoryType::CONVENTIONAL
+                || entry.ty == MemoryType::LOADER_DATA
+                || entry.ty == MemoryType::LOADER_CODE
+            {
                 let first_page = entry.phys_start / 4096;
                 for page in 0..entry.page_count {
                     self.bitmap.clear(first_page as usize + page as usize);
                 }
             }
         }
+
         self.reserve_pages(kernel_start, kernel_pages);
         self.reserve_pages(self.bitmap.bitmap_start, self.bitmap.bitmap_pages);
+        if modules.count == 0 {
+            let ptr = modules.ptr as usize;
+            let len = modules.count;
+
+            let bytes = len * core::mem::size_of::<Module>();
+            let modules_pages = bytes.div_ceil(4096);
+
+            self.reserve_pages(ptr, modules_pages);
+        }
     }
     pub fn reserve_pages(&mut self, start_addr: usize, pages: usize) {
         let start_page = start_addr / 4096;
@@ -162,7 +178,10 @@ pub fn get_used_mem() -> usize {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
             for entry in allocator.mmap.entries() {
-                if entry.ty == MemoryType::CONVENTIONAL || entry.ty == MemoryType::LOADER_DATA || entry.ty == MemoryType::LOADER_CODE {
+                if entry.ty == MemoryType::CONVENTIONAL
+                    || entry.ty == MemoryType::LOADER_DATA
+                    || entry.ty == MemoryType::LOADER_CODE
+                {
                     let start_page = entry.phys_start as usize / 4096;
 
                     for i in 0..entry.page_count as usize {

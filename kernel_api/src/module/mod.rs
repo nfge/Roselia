@@ -19,6 +19,6 @@ pub struct Module {
 
 #[repr(C)]
 pub struct Modules {
-    pub ptr: *const Module,
+    pub ptr: *mut Module,
     pub count: usize
 }

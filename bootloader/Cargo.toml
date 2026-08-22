@@ -8,6 +8,7 @@ authors = ["nfge Github: <https://github.com/nfge>"]
 uefi = "0.39.0"
 bootinfo= {path = "../common/bootinfo"}
 kernel_api = {path = "../kernel_api"}
+elf_loader = {path = "../common/elf_loader"}
 [[bin]]
 name = "bootloader"
 test=false

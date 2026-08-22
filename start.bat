@@ -29,6 +29,7 @@ if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
 if not exist os\EFI\Roselia mkdir os\EFI\Roselia
 if not exist os\OVMF\ mkdir os\OVMF\
+if not exist os\modules mkdir os\modules
 
 
 if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
@@ -46,6 +47,7 @@ if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
 if not exist os\EFI\Roselia mkdir os\EFI\Roselia
 if not exist os\OVMF\ mkdir os\OVMF\
+if not exist os\modules mkdir os\modules
 
 
 if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
@@ -56,5 +58,5 @@ exit /b
 
 
 :run
-qemu-system-x86_64 -machine q35 -m 512 -drive if=pflash,format=raw,readonly=on,file="C:\Program Files\qemu\share\OVMF_CODE.fd" -drive if=pflash,format=raw,file=./os/OVMF/vars.fd -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -monitor stdio -cpu max -d int,cpu_reset,guest_errors -D qemu.log
+qemu-system-x86_64 -machine q35 -m 1G -drive if=pflash,format=raw,readonly=on,file="C:\Program Files\qemu\share\OVMF_CODE.fd" -drive if=pflash,format=raw,file=./os/OVMF/vars.fd -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -monitor stdio -cpu max -d int,cpu_reset,guest_errors -D qemu.log
 goto :eof
