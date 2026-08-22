@@ -9,3 +9,16 @@ pub struct ModuleInfo {
     pub version: u32,
     pub flags: u32
 }
+
+
+#[repr(C)]
+pub struct Module {
+    pub address: u64,
+    pub len: u64
+}
+
+#[repr(C)]
+pub struct Modules {
+    pub ptr: *const Module,
+    pub count: usize
+}

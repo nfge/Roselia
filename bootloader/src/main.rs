@@ -2,7 +2,7 @@
 #![no_main]
 
 mod init;
-mod elf;
+mod modules;
 
 use bootinfo::{
     BootInfo, kernelinfo::KernelInfo, reset::reset_fn, time::get_uefi_time, variable::{get_variable, set_variable}
