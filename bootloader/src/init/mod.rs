@@ -138,7 +138,9 @@ pub fn load_modules(
                 if entry.attribute().contains(FileAttribute::DIRECTORY) {
                     continue;
                 }
-
+                if !has_extension(entry.file_name(), b".elf") && !has_extension(entry.file_name(), b".kmod") {
+                    continue;
+                }
                 module_count += 1;
             }
 
@@ -193,6 +195,10 @@ pub fn load_modules(
 
                 let name = entry.file_name();
 
+                if !has_extension(name, b".elf") && !has_extension(name, b".kmod") {
+                    continue;
+                }
+
                 let module = elf_loader::load_elf(name, file_system)?;
 
                 unsafe {
@@ -220,4 +226,12 @@ pub fn load_modules(
         );
     }
     Ok((ptr, module_count))
+}
+
+fn has_extension(name: &CStr16, extension: &[u8]) -> bool {
+    let units = name.to_u16_slice();
+    if units.len() < extension.len() {
+        return false;
+    }
+    units[units.len() - extension.len()..].iter().zip(extension).all(|(&cu,&b)| cu <= 0x7F && (cu as u8).eq_ignore_ascii_case(&b))
 }
