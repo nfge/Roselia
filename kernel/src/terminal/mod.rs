@@ -467,7 +467,7 @@ impl Terminal {
                             }
                             match s.as_str() {
                                 "legacy" => {
-                                    let devices = unsafe { pci::enumerate_legacy() };
+                                    let devices = unsafe { pci::enumerate::enumerate_legacy() };
                                     for device in devices {
                                         let (vendor_name, device_name) = pci::check(
                                             device.header.vendor_id,
@@ -489,7 +489,7 @@ impl Terminal {
                                     }
                                 }
                                 "mcfg" => {
-                                    let devices = unsafe { pci::enumerate_mcfg(entry) };
+                                    let devices = unsafe { pci::enumerate::enumerate_mcfg(entry) };
                                     for device in devices {
                                         let (vendor_name, device_name) = pci::check(
                                             device.header.vendor_id,

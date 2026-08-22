@@ -6,5 +6,6 @@ pub enum Error {
     AlreadyExists,
     InvalidPath,
     InvalidOffset,
+    NotSupported,
     Null
 }

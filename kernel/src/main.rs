@@ -89,7 +89,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     let _ = create_file("/kernel/log", ramfs::data::NodeData::File(Vec::new())).unwrap();
     let _ = create_file(
         "/sys/memory",
-        ramfs::data::NodeData::Virtual(|| {
+        ramfs::data::NodeData::virtual_read(|| {
             let used = get_used_mem();
             let free = get_free_mem();
             let total = get_total_memory();
@@ -98,7 +98,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     );
     let _ = create_file(
         "/kernel/info",
-        ramfs::data::NodeData::Virtual(|| {
+        ramfs::data::NodeData::virtual_read(|| {
             let version = env!("CARGO_PKG_VERSION");
             let git_commit = env!("GIT_COMMIT");
             format!(

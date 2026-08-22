@@ -92,7 +92,8 @@ impl RamFs {
         match &node.data {
             NodeData::Empty => Ok(Vec::new()),
             NodeData::File(data) => Ok(data.clone()),
-            NodeData::Virtual(f) => Ok(f()),
+            NodeData::Ops { read: Some(f), ..} => Ok(f()),
+            NodeData::Ops { read: None, ..} => Err(Error::NotSupported)
         }
     }
     pub fn write(&mut self, path: &str, offset: usize, data: &[u8]) -> Result<(), Error> {
@@ -102,9 +103,16 @@ impl RamFs {
             return Err(Error::NotFile);
         }
 
-        if matches!(node.data, NodeData::Virtual(_)) {
-            return Err(Error::NotFile);
+        if let NodeData::Ops { write, .. } = &node.data {
+            return match write {
+                Some(f) => {
+                    let f = *f;
+                    f(data)
+                }
+                None => Err(Error::NotSupported),
+            };
         }
+
         if matches!(node.data, NodeData::Empty) {
             node.data = NodeData::File(Vec::new());
         }
@@ -123,7 +131,7 @@ impl RamFs {
                     buf.resize(end, 0);
                 }
                 buf[offset..end].copy_from_slice(data);
-            }
+            },
             _ => {}
         }
 

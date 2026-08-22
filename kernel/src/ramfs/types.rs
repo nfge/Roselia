@@ -4,5 +4,5 @@ use alloc::vec::Vec;
 pub enum NodeType {
     File,
     Directory,
-    Virtual
+    Ops,
 }
