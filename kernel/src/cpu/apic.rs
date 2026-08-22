@@ -1,6 +1,6 @@
 use core::ffi::c_void;
 
-use acpi_tables::{
+use kernel_api::acpi_tables::{
     madt::{Madt, MadtEntry},
     rsdp::Rsdp,
     sdtheader::SdtHeader,

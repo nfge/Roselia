@@ -5,11 +5,10 @@ mod ringbuffer;
 // pub mod scancode_table;
 mod special_keys;
 pub mod keycode;
-pub mod keyevent;
 
 use x86_64::instructions::port::Port;
 
-use crate::keyboard::{keycode::{KeyCode, scancode_to_keycode}, keyevent::KeyEvent};
+use kernel_api::keyboard::{keycode::{KeyCode, scancode_to_keycode}, keyevent::KeyEvent};
 pub static KEYBOARD_BUFFER: spin::Mutex<ringbuffer::RingBuffer<KeyEvent, 64>> =
     spin::Mutex::new(ringbuffer::RingBuffer::new());
 

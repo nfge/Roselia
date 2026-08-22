@@ -1,5 +1,5 @@
 
-use elf_headers::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
+use kernel_api::elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr};
 use uefi::{CStr16, Status, boot::{self, MemoryType, ScopedProtocol, allocate_pages}, cstr16, println, proto::media::{file::{self, File, FileAttribute, FileInfo, FileMode}, fs::SimpleFileSystem}};
 
 use crate::PT_LOAD;

@@ -1,4 +1,4 @@
-use crate::keyboard::keycode::KeyCode;
+use super::keycode::KeyCode;
 
 #[derive(Clone, Copy)]
 pub struct KeyEvent {

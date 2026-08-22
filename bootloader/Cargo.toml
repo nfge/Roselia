@@ -7,7 +7,7 @@ authors = ["nfge Github: <https://github.com/nfge>"]
 [dependencies]
 uefi = "0.39.0"
 bootinfo= {path = "../common/bootinfo"}
-elf_headers = {path = "../common/elf_headers"}
+kernel_api = {path = "../kernel_api"}
 [[bin]]
 name = "bootloader"
 test=false

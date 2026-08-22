@@ -3,14 +3,12 @@
 
 extern crate alloc;
 
-use acpi_tables::mcfg::McfgEntry;
-use x86::io::{inl, outl};
+use kernel_api::acpi_tables::mcfg::McfgEntry;
+use kernel_api::pci::{PciDevice};
 
-use crate::{enumerate::{enumerate_legacy, enumerate_mcfg}, headers::{PciDevice, PciHeader}};
-use alloc::{boxed::Box, format, vec::Vec};
-use utils::serial_println;
+use crate::{enumerate::{enumerate_legacy, enumerate_mcfg}};
+use alloc::{format};
 
-pub mod headers;
 pub mod read;
 pub mod enumerate;
 

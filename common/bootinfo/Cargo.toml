@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 uefi="0.39.0"
 x86_64 = "0.15.5"
+
+kernel_api={path = "../../kernel_api"}

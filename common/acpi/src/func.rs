@@ -1,4 +1,3 @@
-use crate::sdtheader::SdtHeader;
 
 pub const SLP_EN: u16 = 1 << 13;
 pub const SLP_TYP_SHIFT: u16 = 10;

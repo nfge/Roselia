@@ -1,9 +1,8 @@
 [package]
-name = "pci"
+name = "acpi"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-kernel_api={path = "../../kernel_api"}
 utils={path = "../../utils"}
-x86 = "0.52.0"
+kernel_api={path = "../../kernel_api"}

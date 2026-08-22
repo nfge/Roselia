@@ -1,11 +1,11 @@
 use core::panic;
 
-use acpi_tables::{
-    dsdt::Dsdt, fadt::Fadt, func::{SLP_EN, SLP_TYP_SHIFT, find_s5_sleep_type}, get_table, get_tables, rsdp::Rsdp, sdtheader::SdtHeader, ssdt::Ssdt, xsdt::Xsdt
+use kernel_api::acpi_tables::{
+    dsdt::Dsdt, fadt::Fadt, rsdp::Rsdp, sdtheader::SdtHeader, ssdt::Ssdt, xsdt::Xsdt
 };
-use alloc::format;
-use bootinfo::time::KernelTime;
-use utils::serial_println;
+use acpi::{get_table,get_tables,func::{SLP_EN, SLP_TYP_SHIFT, find_s5_sleep_type}};
+
+use kernel_api::time::KernelTime;
 use x86::io::outb;
 use x86_64::instructions::hlt;
 

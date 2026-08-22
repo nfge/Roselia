@@ -1,30 +1,30 @@
 use crate::{
-    ACPI_TABLE, GET_VAR_FN, RAMFS, RESET_FN, SET_VAR_FN, TERMINAL, TIME_FN,
+    ACPI_TABLE,
     cpu::{self},
     func::{get_time, poweroff, reset},
     gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
-    keyboard::{
-        KeyBoard,
-        keycode::{KeyCode, key_event_to_char},
-        keyevent::KeyEvent,
-    },
     log,
-    memory::{
-        get_heap_free, get_heap_used,
-        page_allocator::{get_free_mem, get_used_mem},
-    },
+    keyboard::KeyBoard,
+    memory::{get_heap_free, get_heap_used},
     ramfs::{check_directory, create_file, is_valid, mkdir, read_file, write_file},
     terminal::{command::Command, token::Token},
     timer::sleep,
 };
-use acpi_tables::{get_table, mcfg::Mcfg};
+use acpi::get_table;
 use alloc::{
     string::{String, ToString},
     vec,
     vec::Vec,
 };
-use utils::serial_println;
 use core::fmt::Write;
+use kernel_api::{
+    acpi_tables::mcfg::Mcfg,
+    keyboard::{
+        keycode::{KeyCode, key_event_to_char},
+        keyevent::KeyEvent,
+    },
+};
+use utils::serial_println;
 
 mod command;
 mod lexer;
@@ -514,10 +514,12 @@ impl Terminal {
                                     Some(s) => {
                                         let s = s as &str;
                                         if let Some((vendor, device)) = s.split_once(":") {
-                                            let vendor_id = u16::from_str_radix(vendor, 16).unwrap();
-                                            let device_id = u16::from_str_radix(device, 16).unwrap();
+                                            let vendor_id =
+                                                u16::from_str_radix(vendor, 16).unwrap();
+                                            let device_id =
+                                                u16::from_str_radix(device, 16).unwrap();
                                             let device = match pci::find_by_id(
-                                                entry, vendor_id, device_id
+                                                entry, vendor_id, device_id,
                                             ) {
                                                 Some(data) => data,
                                                 None => return self.print_string_ln("Not found"),

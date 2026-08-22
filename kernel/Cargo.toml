@@ -15,8 +15,11 @@ heapless = "=0.9.3"
 x86 = "0.52.0"
 spin = "0.12.2"
 lazy_static = {version = "1.5.0", features = ["spin_no_std"]}
+
+kernel_api={path = "../kernel_api"}
+
 bootinfo={path = "../common/bootinfo"}
-acpi_tables = {path = "../common/acpi_tables"}
+acpi = {path = "../common/acpi"}
 pci={path = "../common/pci"}
 mem={path = "../tools/mem"}
 utils={path = "../utils"}

@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use crate::sdtheader::SdtHeader;
+use crate::acpi_tables::sdtheader::SdtHeader;
 
 #[repr(C, packed)]
 pub struct Madt {

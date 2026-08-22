@@ -2,19 +2,8 @@ use uefi::{
     Result,
     runtime::{Daylight, get_time_and_caps},
 };
+use kernel_api::time::KernelTime;
 
-#[derive(Clone, Copy, Debug)]
-pub struct KernelTime {
-    pub year: u16,
-    pub month: u8,
-    pub day: u8,
-    pub hour: u8,
-    pub minute: u8,
-    pub second: u8,
-    pub nanosecond: u32,
-    pub daylight: Daylight,
-    pub time_zone: Option<i16>,
-}
 
 #[allow(improper_ctypes_definitions)]
 pub extern "win64" fn get_uefi_time() -> Result<KernelTime> {

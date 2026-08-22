@@ -1,8 +1,9 @@
 
-use acpi_tables::mcfg::McfgEntry;
+use kernel_api::acpi_tables::mcfg::McfgEntry;
 use alloc::vec::Vec;
 
-use crate::{headers::PciDevice, read::{read_header, read_header_legacy, read_u8, read_u16, read_u32}};
+use kernel_api::pci::{PciDevice};
+use crate::read::{read_header, read_header_legacy,read_u32};
 
 pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
     let mut devices = Vec::new();

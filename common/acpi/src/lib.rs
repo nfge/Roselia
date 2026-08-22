@@ -10,20 +10,9 @@ use core::ffi::c_void;
 
 use utils::serial_println;
 
-use crate::{rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
+use kernel_api::acpi_tables::{rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
 
-pub mod rsdp;
-pub mod sdtheader;
 
-pub mod rsdt;
-pub mod xsdt;
-
-pub mod fadt;
-pub mod madt;
-pub mod mcfg;
-
-pub mod dsdt;
-pub mod ssdt;
 
 pub mod func;
 

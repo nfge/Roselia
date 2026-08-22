@@ -1,6 +1,6 @@
 use x86::io::{inl, outl};
 
-use crate::headers::PciHeader;
+use kernel_api::pci::PciHeader;
 
 pub unsafe fn read_header(addr: u64) -> PciHeader {
     (addr as *const PciHeader).read_volatile()

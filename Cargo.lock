@@ -3,9 +3,10 @@
 version = 4
 
 [[package]]
-name = "acpi_tables"
+name = "acpi"
 version = "0.1.0"
 dependencies = [
+ "kernel_api",
  "utils",
 ]
 
@@ -31,6 +32,7 @@ checksum = "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af"
 name = "bootinfo"
 version = "0.1.0"
 dependencies = [
+ "kernel_api",
  "uefi",
  "x86_64",
 ]
@@ -40,7 +42,7 @@ name = "bootloader"
 version = "0.1.6"
 dependencies = [
  "bootinfo",
- "elf_headers",
+ "kernel_api",
  "uefi",
 ]
 
@@ -71,10 +73,6 @@ name = "const_fn"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413d67b29ef1021b4d60f4aa1e925ca031751e213832b4b1d588fae623c05c60"
-
-[[package]]
-name = "elf_headers"
-version = "0.1.0"
 
 [[package]]
 name = "find-msvc-tools"
@@ -111,11 +109,12 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "kernel"
 version = "0.5.0"
 dependencies = [
- "acpi_tables",
+ "acpi",
  "bootinfo",
  "cc",
  "heapless",
  "itoa",
+ "kernel_api",
  "lazy_static",
  "linked_list_allocator",
  "mem",
@@ -126,6 +125,13 @@ dependencies = [
  "utils",
  "x86",
  "x86_64",
+]
+
+[[package]]
+name = "kernel_api"
+version = "0.1.0"
+dependencies = [
+ "uefi",
 ]
 
 [[package]]
@@ -169,7 +175,7 @@ version = "0.1.0"
 name = "pci"
 version = "0.1.0"
 dependencies = [
- "acpi_tables",
+ "kernel_api",
  "utils",
  "x86",
 ]
