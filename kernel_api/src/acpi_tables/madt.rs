@@ -62,8 +62,8 @@ pub enum MadtEntry<'a> {
 
 impl Madt {
     pub unsafe fn entries(&self) -> MadtEntryIter<'_> {
-        let start = (self as *const Madt as *const u8).add(core::mem::size_of::<Madt>());
-        let end = (self as *const Madt as *const u8).add(self.header.length as usize);
+        let start = unsafe {(self as *const Madt as *const u8).add(core::mem::size_of::<Madt>())};
+        let end = unsafe{(self as *const Madt as *const u8).add(self.header.length as usize)};
         MadtEntryIter { ptr: start, end, _marker: PhantomData }
     }
 }

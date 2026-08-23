@@ -1,6 +1,6 @@
 use core::ops::Add;
 
-use kernel_api::module::{Module, Modules};
+use kernel_api::module::{RawModule, RawModules};
 use uefi::{
     boot::MemoryType,
     mem::memory_map::{MemoryMap, MemoryMapOwned},
@@ -25,7 +25,7 @@ impl<'a> PageAllocator<'a> {
             mmap: mmap,
         }
     }
-    pub fn init(&mut self, kernel_start: usize, kernel_pages: usize, modules: Modules) {
+    pub fn init(&mut self, kernel_start: usize, kernel_pages: usize, modules: RawModules) {
         for i in 0..self.bitmap.total_pages {
             self.bitmap.set(i);
         }
@@ -43,14 +43,20 @@ impl<'a> PageAllocator<'a> {
 
         self.reserve_pages(kernel_start, kernel_pages);
         self.reserve_pages(self.bitmap.bitmap_start, self.bitmap.bitmap_pages);
-        if modules.count == 0 {
-            let ptr = modules.ptr as usize;
-            let len = modules.count;
+        if modules.count != 0 {
+            let array_bytes = modules.count * core::mem::size_of::<RawModule>();
+            let array_pages = array_bytes.div_ceil(4096);
+            self.reserve_pages(modules.ptr as usize, array_pages);
 
-            let bytes = len * core::mem::size_of::<Module>();
-            let modules_pages = bytes.div_ceil(4096);
+            for i in 0..modules.count {
+                let module = unsafe { &*modules.ptr.add(i) };
 
-            self.reserve_pages(ptr, modules_pages);
+                let raw_pages = (module.raw_len as usize).div_ceil(4096);
+                self.reserve_pages(module.raw_ptr as usize, raw_pages);
+
+                let image_pages = (module.len as usize).div_ceil(4096);
+                self.reserve_pages(module.base as usize, image_pages);
+            }
         }
     }
     pub fn reserve_pages(&mut self, start_addr: usize, pages: usize) {

@@ -3,7 +3,7 @@
 
 use core::ffi::c_void;
 
-use kernel_api::module::{Modules};
+use kernel_api::module::{RawModules};
 
 pub mod gop_table;
 pub mod reset;
@@ -22,5 +22,5 @@ pub struct BootInfo {
     pub get_var: *const (),
     pub memory_map: uefi::mem::memory_map::MemoryMapOwned,
     pub acpi_table_ptr: *const c_void,
-    pub modules: Modules
+    pub modules: RawModules
 }

@@ -1,6 +1,6 @@
 use kernel_api::{
     elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr},
-    module::Module,
+    module::RawModule,
 };
 use uefi::{
     CStr16, Status,
@@ -116,7 +116,7 @@ pub fn get_kernel(
 
 pub fn load_modules(
     file_system: &mut ScopedProtocol<SimpleFileSystem>,
-) -> Result<(*mut Module, usize), uefi::Status> {
+) -> Result<(*mut RawModule, usize), uefi::Status> {
     let mut root = file_system.open_volume().unwrap();
     let mut modules_dir = root
         .open(
@@ -158,7 +158,7 @@ pub fn load_modules(
     let ptr = if module_count == 0 {
         core::ptr::null_mut()
     } else {
-        let size = module_count * core::mem::size_of::<Module>();
+        let size = module_count * core::mem::size_of::<RawModule>();
 
         let pages = (size + 0xFFF) / 0x1000;
         allocate_pages(
@@ -167,7 +167,7 @@ pub fn load_modules(
             pages,
         )
         .expect("Failed to allocate modules")
-        .as_ptr() as *mut Module
+        .as_ptr() as *mut RawModule
     };
 
     let mut modules_dir = root

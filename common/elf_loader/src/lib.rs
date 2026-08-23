@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use kernel_api::{elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr}, module::Module};
+use kernel_api::{elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr}, module::RawModule};
 use uefi::{
     CStr16, Status,
     boot::{MemoryType, ScopedProtocol, allocate_pages},
@@ -17,7 +17,7 @@ const PT_LOAD: u32 = 1;
 pub fn load_elf(
     path: &CStr16,
     file_system: &mut ScopedProtocol<SimpleFileSystem>,
-) -> Result<Module, uefi::Status> {
+) -> Result<RawModule, uefi::Status> {
     let mut root = file_system.open_volume().expect("Failed to open volume");
     let mut file = match root.open(
         &path,
@@ -103,6 +103,7 @@ pub fn load_elf(
 
     let load_bias = load_address as isize - start_addr as isize;
 
+    let mut p_vaddr: u64 = 0;
     for i in 0..ehdr.e_phnum {
         let phdr = unsafe {
             &*(buffer_ptr.add(
@@ -114,7 +115,7 @@ pub fn load_elf(
         if phdr.p_type != PT_LOAD {
             continue;
         }
-
+        p_vaddr = phdr.p_vaddr;
         let dst = (phdr.p_vaddr as isize + load_bias) as *mut u8;
 
         let src = unsafe {
@@ -137,11 +138,15 @@ pub fn load_elf(
             }
         }
     }
-
+    let base = (p_vaddr as isize + load_bias) as u64;
     let entry = (ehdr.e_entry as isize + load_bias) as u64;
 
-    Ok(Module {
+    Ok(RawModule {
+        raw_ptr: buffer_ptr as u64,
+        raw_len: size as u64,
+        base: base,
         address: entry,
         len: image_size as u64,
+        load_bias: load_bias as i64
     })
 }

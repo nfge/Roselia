@@ -9,7 +9,7 @@ use bootinfo::{
     time::get_uefi_time,
     variable::{get_variable, set_variable},
 };
-use kernel_api::module::{Module, Modules};
+use kernel_api::module::{RawModules};
 
 use core::{panic::PanicInfo, ptr::null, time::Duration, usize};
 use uefi::{
@@ -108,7 +108,7 @@ fn main() -> Status {
         set_var: set_variable as *const (),
         memory_map: mmap,
         acpi_table_ptr: acpi_ptr,
-        modules: Modules {ptr: modules, count: modules_count}
+        modules: RawModules {ptr: modules, count: modules_count}
     };
 
     kernel_entry(&bootinfo as *const BootInfo);

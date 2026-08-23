@@ -1,4 +1,4 @@
-use crate::acpi_tables::{rsdt::Rsdt, sdtheader::SdtHeader};
+use crate::acpi_tables::{sdtheader::SdtHeader};
 
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug)]

@@ -13,10 +13,7 @@ impl Ssdt {
 
         let length = self.header.length as usize;
 
-        core::slice::from_raw_parts(
-            base.add(header_size),
-            length - header_size
-        )
+        unsafe { core::slice::from_raw_parts(base.add(header_size), length - header_size) }
     }
 
     pub fn is_valid_checksum(&self, all_bytes: &[u8]) -> bool {
