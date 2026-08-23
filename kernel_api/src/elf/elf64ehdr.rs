@@ -1,3 +1,9 @@
+pub const ET_NONE: u16 = 0;
+pub const ET_REL: u16  = 1;
+pub const ET_EXEC: u16 = 2;
+pub const ET_DYN: u16  = 3;
+pub const ET_CORE: u16 = 4;
+
 #[repr(C)]
 #[derive(Debug,Clone, Copy)]
 pub struct Elf64Ehdr {

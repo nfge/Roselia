@@ -103,7 +103,7 @@ pub fn load_elf(
 
     let load_bias = load_address as isize - start_addr as isize;
 
-    let mut p_vaddr: u64 = 0;
+
     for i in 0..ehdr.e_phnum {
         let phdr = unsafe {
             &*(buffer_ptr.add(
@@ -115,7 +115,7 @@ pub fn load_elf(
         if phdr.p_type != PT_LOAD {
             continue;
         }
-        p_vaddr = phdr.p_vaddr;
+        
         let dst = (phdr.p_vaddr as isize + load_bias) as *mut u8;
 
         let src = unsafe {
@@ -138,7 +138,8 @@ pub fn load_elf(
             }
         }
     }
-    let base = (p_vaddr as isize + load_bias) as u64;
+
+    let base = load_address as u64;
     let entry = (ehdr.e_entry as isize + load_bias) as u64;
 
     Ok(RawModule {

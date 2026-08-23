@@ -1,3 +1,17 @@
+pub const SHT_NULL: u32     = 0;
+pub const SHT_PROGBITS: u32 = 1;
+pub const SHT_SYMTAB: u32   = 2;
+pub const SHT_STRTAB: u32   = 3;
+pub const SHT_RELA: u32     = 4;
+pub const SHT_DYNAMIC: u32  = 6;
+pub const SHT_NOBITS: u32   = 8; 
+pub const SHT_DYNSYM: u32   = 11;
+
+pub const SHF_WRITE: u64     = 0x1;
+pub const SHF_ALLOC: u64     = 0x2; 
+pub const SHF_EXECINSTR: u64 = 0x4;
+
+
 #[repr(C)]
 #[derive(Debug,Clone, Copy)]
 pub struct Elf64Shdr {

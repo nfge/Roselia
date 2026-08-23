@@ -19,8 +19,8 @@ pub mod init_gop;
 pub fn get_kernel(
     filesys: &mut ScopedProtocol<SimpleFileSystem>,
 ) -> Result<(u64, usize, usize), uefi::Status> {
-    let mut kernel_start_addr: usize = 0;
-    let mut kernel_pages: usize = 0;
+    let mut kernel_start_addr: usize;
+    let mut kernel_pages: usize;
     let mut root = filesys.open_volume().expect("Failed to open volume");
     let kernel_name: &CStr16 = cstr16!("kernel.elf");
     let mut kernel = match root.open(&kernel_name, FileMode::Read, FileAttribute::empty()) {
@@ -68,6 +68,9 @@ pub fn get_kernel(
 
     let mut last_allocated_start = 0usize;
     let mut last_allocated_end = 0usize;
+    
+    let mut kernel_min_start = usize::MAX;
+    let mut kernel_max_end = 0usize;
 
     for i in 0..ehdr.e_phnum {
         let phdr = unsafe {
@@ -82,8 +85,10 @@ pub fn get_kernel(
         let pages = ((phdr.p_memsz + (phdr.p_vaddr % 0x1000) + 0xFFF) / 0x1000) as usize;
         let start_addr = (phdr.p_vaddr & !0xFFF) as usize;
         let end_addr = start_addr + (pages * 0x1000);
-        kernel_start_addr = start_addr.clone();
-        kernel_pages = pages.clone();
+
+        kernel_min_start = kernel_min_start.min(start_addr);
+        kernel_max_end = kernel_max_end.max(end_addr);
+
         if start_addr < last_allocated_start || start_addr >= last_allocated_end {
             let _ = boot::allocate_pages(
                 boot::AllocateType::Address(start_addr as u64),
@@ -110,6 +115,10 @@ pub fn get_kernel(
             }
         }
     }
+
+    kernel_start_addr = kernel_min_start;
+    kernel_pages = (kernel_max_end - kernel_min_start) / 0x1000;
+
     let entry = ehdr.e_entry;
     Ok((entry, kernel_start_addr, kernel_pages))
 }
