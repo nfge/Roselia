@@ -20,7 +20,7 @@ use crate::{
     gop::{color::Color, graphics::Graphics},
     memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem},
     ramfs::{RamFs, create_file, mkdir},
-    terminal::Terminal,
+    terminal::{Terminal},
     timer::sleep,
 };
 
@@ -31,12 +31,12 @@ use bootinfo::{
     time::GetTimeFn,
     variable::{GetVar, SetVar},
 };
-use kernel_api::module::{RawModules};
 use core::{
     ffi::c_void,
     panic::PanicInfo,
     ptr::{null, null_mut},
 };
+use kernel_api::module::RawModules;
 use utils::serial_println;
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -76,7 +76,14 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         PAGE_ALLOCATOR = Some(PageAllocator::new(&info.memory_map));
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
-            allocator.init(info.kernel_info.start_address, info.kernel_info.pages, RawModules { ptr: info.modules.ptr, count: info.modules.count });
+            allocator.init(
+                info.kernel_info.start_address,
+                info.kernel_info.pages,
+                RawModules {
+                    ptr: info.modules.ptr,
+                    count: info.modules.count,
+                },
+            );
         }
     }
     memory::init_heap();
