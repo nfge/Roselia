@@ -26,3 +26,9 @@ pub struct RawModules {
     pub ptr: *mut RawModule,
     pub count: usize
 }
+
+#[repr(C)]
+pub struct Buffer {
+    pub ptr: *mut u8,
+    pub len: usize
+}
