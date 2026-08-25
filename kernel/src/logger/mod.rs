@@ -1,33 +1,39 @@
 use core::{ops::Add, sync::atomic::AtomicU64};
 
 use alloc::{fmt::format, format};
+use spin::mutex::Mutex;
 
 use crate::{logger::loglevel::LogLevel, ramfs::{is_valid, write_file}, timer::sleep};
 pub mod loglevel;
 
-pub struct Logger ;
+pub struct Logger {
+    offset: u64,
+}
 
-pub static LOGGER_OFFSET: AtomicU64 = AtomicU64::new(0);
+pub const LOGGER: Mutex<Logger> = Mutex::new(Logger::new());
 
 impl Logger {
-    pub fn write_into_log(line: &str) {
+    pub const fn new() -> Self {
+        Self { offset: 0 }
+    }
+    pub fn write_into_log(&mut self, line: &str) {
         let data: &[u8] = line.as_bytes(); 
         let _ = is_valid("/kernel/log").unwrap();
-        let _ = write_file("/kernel/log", LOGGER_OFFSET.load(core::sync::atomic::Ordering::Relaxed) as usize, data).unwrap();
-        LOGGER_OFFSET.fetch_add(data.len() as u64, core::sync::atomic::Ordering::Relaxed);
+        let _ = write_file("/kernel/log", self.offset as usize, data).unwrap();
+        ;
     }
-    pub fn write_with_loglevel(line: &str, level: LogLevel) {
+    pub fn write_with_loglevel(&mut self, line: &str, level: LogLevel) {
         let rdata = format!("[ {level} ] {}", line);
         let data = rdata.as_bytes();
         let _ = is_valid("/kernel/log").unwrap();
-        let _ = write_file("/kernel/log", LOGGER_OFFSET.load(core::sync::atomic::Ordering::Relaxed) as usize, data).unwrap();
-        LOGGER_OFFSET.fetch_add(data.len() as u64, core::sync::atomic::Ordering::Relaxed);
+        let _ = write_file("/kernel/log", self.offset as usize, data).unwrap();
+        self.offset += data.len() as u64
     }
 }
 
 impl core::fmt::Write for Logger {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        Self::write_into_log(s);
+        self.write_into_log(s);
         Ok(())
     }
 }
@@ -36,40 +42,45 @@ impl core::fmt::Write for Logger {
 macro_rules! log {
     ($($arg:tt)*) => {{
         use core::fmt::Write;
-        let mut logger = crate::logger::Logger;
-        let _ = write!(logger, $($arg)*);
+        let logger = crate::logger::LOGGER;
+        let _ = write!(logger.lock(), $($arg)*);
     }};
 }
 
 #[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
-        let _ = crate::logger::Logger::write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Info);
+        let logger = crate::logger::LOGGER;
+        let _ = logger.lock().write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Info);
     };
 }
 #[macro_export]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
-        let _ = crate::logger::Logger::write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Warning);
+        let logger = crate::logger::LOGGER;
+        let _ = logger.lock().write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Warning);
     };
 }
 #[macro_export]
 macro_rules! log_err {
     ($($arg:tt)*) => {
-        let _ = crate::logger::Logger::write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Error);
+        let logger = crate::logger::LOGGER;
+        let _ = logger.lock().write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Error);
     };
 }
 #[macro_export]
 macro_rules! log_fail {
     ($($arg:tt)*) => {
-        let _ = crate::logger::Logger::write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Fail);
+        let logger = crate::logger::LOGGER;
+        let _ = logger.lock().write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Fail);
     };
 }
 #[macro_export]
 macro_rules! log_debug {
     ($($arg:tt)*) => {
         if cfg!(debug_assertions) {
-            let _ = crate::logger::Logger::write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Debug);
+            let logger = crate::logger::LOGGER;
+            let _ = logger.lock().write_with_loglevel($($arg)*, crate::logger::loglevel::LogLevel::Debug);
         }
     };
 }
