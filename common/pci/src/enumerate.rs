@@ -100,3 +100,14 @@ pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
 
     devices
 }
+
+pub unsafe fn enumerate(entry: &McfgEntry) -> Vec<PciDevice> {
+    let mut devices = unsafe {enumerate_mcfg(entry)};
+    let legacy = unsafe { enumerate_legacy()};
+    for device in legacy {
+        if !devices.iter().any(|x| x.bus == device.bus && x.device == device.device && x.function == device.function) {
+            devices.push(device);
+        }
+    }
+    devices
+}

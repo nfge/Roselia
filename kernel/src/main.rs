@@ -20,10 +20,11 @@ use crate::{
     gop::{color::Color, graphics::Graphics},
     memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem},
     ramfs::{RamFs, create_file, mkdir},
-    terminal::{Terminal},
+    terminal::Terminal,
     timer::sleep,
 };
 
+use acpi::get_table;
 use alloc::{boxed::Box, format, vec::Vec};
 use bootinfo::{
     BootInfo,
@@ -36,7 +37,7 @@ use core::{
     panic::PanicInfo,
     ptr::{null, null_mut},
 };
-use kernel_api::module::RawModules;
+use kernel_api::{acpi_tables::mcfg::Mcfg, module::RawModules};
 use utils::serial_println;
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -116,6 +117,34 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             .into_bytes()
         }),
     );
+    let _ = mkdir("/dev/pci");
+    let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
+    let mcfg = unsafe { &*mcfg_ptr };
+    let count = unsafe { mcfg.entry_count() };
+    for i in 0..count {
+        let entry = unsafe { &mcfg.entry(i) };
+        let devices = unsafe { pci::enumerate::enumerate(entry) };
+        for device in devices {
+            let _ = create_file(
+                format!(
+                    "/dev/pci/{}:{}.{}",
+                    device.bus, device.device, device.function
+                )
+                .as_str(),
+                ramfs::data::NodeData::virtual_read(move || {
+                    let (vendor_name, device_name) =
+                        pci::check(device.header.vendor_id, device.header.device_id);
+                    format!(
+                        "{:04x} {}\n{:04x} {}\n\n",
+                        device.header.vendor_id as u16,
+                        vendor_name.unwrap_or("Not found in pci.ids"),
+                        device.header.device_id as u16,
+                        device_name.unwrap_or("Not found in pci.ids")
+                    ).into_bytes()
+                }),
+            );
+        }
+    }
     unsafe {
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
             Graphics::new(info.gop.framebuffer_ptr, info.gop.mode_info),
