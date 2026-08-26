@@ -114,9 +114,14 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         ramfs::data::NodeData::virtual_read(|| {
             let version = env!("CARGO_PKG_VERSION");
             let git_commit = env!("GIT_COMMIT");
+            let arch = if cfg!(target_arch = "x86_64") {
+                "x86_64"
+            } else {
+                "Not Found"
+            };
             format!(
-                "Roselia Kernel {} ({})\nkernel.{}-{}\n",
-                version, git_commit, version, git_commit
+                "Roselia Kernel {} ({})\nkernel.{}-{}\n{}\n",
+                version, git_commit, version, git_commit, arch
             )
             .into_bytes()
         }),
