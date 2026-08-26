@@ -7,3 +7,4 @@ pub mod pci;
 pub mod time;
 pub mod keyboard;
 pub mod module;
+pub mod symbol;

@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use kernel_api::{elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr}, module::RawModule};
+use kernel_api::{elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr, elf64phdr::PT_LOAD}, module::RawModule};
 use uefi::{
     CStr16, Status,
     boot::{MemoryType, ScopedProtocol, allocate_pages},
@@ -11,8 +11,6 @@ use uefi::{
         fs::SimpleFileSystem,
     },
 };
-
-const PT_LOAD: u32 = 1;
 
 pub fn load_elf(
     path: &CStr16,

@@ -12,6 +12,6 @@ pub struct Elf64Rela {
 }
 
 impl Elf64Rela {
-    pub const fn sym(&self) -> u32 { (self.r_info >> 32) as u32 }
     pub const fn reloc_type(&self) -> u32 { (self.r_info & 0xffff_ffff) as u32 }
+    pub const fn sym(&self) -> u32 { (self.r_info >> 32) as u32 }
 }

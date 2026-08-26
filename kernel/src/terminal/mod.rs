@@ -1,10 +1,10 @@
 use crate::{
-    ACPI_TABLE,
+    ACPI_TABLE, TERMINAL,
     cpu::{self},
     func::{get_time, poweroff, reset},
     gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
-    log,
     keyboard::KeyBoard,
+    log,
     memory::{get_heap_free, get_heap_used},
     ramfs::{check_directory, create_file, is_valid, mkdir, read_file, write_file},
     terminal::{command::Command, token::Token},
@@ -635,4 +635,13 @@ macro_rules! kprintln {
             };
         }
     }};
+}
+
+pub fn kprint(s: &str) {
+    unsafe {
+        if !TERMINAL.is_null() {
+            let term = TERMINAL;
+            let _ = write!((*term), "{s}");
+        }
+    }
 }

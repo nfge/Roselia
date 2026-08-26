@@ -13,6 +13,9 @@ mod memory;
 mod ramfs;
 mod terminal;
 mod timer;
+mod linker;
+mod module;
+
 // mod uart;
 use crate::{
     cpu::random::hardware_random,
@@ -37,7 +40,7 @@ use core::{
     panic::PanicInfo,
     ptr::{null, null_mut},
 };
-use kernel_api::{acpi_tables::mcfg::Mcfg, module::RawModules};
+use kernel_api::{acpi_tables::mcfg::Mcfg, module::{Module, RawModules}};
 use utils::serial_println;
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -50,6 +53,7 @@ static mut ACPI_TABLE: Option<*const c_void> = None;
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 static mut PAGE_ALLOCATOR: Option<PageAllocator<'static>> = None;
+static mut MODULES: Option<Vec<Module>> = None;
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
@@ -144,6 +148,9 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 }),
             );
         }
+    }
+    unsafe {
+        MODULES = Some(Vec::new())
     }
     unsafe {
         TERMINAL = Box::into_raw(Box::new(Terminal::new(

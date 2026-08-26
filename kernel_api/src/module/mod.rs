@@ -1,4 +1,5 @@
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct ModuleInfo {
     pub name: [u8; 32],
 
@@ -26,6 +27,18 @@ pub struct RawModules {
     pub ptr: *mut RawModule,
     pub count: usize
 }
+
+
+
+#[repr(C)]
+pub struct Module {
+    pub entry_fn: *const (),
+    pub address: u64,
+    pub info: ModuleInfo
+}
+
+unsafe impl Send for Module {}
+unsafe impl Sync for Module {}
 
 #[repr(C)]
 pub struct Buffer {
