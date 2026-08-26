@@ -1,6 +1,6 @@
 use x86_64::registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags};
 
-use utils::uart::serial_print;
+use utils::{serial_println, uart::serial_print};
 
 pub fn init_sse() {
     use super::cpuinfo::chech_sse_support;
@@ -15,9 +15,9 @@ pub fn init_sse() {
                 cr0.insert(Cr0Flags::MONITOR_COPROCESSOR);
             });
         }
-        serial_print("SSE init successful\n");
+        serial_println!("SSE init successful");
     } else {
-        serial_print("SSE not supported\n");
+        serial_println!("SSE not supported");
         return;
     }
 }

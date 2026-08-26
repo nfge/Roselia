@@ -7,7 +7,6 @@ pub struct ModuleInfo {
     pub abi_version: u32,
 
     pub magic: u64,
-    pub version: u32,
     pub flags: u32
 }
 

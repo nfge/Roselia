@@ -24,6 +24,7 @@ impl Logger {
         let data: &[u8] = line.as_bytes();
         let _ = is_valid("/kernel/log").unwrap();
         let _ = write_file("/kernel/log", self.offset as usize, data).unwrap();
+        self.offset += data.len() as u64;
     }
     pub fn write_with_loglevel(&mut self,args: core::fmt::Arguments<'_>, level: LogLevel) -> core::fmt::Result {
         use core::fmt::Write;

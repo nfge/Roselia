@@ -7,30 +7,29 @@ use uefi::{
     boot::{MemoryType, ScopedProtocol, allocate_pages},
     println,
     proto::media::{
-        file::{File, FileAttribute, FileInfo, FileType},
+        file::{Directory, File, FileAttribute, FileInfo, FileType},
         fs::SimpleFileSystem,
     },
 };
 
 pub fn load_elf(
-    path: &CStr16,
-    file_system: &mut ScopedProtocol<SimpleFileSystem>,
+    modules_dir: &mut Directory,
+    name: &CStr16,
 ) -> Result<RawModule, uefi::Status> {
-    let mut root = file_system.open_volume().expect("Failed to open volume");
-    let mut file = match root.open(
-        &path,
+    let mut file = match modules_dir.open(
+        &name,
         uefi::proto::media::file::FileMode::Read,
         FileAttribute::empty(),
     ) {
         Ok(f) => match f.into_type() {
             Ok(FileType::Regular(file)) => file,
             _ => {
-                println!("{path} is not a regular file");
+                println!("{name} is not a regular file");
                 return Err(Status::UNSUPPORTED);
             }
         },
         Err(_) => {
-            println!("Failed to open {path}");
+            println!("Failed to open {name}");
             return Err(Status::NOT_FOUND);
         }
     };

@@ -203,12 +203,11 @@ pub fn load_modules(
                 }
 
                 let name = entry.file_name();
-
                 if !has_extension(name, b".elf") && !has_extension(name, b".kmod") {
                     continue;
                 }
 
-                let module = elf_loader::load_elf(name, file_system)?;
+                let module = elf_loader::load_elf(&mut modules_dir, name)?;
 
                 unsafe {
                     ptr.add(module_index).write(module);

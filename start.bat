@@ -24,6 +24,7 @@ goto run
 :build_dev
 cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json 
 cargo build -p bootloader --target x86_64-unknown-uefi
+cargo +nightly build -p example --target x86_64-unknown-none
 
 if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
@@ -34,6 +35,7 @@ if not exist os\modules mkdir os\modules
 
 if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
 copy target\x86_64\debug\kernel os\kernel.elf
+copy target\x86_64-unknown-none\debug\example os\modules\example.kmod
 copy target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\BOOT\BOOTX64.efi
 copy target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\Roselia\boot.efi
 exit /b
@@ -42,6 +44,7 @@ exit /b
 :build_release
 cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json --release
 cargo build -p bootloader --target x86_64-unknown-uefi --release
+cargo +nightly build -p example --target x86_64-unknown-none --release
 
 if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
@@ -52,6 +55,7 @@ if not exist os\modules mkdir os\modules
 
 if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
 copy target\x86_64\release\kernel os\kernel.elf
+copy target\x86_64-unknown-none\release\example os\modules\example.kmod
 copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\BOOT\BOOTX64.efi
 copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\Roselia\boot.efi
 exit /b

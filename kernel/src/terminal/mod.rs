@@ -1,5 +1,5 @@
 use crate::{
-    ACPI_TABLE, TERMINAL,
+    ACPI_TABLE, MODULES, TERMINAL,
     cpu::{self},
     func::{get_time, poweroff, reset},
     gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
@@ -557,6 +557,19 @@ impl Terminal {
                 let text = core::str::from_utf8(&data).unwrap();
                 let _ = write!(self, "{}", text);
             }
+            "example" => unsafe {
+                if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
+                    for module in modules {
+                        if module.info.name
+                            == *b"example\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                        {
+                            let init: extern "C" fn() = core::mem::transmute(module.entry_fn);
+                            init();
+                        }
+                        
+                    }
+                }
+            },
             _ => self.print_string_ln("Command not found"),
         }
     }
@@ -637,7 +650,7 @@ macro_rules! kprintln {
     }};
 }
 
-pub fn kprint(s: &str) {
+pub extern "Rust" fn kprint(s: &str) {
     unsafe {
         if !TERMINAL.is_null() {
             let term = TERMINAL;

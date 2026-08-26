@@ -8,13 +8,13 @@ mod cpu;
 mod func;
 mod gop;
 mod keyboard;
+mod linker;
 mod logger;
 mod memory;
+mod module;
 mod ramfs;
 mod terminal;
 mod timer;
-mod linker;
-mod module;
 
 // mod uart;
 use crate::{
@@ -22,6 +22,7 @@ use crate::{
     func::reset,
     gop::{color::Color, graphics::Graphics},
     memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem},
+    module::load_module,
     ramfs::{RamFs, create_file, mkdir},
     terminal::Terminal,
     timer::sleep,
@@ -40,7 +41,10 @@ use core::{
     panic::PanicInfo,
     ptr::{null, null_mut},
 };
-use kernel_api::{acpi_tables::mcfg::Mcfg, module::{Module, RawModules}};
+use kernel_api::{
+    acpi_tables::mcfg::Mcfg,
+    module::{Module, RawModules},
+};
 use utils::serial_println;
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -149,13 +153,23 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                         vendor_name.unwrap_or("Not found in pci.ids"),
                         device.header.device_id as u16,
                         device_name.unwrap_or("Not found in pci.ids")
-                    ).into_bytes()
+                    )
+                    .into_bytes()
                 }),
             );
         }
     }
-    unsafe {
-        MODULES = Some(Vec::new())
+    unsafe { MODULES = Some(Vec::new()) }
+    if info.modules.count != 0 {
+        for i in 0..info.modules.count {
+            let rawmodule = unsafe { &*info.modules.ptr.add(i) };
+            let module = unsafe { load_module(&rawmodule).unwrap() };
+            unsafe {
+                if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
+                    modules.push(module);
+                }
+            }
+        }
     }
     unsafe {
         TERMINAL = Box::into_raw(Box::new(Terminal::new(
