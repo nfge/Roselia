@@ -26,7 +26,6 @@ pub struct Linker;
 
 impl Linker {
     pub unsafe fn relocate_module(module: &RawModule, symtab: *const Elf64Sym, strtab: *const u8) {
-        serial_println!("1");
         let file =
             unsafe { slice::from_raw_parts(module.raw_ptr as *const u8, module.raw_len as usize) };
         let ehdr = unsafe { &*(file.as_ptr() as *const Elf64Ehdr) };
@@ -36,7 +35,6 @@ impl Linker {
                 ehdr.e_phnum as usize,
             )
         };
-        serial_println!("2");
         let Some(dyn_phdr) = phdrs.iter().find(|p| p.p_type == PT_DYNAMIC) else {
             log_fail!("in module {}, no PT_DYNAMIC", module.address);
             serial_println!("in module {}, no PT_DYNAMIC", module.address);
@@ -48,7 +46,6 @@ impl Linker {
                 dyn_phdr.p_filesz as usize / size_of::<Elf64Dyn>(),
             )
         };
-        serial_println!("3");
         let (mut rela_vaddr, mut rela_size, mut rela_ent) = (None, 0usize, size_of::<Elf64Rela>());
         for d in dyn_entries {
             match d.d_tag {
@@ -59,7 +56,6 @@ impl Linker {
                 _ => {}
             }
         }
-        serial_println!("4");
         let Some(rela_vaddr) = rela_vaddr else {
             log_fail!("in module {}, no DT_RELA", module.address);
             serial_println!("in module {}, no PT_DYNAMIC", module.address);
@@ -73,21 +69,8 @@ impl Linker {
                 count,
             )
         };
-        serial_println!("5");
         for r in rela_table {
             let target = (module.load_bias + r.r_offset as i64) as *mut u64;
-            log_debug!(
-                "reloc type={} sym={} offset={:#x}",
-                r.reloc_type(),
-                r.sym(),
-                r.r_offset
-            );
-            serial_println!(
-                "reloc type={} sym={} offset={:#x}",
-                r.reloc_type(),
-                r.sym(),
-                r.r_offset
-            );
 
             match r.reloc_type() {
                 R_X86_64_RELATIVE => {
@@ -110,15 +93,10 @@ impl Linker {
                         }
 
                         SHN_ABS => {
-                            serial_println!("Absolute symbol: {}", name);
-                            log_info!("Absolute symbol: {}", name);
                             sym.st_value
                         }
 
                         _ => {
-                            serial_println!("Module symbol: {}", name);
-                            log_info!("Module symbol: {}", name);
-
                             module.load_bias as u64 + sym.st_value
                         }
                     };

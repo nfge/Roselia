@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub enum Error {
+pub enum RamFSError {
     NotFound,
     NotDirectory,
     NotFile,

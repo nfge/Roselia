@@ -8,3 +8,4 @@ pub mod time;
 pub mod keyboard;
 pub mod module;
 pub mod symbol;
+pub mod ramfs;

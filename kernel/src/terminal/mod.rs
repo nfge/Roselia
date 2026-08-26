@@ -557,6 +557,28 @@ impl Terminal {
                 let text = core::str::from_utf8(&data).unwrap();
                 let _ = write!(self, "{}", text);
             }
+            "modinfo" => match command.args.first() {
+                Some(s) => unsafe {
+                    if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
+                        for module in modules {
+                            let name = core::str::from_utf8(
+                                &module.info.name[..module
+                                    .info
+                                    .name
+                                    .iter()
+                                    .position(|&c| c == 0)
+                                    .unwrap_or(module.info.name.len())],
+                            ).unwrap();
+                            if name == s.as_str() {
+                                let _ = write!(self, "Name: {}\nModule version: {}\nMagic: {}\nFlags:{}\n",name,module.info.module_version,module.info.magic,module.info.flags);
+                                return
+                            }
+                        }
+                        self.print_string_ln("Module not found");
+                    }
+                },
+                None => self.print_string_ln("Usage modinfo [module name]"),
+            },
             "example" => unsafe {
                 if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
                     for module in modules {
@@ -566,7 +588,6 @@ impl Terminal {
                             let init: extern "C" fn() = core::mem::transmute(module.entry_fn);
                             init();
                         }
-                        
                     }
                 }
             },
@@ -657,4 +678,8 @@ pub extern "Rust" fn kprint(s: &str) {
             let _ = write!((*term), "{s}");
         }
     }
+}
+pub extern "Rust" fn kprintln(s: &str) {
+    kprint(s);
+    kprint("\n");
 }

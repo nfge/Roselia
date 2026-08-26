@@ -1,5 +1,10 @@
-use core::{ops::Add, panic, slice};
+use core::{
+    ops::Add,
+    panic::{self, PanicInfo},
+    slice,
+};
 
+use alloc::vec::Vec;
 use kernel_api::{
     elf::{
         elf64ehdr::Elf64Ehdr,
@@ -11,14 +16,38 @@ use kernel_api::{
 };
 use x86_64::structures::paging::{Mapper, Size4KiB};
 
-use crate::{linker::Linker, log_info, module::error::LoadError, ramfs::read_file, terminal::kprint};
+use crate::{
+    MODULES, kprintln, linker::Linker, log_info, memory::{kalloc, kfree}, module::error::LoadError, ramfs::read_file, terminal::{kprint, kprintln}
+};
 
 mod error;
 
-pub static KERNEL_EXPORTS: &[KernelSymbol] = &[KernelSymbol {
-    name: "kprint",
-    addr: SymAddr(kprint as *const ()),
-}];
+pub static KERNEL_EXPORTS: &[KernelSymbol] = &[
+    KernelSymbol {
+        name: "kprint",
+        addr: SymAddr(kprint as *const ()),
+    },
+    KernelSymbol {
+        name: "kprintln",
+        addr: SymAddr(kprintln as *const ()),
+    },
+    KernelSymbol {
+        name: "module_panic",
+        addr: SymAddr(module_panic as *const ()),
+    },
+    KernelSymbol {
+        name: "kalloc",
+        addr: SymAddr(kalloc as *const ()),
+    },
+    KernelSymbol {
+        name: "kfree",
+        addr: SymAddr(kfree as *const ()),
+    },
+    KernelSymbol {
+        name: "read",
+        addr: SymAddr(read_file as *const ())
+    }
+];
 
 pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     let file =
@@ -46,7 +75,14 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     }
     log_info!(
         "Successful loaded module {} {}\n",
-        core::str::from_utf8(&info.name[..info.name.iter().position(|&c| c == 0).unwrap_or(info.name.len())]).unwrap(),
+        core::str::from_utf8(
+            &info.name[..info
+                .name
+                .iter()
+                .position(|&c| c == 0)
+                .unwrap_or(info.name.len())]
+        )
+        .unwrap(),
         module.address
     );
     Ok(Module {
@@ -110,4 +146,8 @@ pub unsafe fn read_module_info(module: &RawModule) -> Option<ModuleInfo> {
         }
     }
     None
+}
+
+fn module_panic(info: &PanicInfo) {
+    kprintln!("{}", info);
 }
