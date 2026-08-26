@@ -20,7 +20,7 @@ unsafe extern "Rust" {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn module_init() {
-    unsafe {kprint("Hello World")};
+    unsafe {kprint("Hello World\n")};
 }
 
 #[panic_handler]

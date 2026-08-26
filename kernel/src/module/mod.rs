@@ -34,7 +34,7 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
         return Err(LoadError::InvalidAbiVersion);
     }
 
-    let (symtab, strtab) = unsafe { Linker::parse_symtab_strtab(module).unwrap() };
+    let (symtab, strtab) = unsafe { Linker::parse_dyntab_dyntab(module).unwrap() };
     unsafe { Linker::relocate_module(module, symtab, strtab) };
 
     // unsafe { Linker::protect_module(module, mapper) };
@@ -45,8 +45,9 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
         return Err(LoadError::EntryNotExecutable);
     }
     log_info!(
-        "Successful loaded module {}\n",
-        core::str::from_utf8(&info.name).unwrap()
+        "Successful loaded module {} {}\n",
+        core::str::from_utf8(&info.name[..info.name.iter().position(|&c| c == 0).unwrap_or(info.name.len())]).unwrap(),
+        module.address
     );
     Ok(Module {
         entry_fn: entry_addr as *const (),

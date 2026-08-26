@@ -1,25 +1,32 @@
 use alloc::slice;
 use kernel_api::{
     elf::{
-        elf64dyn::{DT_NULL, DT_RELA, DT_RELAENT, DT_RELASZ, Elf64Dyn}, elf64ehdr::Elf64Ehdr, elf64phdr::{Elf64Phdr, PF_W, PF_X, PT_DYNAMIC, PT_LOAD}, elf64rela::{
+        elf64dyn::{DT_NULL, DT_RELA, DT_RELAENT, DT_RELASZ, Elf64Dyn},
+        elf64ehdr::Elf64Ehdr,
+        elf64phdr::{Elf64Phdr, PF_W, PF_X, PT_DYNAMIC, PT_LOAD},
+        elf64rela::{
             Elf64Rela, R_X86_64_64, R_X86_64_GLOB_DAT, R_X86_64_JUMP_SLOT, R_X86_64_RELATIVE,
-        }, elf64shdr::Elf64Shdr, elf64sym::{Elf64Sym, SHN_UNDEF, sym_name}
+        },
+        elf64shdr::Elf64Shdr,
+        elf64sym::{Elf64Sym, SHN_ABS, SHN_UNDEF, sym_name},
     },
     module::RawModule,
     symbol::{KernelSymbol, SymAddr},
 };
 
+use utils::serial_println;
 use x86_64::{
     VirtAddr,
     structures::paging::{Mapper, Page, PageTableFlags, Size4KiB},
 };
 
-use crate::{log_err, log_fail, log_info, module::KERNEL_EXPORTS, terminal::kprint};
+use crate::{log_debug, log_fail, log_info, module::KERNEL_EXPORTS};
 
 pub struct Linker;
 
 impl Linker {
     pub unsafe fn relocate_module(module: &RawModule, symtab: *const Elf64Sym, strtab: *const u8) {
+        serial_println!("1");
         let file =
             unsafe { slice::from_raw_parts(module.raw_ptr as *const u8, module.raw_len as usize) };
         let ehdr = unsafe { &*(file.as_ptr() as *const Elf64Ehdr) };
@@ -29,7 +36,10 @@ impl Linker {
                 ehdr.e_phnum as usize,
             )
         };
+        serial_println!("2");
         let Some(dyn_phdr) = phdrs.iter().find(|p| p.p_type == PT_DYNAMIC) else {
+            log_fail!("in module {}, no PT_DYNAMIC", module.address);
+            serial_println!("in module {}, no PT_DYNAMIC", module.address);
             return;
         };
         let dyn_entries = unsafe {
@@ -38,6 +48,7 @@ impl Linker {
                 dyn_phdr.p_filesz as usize / size_of::<Elf64Dyn>(),
             )
         };
+        serial_println!("3");
         let (mut rela_vaddr, mut rela_size, mut rela_ent) = (None, 0usize, size_of::<Elf64Rela>());
         for d in dyn_entries {
             match d.d_tag {
@@ -48,7 +59,12 @@ impl Linker {
                 _ => {}
             }
         }
-        let Some(rela_vaddr) = rela_vaddr else { return };
+        serial_println!("4");
+        let Some(rela_vaddr) = rela_vaddr else {
+            log_fail!("in module {}, no DT_RELA", module.address);
+            serial_println!("in module {}, no PT_DYNAMIC", module.address);
+            return;
+        };
         let count = rela_size / rela_ent;
 
         let rela_table = unsafe {
@@ -57,8 +73,21 @@ impl Linker {
                 count,
             )
         };
+        serial_println!("5");
         for r in rela_table {
             let target = (module.load_bias + r.r_offset as i64) as *mut u64;
+            log_debug!(
+                "reloc type={} sym={} offset={:#x}",
+                r.reloc_type(),
+                r.sym(),
+                r.r_offset
+            );
+            serial_println!(
+                "reloc type={} sym={} offset={:#x}",
+                r.reloc_type(),
+                r.sym(),
+                r.r_offset
+            );
 
             match r.reloc_type() {
                 R_X86_64_RELATIVE => {
@@ -69,13 +98,29 @@ impl Linker {
                 R_X86_64_64 | R_X86_64_GLOB_DAT | R_X86_64_JUMP_SLOT => {
                     let sym = unsafe { &*symtab.add(r.sym() as usize) };
 
-                    let s = if sym.st_shndx != SHN_UNDEF {
-                        (module.load_bias + sym.st_value as i64) as u64
-                    } else {
-                        let name = unsafe { sym_name(strtab, sym.st_name) };
-                        log_info!("Relocating symbol {} at the module {}",name, module.address);
-                        resolve_kernel_symbol(name)
-                            .unwrap_or_else(|| panic!("Symbol not found: {name}"))
+                    let name = unsafe { sym_name(strtab, sym.st_name) };
+
+                    let s = match sym.st_shndx {
+                        SHN_UNDEF => {
+                            serial_println!("Resolving external: {}", name);
+                            log_info!("Resolving external: {}", name);
+
+                            resolve_kernel_symbol(name)
+                                .unwrap_or_else(|| panic!("Symbol not found: {name}"))
+                        }
+
+                        SHN_ABS => {
+                            serial_println!("Absolute symbol: {}", name);
+                            log_info!("Absolute symbol: {}", name);
+                            sym.st_value
+                        }
+
+                        _ => {
+                            serial_println!("Module symbol: {}", name);
+                            log_info!("Module symbol: {}", name);
+
+                            module.load_bias as u64 + sym.st_value
+                        }
                     };
 
                     let value = match r.reloc_type() {
@@ -122,7 +167,7 @@ impl Linker {
             }
         }
     }
-    pub unsafe fn parse_symtab_strtab(module: &RawModule) -> Option<(*const Elf64Sym, *const u8)> {
+    pub unsafe fn parse_dyntab_dyntab(module: &RawModule) -> Option<(*const Elf64Sym, *const u8)> {
         let file =
             unsafe { slice::from_raw_parts(module.raw_ptr as *const u8, module.raw_len as usize) };
 
@@ -163,8 +208,8 @@ impl Linker {
             let name = &shstrtab_data[start..end];
 
             match name {
-                b".symtab" => symtab = Some(shdr),
-                b".strtab" => strtab = Some(shdr),
+                b".dynsym" => symtab = Some(shdr),
+                b".dynstr" => strtab = Some(shdr),
                 _ => {}
             }
         }

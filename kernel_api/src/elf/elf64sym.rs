@@ -1,6 +1,7 @@
 use core::slice;
 
 pub const SHN_UNDEF: u16 = 0;
+pub const SHN_ABS:u16 = 0xFFF1;
 
 pub const DT_SYMTAB: i64 = 6;
 pub const DT_STRTAB: i64 = 5;

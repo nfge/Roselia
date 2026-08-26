@@ -11,4 +11,6 @@ fn main() {
 
     println!("cargo:rerun-if-changed={}", linker_script.display());
     println!("cargo:rustc-link-arg=--unresolved-symbols=ignore-all");
+    println!("cargo:rustc-link-arg=-shared");
+    println!("cargo:rustc-link-arg=-no-pie");
 }
