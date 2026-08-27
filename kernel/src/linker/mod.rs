@@ -87,7 +87,9 @@ impl Linker {
 
                     let s = match sym.st_shndx {
                         SHN_UNDEF => {
-                            serial_println!("Resolving external: {}\n", name);
+                            if cfg!(debug_assertions) {
+                                serial_println!("Resolving external: {}\n", name);
+                            }
                             log_info!("Resolving external: {}\n", name);
 
                             match resolve_kernel_symbol(name) {

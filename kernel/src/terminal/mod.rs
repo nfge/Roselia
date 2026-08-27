@@ -568,30 +568,49 @@ impl Terminal {
                                     .iter()
                                     .position(|&c| c == 0)
                                     .unwrap_or(module.info.name.len())],
-                            ).unwrap();
+                            )
+                            .unwrap();
                             if name == s.as_str() {
-                                let _ = write!(self, "Name: {}\nModule version: {}\nMagic: {}\nFlags:{}\n",name,module.info.module_version,module.info.magic,module.info.flags);
-                                return
+                                let _ = write!(
+                                    self,
+                                    "Name: {}\nModule version: {}\nMagic: {}\nFlags:{}\n",
+                                    name,
+                                    module.info.module_version,
+                                    module.info.magic,
+                                    module.info.flags
+                                );
+                                return;
                             }
                         }
                         self.print_string_ln("Module not found");
                     }
                 },
                 None => self.print_string_ln("Usage modinfo [module name]"),
-            },
-            "example" => unsafe {
-                if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
+            }
+            _ => {
+                let name = command.name.as_str();
+                if let Some(modules) = unsafe { &*core::ptr::addr_of_mut!(MODULES) } {
                     for module in modules {
-                        if module.info.name
-                            == *b"example\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+                        if core::str::from_utf8(
+                            &module.info.name[..module
+                                .info
+                                .name
+                                .iter()
+                                .position(|&c| c == 0)
+                                .unwrap_or(module.info.name.len())],
+                        )
+                        .unwrap()
+                            == name
                         {
-                            let init: extern "C" fn() = core::mem::transmute(module.entry_fn);
+                            let init: extern "C" fn() = unsafe {core::mem::transmute(module.entry_fn)};
                             init();
+                        } else {
+                            self.print_string_ln("Command not found");
+                            return
                         }
                     }
                 }
-            },
-            _ => self.print_string_ln("Command not found"),
+            }
         }
     }
     fn handle_keyboard(&mut self, event: KeyEvent) {
