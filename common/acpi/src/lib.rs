@@ -3,7 +3,6 @@
 
 extern crate alloc;
 
-
 use alloc::vec::Vec;
 
 use core::ffi::c_void;
@@ -12,11 +11,12 @@ use utils::serial_println;
 
 use kernel_api::acpi_tables::{rsdp::Rsdp, sdtheader::SdtHeader, xsdt::Xsdt};
 
-
-
 pub mod func;
 
-pub unsafe fn get_table<T>(acpi_table: *const c_void, signature: &[u8; 4]) -> Option<*const T> {
+pub unsafe fn get_ptr_table(
+    acpi_table: *const c_void,
+    signature: &[u8; 4],
+) -> Option<*const c_void> {
     unsafe {
         let rsdp_ptr = acpi_table as *const Rsdp;
         let rsdp = rsdp_ptr.read_unaligned();
@@ -45,21 +45,28 @@ pub unsafe fn get_table<T>(acpi_table: *const c_void, signature: &[u8; 4]) -> Op
                 let entry_header = (entry_ptr as *const SdtHeader).read_unaligned();
 
                 if &entry_header.signature == signature {
-                    return Some(entry_ptr as *const T)
+                    return Some(entry_ptr);
                 }
             }
-            return None
+            return None;
         } else {
             serial_println!("Root table is not XSDT (found different signature)");
-            return None
+            return None;
         }
     }
 }
 
-pub unsafe fn get_tables<T>(
-    acpi_table: *const c_void,
-    signature: &[u8; 4]
-) -> Vec<*const T> {
+pub unsafe fn get_table<T>(acpi_table: *const c_void, signature: &[u8; 4]) -> Option<*const T> {
+    let ptr = if let Some(ptr) = get_ptr_table(acpi_table, signature) {
+        ptr
+    } else {
+        return None
+    };
+
+    Some(ptr as *const T)
+}
+
+pub unsafe fn get_tables<T>(acpi_table: *const c_void, signature: &[u8; 4]) -> Vec<*const T> {
     let mut tables = Vec::new();
 
     unsafe {
