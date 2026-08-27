@@ -22,7 +22,7 @@ use x86_64::{
 
 use crate::{linker::error::RelocateError, log_debug, log_fail, log_info, module::KERNEL_EXPORTS};
 
-mod error;
+pub mod error;
 
 pub struct Linker;
 

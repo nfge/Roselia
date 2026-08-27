@@ -41,9 +41,7 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
 
     let (symtab, strtab) = unsafe { Linker::parse_dyntab_dyntab(module).unwrap() };
     unsafe { 
-        let Ok(_) = Linker::relocate_module(module, symtab, strtab) else {
-            return Err(LoadError::RelocateError)
-        };
+        Linker::relocate_module(module, symtab, strtab)?;
     };
 
     // unsafe { Linker::protect_module(module, mapper) };
