@@ -27,7 +27,11 @@ pub mod error;
 pub struct Linker;
 
 impl Linker {
-    pub unsafe fn relocate_module(module: &RawModule, symtab: *const Elf64Sym, strtab: *const u8) -> Result<(),RelocateError> {
+    pub unsafe fn relocate_module(
+        module: &RawModule,
+        symtab: *const Elf64Sym,
+        strtab: *const u8,
+    ) -> Result<(), RelocateError> {
         let file =
             unsafe { slice::from_raw_parts(module.raw_ptr as *const u8, module.raw_len as usize) };
         let ehdr = unsafe { &*(file.as_ptr() as *const Elf64Ehdr) };
@@ -40,7 +44,7 @@ impl Linker {
         let Some(dyn_phdr) = phdrs.iter().find(|p| p.p_type == PT_DYNAMIC) else {
             log_fail!("in module {}, no PT_DYNAMIC", module.address);
             serial_println!("in module {}, no PT_DYNAMIC", module.address);
-            return Err(RelocateError::NoPTDYNAMIC)
+            return Err(RelocateError::NoPTDYNAMIC);
         };
         let dyn_entries = unsafe {
             slice::from_raw_parts(
@@ -61,7 +65,7 @@ impl Linker {
         let Some(rela_vaddr) = rela_vaddr else {
             log_fail!("in module {}, no DT_RELA", module.address);
             serial_println!("in module {}, no DT_RELA", module.address);
-            return Err(RelocateError::NoDTRELA)
+            return Err(RelocateError::NoDTRELA);
         };
         let count = rela_size / rela_ent;
 
@@ -94,17 +98,17 @@ impl Linker {
 
                             match resolve_kernel_symbol(name) {
                                 Some(s) => s,
-                                None => return Err(RelocateError::SymbolNotFound)
+                                None => { 
+                                    serial_println!("Symbol not found: {}", name);
+                                    log_fail!("Symbol not found: {}", name);
+                                    return Err(RelocateError::SymbolNotFound)
+                                },
                             }
                         }
 
-                        SHN_ABS => {
-                            sym.st_value
-                        }
+                        SHN_ABS => sym.st_value,
 
-                        _ => {
-                            module.load_bias as u64 + sym.st_value
-                        }
+                        _ => module.load_bias as u64 + sym.st_value,
                     };
 
                     let value = match r.reloc_type() {
@@ -215,7 +219,8 @@ impl Linker {
 }
 
 fn resolve_kernel_symbol(name: &str) -> Option<u64> {
-    KERNEL_EXPORTS.lock()
+    KERNEL_EXPORTS
+        .lock()
         .iter()
         .find(|s| s.name == name)
         .map(|s| s.addr.0 as u64)
