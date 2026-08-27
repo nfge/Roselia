@@ -20,12 +20,14 @@ use x86_64::{
     structures::paging::{Mapper, Page, PageTableFlags, Size4KiB},
 };
 
-use crate::{log_debug, log_fail, log_info, module::KERNEL_EXPORTS};
+use crate::{linker::error::RelocateError, log_debug, log_fail, log_info, module::KERNEL_EXPORTS};
+
+mod error;
 
 pub struct Linker;
 
 impl Linker {
-    pub unsafe fn relocate_module(module: &RawModule, symtab: *const Elf64Sym, strtab: *const u8) {
+    pub unsafe fn relocate_module(module: &RawModule, symtab: *const Elf64Sym, strtab: *const u8) -> Result<(),RelocateError> {
         let file =
             unsafe { slice::from_raw_parts(module.raw_ptr as *const u8, module.raw_len as usize) };
         let ehdr = unsafe { &*(file.as_ptr() as *const Elf64Ehdr) };
@@ -38,7 +40,7 @@ impl Linker {
         let Some(dyn_phdr) = phdrs.iter().find(|p| p.p_type == PT_DYNAMIC) else {
             log_fail!("in module {}, no PT_DYNAMIC", module.address);
             serial_println!("in module {}, no PT_DYNAMIC", module.address);
-            return;
+            return Err(RelocateError::NoPTDYNAMIC)
         };
         let dyn_entries = unsafe {
             slice::from_raw_parts(
@@ -58,8 +60,8 @@ impl Linker {
         }
         let Some(rela_vaddr) = rela_vaddr else {
             log_fail!("in module {}, no DT_RELA", module.address);
-            serial_println!("in module {}, no PT_DYNAMIC", module.address);
-            return;
+            serial_println!("in module {}, no DT_RELA", module.address);
+            return Err(RelocateError::NoDTRELA)
         };
         let count = rela_size / rela_ent;
 
@@ -85,11 +87,13 @@ impl Linker {
 
                     let s = match sym.st_shndx {
                         SHN_UNDEF => {
-                            serial_println!("Resolving external: {}", name);
-                            log_info!("Resolving external: {}", name);
+                            serial_println!("Resolving external: {}\n", name);
+                            log_info!("Resolving external: {}\n", name);
 
-                            resolve_kernel_symbol(name)
-                                .unwrap_or_else(|| panic!("Symbol not found: {name}"))
+                            match resolve_kernel_symbol(name) {
+                                Some(s) => s,
+                                None => return Err(RelocateError::SymbolNotFound)
+                            }
                         }
 
                         SHN_ABS => {
@@ -108,9 +112,10 @@ impl Linker {
                     unsafe { target.write_unaligned(value) };
                 }
 
-                other => log_fail!("Not supported relocation type: {other}"),
+                other => log_fail!("Not supported relocation type: {other}\n"),
             }
         }
+        Ok(())
     }
     pub unsafe fn protect_module(module: &RawModule, mapper: &mut impl Mapper<Size4KiB>) {
         let file =
