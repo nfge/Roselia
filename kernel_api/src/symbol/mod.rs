@@ -1,9 +1,7 @@
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]
-pub struct SymAddr(pub *const ());
-
-unsafe impl Sync for SymAddr {}
+pub struct SymAddr(pub usize);
 
 #[repr(C)]
 pub struct KernelSymbol {

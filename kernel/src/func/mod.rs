@@ -3,7 +3,7 @@ use core::panic;
 use kernel_api::acpi_tables::{
     dsdt::Dsdt, fadt::Fadt, rsdp::Rsdp, sdtheader::SdtHeader, ssdt::Ssdt, xsdt::Xsdt
 };
-use acpi::{get_table,get_tables,func::{SLP_EN, SLP_TYP_SHIFT, find_s5_sleep_type}};
+use acpi::{get_table,get_tables,func::{SLP_EN, SLP_TYP_SHIFT, find_sleep_type}};
 
 use kernel_api::time::KernelTime;
 use x86::io::outb;
@@ -42,7 +42,7 @@ pub unsafe fn poweroff() -> ! {
 
     let mut s5_types = None;
 
-    if let Some(types) = find_s5_sleep_type(dsdt.aml_bytes()) {
+    if let Some(types) = find_sleep_type(b"_S5_", dsdt.aml_bytes()) {
         s5_types = Some(types);
     }
 
@@ -50,7 +50,7 @@ pub unsafe fn poweroff() -> ! {
         for ssdt_ptr in get_tables::<SdtHeader>(ACPI_TABLE.unwrap(), b"SSDT") {
             let ssdt = &*(ssdt_ptr as *const Ssdt);
 
-            if let Some(types) = find_s5_sleep_type(ssdt.aml_bytes()) {
+            if let Some(types) = find_sleep_type(b"_S5_", ssdt.aml_bytes()) {
                 s5_types = Some(types);
                 break;
             }

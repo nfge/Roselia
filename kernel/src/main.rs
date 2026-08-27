@@ -22,7 +22,7 @@ use crate::{
     func::reset,
     gop::{color::Color, graphics::Graphics},
     memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem},
-    module::load_module,
+    module::{export::init_exports, load_module},
     ramfs::{RamFs, create_file, mkdir},
     terminal::Terminal,
     timer::sleep,
@@ -159,6 +159,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             );
         }
     }
+    init_exports();
     unsafe { MODULES = Some(Vec::new()) }
     if info.modules.count != 0 {
         for i in 0..info.modules.count {

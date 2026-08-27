@@ -30,6 +30,7 @@ mod command;
 mod lexer;
 mod parser;
 mod token;
+pub mod export;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -418,42 +419,6 @@ impl Terminal {
                 );
                 self.new_line();
             }
-            "game" => {
-                let mut x = self.x;
-                let key_x: usize = 96;
-
-                loop {
-                    self.set_cursor(key_x, self.y);
-                    self.print_string("K");
-                    self.set_cursor(x, self.y);
-                    match self.keyboard.get_key() {
-                        Some(event) => match event.code {
-                            KeyCode::W => {
-                                self.clear_line();
-                                x += 8;
-                                self.set_cursor(x, self.y);
-                                self.print_string("P");
-                            }
-                            KeyCode::S => {
-                                self.clear_line();
-                                x -= 8;
-                                self.set_cursor(x, self.y);
-                                self.print_string("P");
-                            }
-                            KeyCode::Z => break,
-                            _ => {
-                                x86_64::instructions::hlt();
-                            }
-                        },
-                        None => {}
-                    }
-                    if x == key_x {
-                        self.new_line();
-                        self.print_string_ln("You win");
-                        break;
-                    }
-                }
-            }
             "pci" => {
                 let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
                 let mcfg = unsafe { &*mcfg_ptr };
@@ -647,6 +612,16 @@ impl Terminal {
         self.buf_x = x;
         self.buf_y = y;
     }
+    pub fn set_cursor_cell(&mut self, cell_x:Option<usize>, cell_y: Option<usize>) {
+        if let Some(cell_x) = cell_x {
+            self.x = cell_x * 8;
+            self.buf_x = cell_x * 8;
+        }
+        if let Some(cell_y) = cell_y {
+            self.y = cell_y * 16;
+            self.buf_y = cell_y * 16;
+        }
+    }
     pub fn clear_line(&mut self) {
         let char_width = 8;
         let char_height = 16;
@@ -693,15 +668,3 @@ macro_rules! kprintln {
     }};
 }
 
-pub extern "Rust" fn kprint(s: &str) {
-    unsafe {
-        if !TERMINAL.is_null() {
-            let term = TERMINAL;
-            let _ = write!((*term), "{s}");
-        }
-    }
-}
-pub extern "Rust" fn kprintln(s: &str) {
-    kprint(s);
-    kprint("\n");
-}

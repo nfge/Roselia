@@ -123,7 +123,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "kernel"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "acpi",
  "bootinfo",
@@ -133,7 +133,6 @@ dependencies = [
  "kernel_api",
  "lazy_static",
  "linked_list_allocator",
- "mem",
  "pci",
  "raw-cpuid 11.6.0",
  "spin 0.12.3",

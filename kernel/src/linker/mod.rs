@@ -215,7 +215,7 @@ impl Linker {
 }
 
 fn resolve_kernel_symbol(name: &str) -> Option<u64> {
-    KERNEL_EXPORTS
+    KERNEL_EXPORTS.lock()
         .iter()
         .find(|s| s.name == name)
         .map(|s| s.addr.0 as u64)

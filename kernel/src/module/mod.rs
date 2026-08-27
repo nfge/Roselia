@@ -1,6 +1,5 @@
 use core::{
     ops::Add,
-    panic::{self, PanicInfo},
     slice,
 };
 
@@ -14,52 +13,17 @@ use kernel_api::{
     module::{Module, ModuleInfo, RawModule},
     symbol::{KernelSymbol, SymAddr},
 };
-use pci::{find_by_class, find_by_id};
 
-use crate::{
-    cpu::cpuinfo::get_cpu, kprintln, linker::Linker, log_info, memory::{kalloc, kfree}, module::error::LoadError, ramfs::read_file, terminal::{kprint, kprintln}
+use spin::mutex::Mutex;
+use crate::{linker::Linker, log_info, module::{error::LoadError}
 };
 
 mod error;
+pub mod export;
 
-pub static KERNEL_EXPORTS: &[KernelSymbol] = &[
-    KernelSymbol {
-        name: "kprint",
-        addr: SymAddr(kprint as *const ()),
-    },
-    KernelSymbol {
-        name: "kprintln",
-        addr: SymAddr(kprintln as *const ()),
-    },
-    KernelSymbol {
-        name: "module_panic",
-        addr: SymAddr(module_panic as *const ()),
-    },
-    KernelSymbol {
-        name: "kalloc",
-        addr: SymAddr(kalloc as *const ()),
-    },
-    KernelSymbol {
-        name: "kfree",
-        addr: SymAddr(kfree as *const ()),
-    },
-    KernelSymbol {
-        name: "read",
-        addr: SymAddr(read_file as *const ())
-    },
-    KernelSymbol {
-        name: "pci_find_by_id",
-        addr: SymAddr(find_by_id as *const ())
-    },
-    KernelSymbol {
-        name: "pci_find_by_class",
-        addr: SymAddr(find_by_class as *const ())
-    },
-    KernelSymbol {
-        name: "get_cpu",
-        addr: SymAddr(get_cpu as *const ())
-    }
-];
+
+pub static KERNEL_EXPORTS: Mutex<Vec<KernelSymbol>> = Mutex::new(Vec::new());
+
 
 pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     let file =
@@ -90,7 +54,7 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
         return Err(LoadError::EntryNotExecutable);
     }
     log_info!(
-        "Successful loaded module {} {}\n",
+        "Successful loaded module {} 0x{:016x}\n",
         core::str::from_utf8(
             &info.name[..info
                 .name
@@ -164,6 +128,12 @@ pub unsafe fn read_module_info(module: &RawModule) -> Option<ModuleInfo> {
     None
 }
 
-fn module_panic(info: &PanicInfo) {
-    kprintln!("{}", info);
+#[macro_export]
+macro_rules! export_symbol {
+    ($name:expr, $addr:expr) => {{
+        $crate::module::KERNEL_EXPORTS.lock().push(kernel_api::symbol::KernelSymbol {
+            name: $name,
+            addr: kernel_api::symbol::SymAddr($addr as *const () as usize)
+        })
+    }};
 }

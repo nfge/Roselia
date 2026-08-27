@@ -2,11 +2,10 @@
 pub const SLP_EN: u16 = 1 << 13;
 pub const SLP_TYP_SHIFT: u16 = 10;
 
-pub fn find_s5_sleep_type(aml: &[u8]) -> Option<(u8, u8)> {
-    const NAME: &[u8; 4] = b"_S5_";
+pub fn find_sleep_type(name: &[u8; 4], aml: &[u8]) -> Option<(u8, u8)> {
     
 
-    let pos = aml.windows(4).position(|w| w == NAME)?;
+    let pos = aml.windows(4).position(|w| w == name)?;
 
     if pos == 0 || aml[pos - 1] != 0x08 {
         return None;

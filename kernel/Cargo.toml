@@ -1,6 +1,6 @@
 [package]
 name = "kernel"
-version = "0.6.4"
+version = "0.6.5"
 edition = "2024"
 authors = ["nfge Github: <https://github.com/nfge>"]
 
@@ -21,7 +21,7 @@ kernel_api={path = "../kernel_api"}
 bootinfo={path = "../common/bootinfo"}
 acpi = {path = "../common/acpi"}
 pci={path = "../common/pci"}
-mem={path = "../tools/mem"}
+# mem={path = "../tools/mem"}
 utils={path = "../utils"}
 linked_list_allocator = "0.10.6"
 # rusttype = {version = "0.9.3",default-features = false, features = ["libm-math"]}
