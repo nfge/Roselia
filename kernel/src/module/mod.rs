@@ -14,10 +14,10 @@ use kernel_api::{
     module::{Module, ModuleInfo, RawModule},
     symbol::{KernelSymbol, SymAddr},
 };
-use x86_64::structures::paging::{Mapper, Size4KiB};
+use pci::{find_by_class, find_by_id};
 
 use crate::{
-    MODULES, kprintln, linker::Linker, log_info, memory::{kalloc, kfree}, module::error::LoadError, ramfs::read_file, terminal::{kprint, kprintln}
+    cpu::cpuinfo::get_cpu, kprintln, linker::Linker, log_info, memory::{kalloc, kfree}, module::error::LoadError, ramfs::read_file, terminal::{kprint, kprintln}
 };
 
 mod error;
@@ -46,6 +46,18 @@ pub static KERNEL_EXPORTS: &[KernelSymbol] = &[
     KernelSymbol {
         name: "read",
         addr: SymAddr(read_file as *const ())
+    },
+    KernelSymbol {
+        name: "pci_find_by_id",
+        addr: SymAddr(find_by_id as *const ())
+    },
+    KernelSymbol {
+        name: "pci_find_by_class",
+        addr: SymAddr(find_by_class as *const ())
+    },
+    KernelSymbol {
+        name: "get_cpu",
+        addr: SymAddr(get_cpu as *const ())
     }
 ];
 

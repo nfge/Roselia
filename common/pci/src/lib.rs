@@ -4,29 +4,62 @@
 extern crate alloc;
 
 use kernel_api::acpi_tables::mcfg::McfgEntry;
-use kernel_api::pci::{PciDevice};
+use kernel_api::pci::PciDevice;
 
-use crate::{enumerate::{enumerate_legacy, enumerate_mcfg}};
-use alloc::{format};
+use crate::enumerate::{enumerate_legacy, enumerate_mcfg};
+use alloc::format;
 
-pub mod read;
 pub mod enumerate;
+pub mod read;
 
 pub const PCI_IDS: &[u8] = include_bytes!("pci.ids");
 
-
-
 pub fn find_by_id(mcfg_entry: &McfgEntry, vendor_id: u16, device_id: u16) -> Option<PciDevice> {
-    let devices = unsafe {enumerate_mcfg(mcfg_entry)};
+    let devices = unsafe { enumerate_mcfg(mcfg_entry) };
     for device in devices {
         if device.header.vendor_id == vendor_id && device.header.device_id == device_id {
-            return Some(PciDevice { bus: device.bus, device: device.device, function: device.function, header: device.header })
+            return Some(PciDevice {
+                bus: device.bus,
+                device: device.device,
+                function: device.function,
+                header: device.header,
+            });
         }
     }
     let devices = unsafe { enumerate_legacy() };
     for device in devices {
         if device.header.vendor_id == vendor_id && device.header.device_id == device_id {
-            return Some(PciDevice { bus: device.bus, device: device.device, function: device.function, header: device.header })
+            return Some(PciDevice {
+                bus: device.bus,
+                device: device.device,
+                function: device.function,
+                header: device.header,
+            });
+        }
+    }
+    None
+}
+pub fn find_by_class(mcfg_entry: &McfgEntry, class: u8, subclass: u8) -> Option<PciDevice> {
+    let devices = unsafe { enumerate_mcfg(mcfg_entry) };
+    for device in devices {
+        if device.header.class_code == class && device.header.subclass == subclass {
+            return Some(PciDevice {
+                bus: device.bus,
+                device: device.device,
+                function: device.function,
+                header: device.header,
+            });
+        }
+    }
+    let devices = unsafe { enumerate_legacy() };
+    for device in devices {
+        if device.header.class_code == class && device.header.subclass == subclass {
+            return Some(PciDevice {
+                bus: device.bus,
+                device: device.device,
+                function: device.function,
+                header: device.header,
+            });
         }
     }
     None
