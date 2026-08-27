@@ -13,4 +13,5 @@ fn main() {
     println!("cargo:rustc-link-arg=--unresolved-symbols=ignore-all");
     println!("cargo:rustc-link-arg=-shared");
     println!("cargo:rustc-link-arg=-no-pie");
+    println!("cargo:rustc-link-arg=--exclude-libs=ALL");
 }
