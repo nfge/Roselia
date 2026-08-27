@@ -34,10 +34,10 @@ if not exist os\modules mkdir os\modules
 
 
 if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
-copy target\x86_64\debug\kernel os\kernel.elf
-copy target\x86_64-unknown-none\debug\example os\modules\example.kmod
-copy target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\BOOT\BOOTX64.efi
-copy target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\Roselia\boot.efi
+copy /Y target\x86_64\debug\kernel os\kernel.elf
+copy /Y target\x86_64-unknown-none\debug\example os\modules\example.kmod
+copy /Y target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\BOOT\BOOTX64.efi
+copy /Y target\x86_64-unknown-uefi\debug\bootloader.efi os\EFI\Roselia\boot.efi
 exit /b
 
 
@@ -54,10 +54,10 @@ if not exist os\modules mkdir os\modules
 
 
 if not exist os\OVMF\vars.fd copy "C:\Program Files\qemu\share\OVMF_VARS.fd" os\OVMF\vars.fd
-copy target\x86_64\release\kernel os\kernel.elf
-copy target\x86_64-unknown-none\release\example os\modules\example.kmod
-copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\BOOT\BOOTX64.efi
-copy target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\Roselia\boot.efi
+copy /Y target\x86_64\release\kernel os\kernel.elf
+copy /Y target\x86_64-unknown-none\release\example os\modules\example.kmod
+copy /Y target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\BOOT\BOOTX64.efi
+copy /Y target\x86_64-unknown-uefi\release\bootloader.efi os\EFI\Roselia\boot.efi
 exit /b
 
 
