@@ -124,7 +124,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 "Not Found"
             };
             format!(
-                "Roselia Kernel {} ({})\nkernel.{}-{}\n{}\n",
+                "Roselia Kernel {} ({})\nkernel.{}-{} {}\n",
                 version, git_commit, version, git_commit, arch
             )
             .into_bytes()
