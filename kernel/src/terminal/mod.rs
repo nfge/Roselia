@@ -586,28 +586,31 @@ impl Terminal {
                     }
                 },
                 None => self.print_string_ln("Usage modinfo [module name]"),
-            }
+            },
             _ => {
                 let name = command.name.as_str();
                 if let Some(modules) = unsafe { &*core::ptr::addr_of_mut!(MODULES) } {
+                    let mut found = false;
                     for module in modules {
-                        if core::str::from_utf8(
-                            &module.info.name[..module
-                                .info
-                                .name
-                                .iter()
-                                .position(|&c| c == 0)
-                                .unwrap_or(module.info.name.len())],
-                        )
-                        .unwrap()
-                            == name
-                        {
-                            let init: extern "C" fn() = unsafe {core::mem::transmute(module.entry_fn)};
+                        let end = module
+                            .info
+                            .name
+                            .iter()
+                            .position(|&c| c == 0)
+                            .unwrap_or(module.info.name.len());
+
+                        if core::str::from_utf8(&module.info.name[..end]).unwrap() == name {
+                            let init: extern "C" fn() =
+                                unsafe { core::mem::transmute(module.entry_fn) };
                             init();
-                        } else {
-                            self.print_string_ln("Command not found");
-                            return
+                            found = true;
+                            break;
                         }
+                    }
+
+                    if !found {
+                        self.print_string_ln("Command not found");
+                        return;
                     }
                 }
             }
