@@ -32,3 +32,10 @@ pub extern "Rust" fn set_cursor_cell(cell_x: Option<usize>, cell_y: Option<usize
         }
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn kernel_printchar(c: u8) {
+    if unsafe {!TERMINAL.is_null()} {
+        unsafe {(*TERMINAL).print_char(c as char);}
+    }
+}

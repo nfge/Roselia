@@ -1,7 +1,7 @@
 use alloc::slice;
 use kernel_api::{
     elf::{
-        elf64dyn::{DT_NULL, DT_RELA, DT_RELAENT, DT_RELASZ, Elf64Dyn},
+        elf64dyn::{DT_JMPREL, DT_NULL, DT_PLTRELSZ, DT_RELA, DT_RELAENT, DT_RELASZ, Elf64Dyn},
         elf64ehdr::Elf64Ehdr,
         elf64phdr::{Elf64Phdr, PF_W, PF_X, PT_DYNAMIC, PT_LOAD},
         elf64rela::{
@@ -53,19 +53,27 @@ impl Linker {
             )
         };
         let (mut rela_vaddr, mut rela_size, mut rela_ent) = (None, 0usize, size_of::<Elf64Rela>());
+        let (mut jmprel_vaddr, mut jmprel_size) = (None, 0usize);
         for d in dyn_entries {
             match d.d_tag {
                 DT_RELA => rela_vaddr = Some(d.d_un.d_val),
                 DT_RELASZ => rela_size = d.d_un.d_val as usize,
                 DT_RELAENT => rela_ent = d.d_un.d_val as usize,
+                DT_JMPREL => jmprel_vaddr = Some(d.d_un.d_val),
+                DT_PLTRELSZ => jmprel_size = d.d_un.d_val as usize,
                 DT_NULL => break,
                 _ => {}
             }
         }
+        if rela_vaddr.is_none() {
+            rela_vaddr = jmprel_vaddr;
+            rela_size = jmprel_size;
+        }
+
         let Some(rela_vaddr) = rela_vaddr else {
-            log_fail!("in module {}, no DT_RELA", module.address);
-            serial_println!("in module {}, no DT_RELA", module.address);
-            return Err(RelocateError::NoDTRELA);
+            log_fail!("in module {}, no relocation table", module.address);
+            serial_println!("in module {}, no relocation table", module.address);
+            return Err(RelocateError::NORELDATA);
         };
         let count = rela_size / rela_ent;
 
@@ -98,11 +106,11 @@ impl Linker {
 
                             match resolve_kernel_symbol(name) {
                                 Some(s) => s,
-                                None => { 
+                                None => {
                                     serial_println!("Symbol not found: {}", name);
                                     log_fail!("Symbol not found: {}", name);
-                                    return Err(RelocateError::SymbolNotFound)
-                                },
+                                    return Err(RelocateError::SymbolNotFound);
+                                }
                             }
                         }
 
