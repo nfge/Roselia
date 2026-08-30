@@ -1,6 +1,6 @@
 use core::ops::Add;
 
-use kernel_api::module::{RawModule, RawModules};
+use kernel_api::module::raw::{RawModule, RawModules};
 use uefi::{
     boot::MemoryType,
     mem::memory_map::{MemoryMap, MemoryMapOwned},

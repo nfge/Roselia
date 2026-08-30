@@ -10,7 +10,7 @@ use kernel_api::{
         elf64shdr::Elf64Shdr,
         elf64sym::{Elf64Sym, SHN_ABS, SHN_UNDEF, sym_name},
     },
-    module::RawModule,
+    module::raw::RawModule,
     symbol::{KernelSymbol, SymAddr},
 };
 

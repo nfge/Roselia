@@ -5,7 +5,7 @@ extern crate alloc;
 
 use core::{alloc::{GlobalAlloc, Layout}, ptr::NonNull};
 
-use kernel_api::module::ModuleInfo;
+use kernel_api::module::{ACCEPT_ARGS, ModuleInfo};
 
 pub struct ModuleAllocator;
 
@@ -38,10 +38,11 @@ unsafe extern "Rust" {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn module_init() {
+pub extern "C" fn module_init() -> i32 {
     unsafe {
         kprint("This is example module!\n");
     };
+    return 0
 }
 
 #[panic_handler]

@@ -43,7 +43,7 @@ use core::{
 };
 use kernel_api::{
     acpi_tables::mcfg::Mcfg,
-    module::{Module, RawModules},
+    module::{Module, raw::RawModules},
 };
 use utils::serial_println;
 

@@ -23,14 +23,15 @@ use kernel_api::{
         keycode::{KeyCode, key_event_to_char},
         keyevent::KeyEvent,
     },
+    module::{ACCEPT_ARGS, ModuleArgs},
 };
 use utils::serial_println;
 
 mod command;
+pub mod export;
 mod lexer;
 mod parser;
 mod token;
-pub mod export;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -565,11 +566,41 @@ impl Terminal {
                             .unwrap_or(module.info.name.len());
 
                         if core::str::from_utf8(&module.info.name[..end]).unwrap() == name {
-                            let init: extern "C" fn() =
-                                unsafe { core::mem::transmute(module.entry_fn) };
-                            init();
-                            found = true;
-                            break;
+                            if module.info.flags & ACCEPT_ARGS != 0 {
+                                let init: extern "C" fn(*const ModuleArgs) -> i32 =
+                                    unsafe { core::mem::transmute(module.entry_fn) };
+                                let raw_argv: Vec<Vec<u8>> = command.args.iter().map(|s| {
+                                    let mut bytes = s.as_bytes().to_vec();
+                                    bytes.push(0);
+                                    bytes
+                                }).collect();
+                                let argv: Vec<*const u8> = raw_argv.iter().map(|s| s.as_ptr()).collect();
+                                let args = ModuleArgs {
+                                    argc: argv.len() as u64,
+                                    argv: argv.as_ptr()
+                                };
+                                let result = init(&args as *const ModuleArgs);
+                                found = true;
+                                if result == 0 {
+                                    break;
+                                } else {
+                                    let _ =
+                                        write!(self, "Module exited with error code {}\n", result);
+                                    break;
+                                }
+                            } else {
+                                let init: extern "C" fn() -> i32 =
+                                    unsafe { core::mem::transmute(module.entry_fn) };
+                                let result = init();
+                                found = true;
+                                if result == 0 {
+                                    break;
+                                } else {
+                                    let _ =
+                                        write!(self, "Module exited with error code {}\n", result);
+                                    break;
+                                }
+                            }
                         }
                     }
 
@@ -612,7 +643,7 @@ impl Terminal {
         self.buf_x = x;
         self.buf_y = y;
     }
-    pub fn set_cursor_cell(&mut self, cell_x:Option<usize>, cell_y: Option<usize>) {
+    pub fn set_cursor_cell(&mut self, cell_x: Option<usize>, cell_y: Option<usize>) {
         if let Some(cell_x) = cell_x {
             self.x = cell_x * 8;
             self.buf_x = cell_x * 8;
@@ -667,4 +698,3 @@ macro_rules! kprintln {
         }
     }};
 }
-

@@ -3,7 +3,7 @@
 
 use core::ffi::c_void;
 
-use kernel_api::module::{RawModules};
+use kernel_api::module::raw::{RawModules};
 
 pub mod gop_table;
 pub mod reset;
