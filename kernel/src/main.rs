@@ -18,18 +18,16 @@ mod timer;
 
 // mod uart;
 use crate::{
-    cpu::random::hardware_random,
     func::reset,
     gop::{color::Color, graphics::Graphics},
-    memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem},
+    memory::page_allocator::{PageAllocator},
     module::{export::init_exports, load_module},
-    ramfs::{RamFs, create_file, mkdir},
+    ramfs::{RamFs, init_ramfs},
     terminal::Terminal,
     timer::sleep,
 };
 
-use acpi::get_table;
-use alloc::{boxed::Box, format, vec::Vec};
+use alloc::{boxed::Box,vec::Vec};
 use bootinfo::{
     BootInfo,
     reset::ResetFn,
@@ -37,12 +35,9 @@ use bootinfo::{
     variable::{GetVar, SetVar},
 };
 use core::{
-    ffi::c_void,
-    panic::PanicInfo,
-    ptr::{null, null_mut},
+    ffi::c_void, panic::PanicInfo,
 };
 use kernel_api::{
-    acpi_tables::mcfg::Mcfg,
     module::{Module, raw::RawModules},
 };
 use utils::serial_println;
@@ -100,65 +95,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
     }
-    let _ = mkdir("/kernel").unwrap();
-    let _ = mkdir("/sys").unwrap();
-    let _ = mkdir("/dev").unwrap();
-    let _ = create_file("/kernel/log", ramfs::data::NodeData::File(Vec::new())).unwrap();
-    let _ = create_file(
-        "/sys/memory",
-        ramfs::data::NodeData::virtual_read(|| {
-            let used = get_used_mem();
-            let free = get_free_mem();
-            let total = get_total_memory();
-            format!("total: {}KB\nfree: {}KB\nused: {}KB\n", total, free, used).into_bytes()
-        }),
-    );
-    let _ = create_file(
-        "/kernel/info",
-        ramfs::data::NodeData::virtual_read(|| {
-            let version = env!("CARGO_PKG_VERSION");
-            let git_commit = env!("GIT_COMMIT");
-            let arch = if cfg!(target_arch = "x86_64") {
-                "x86_64"
-            } else {
-                "Not Found"
-            };
-            format!(
-                "Roselia Kernel {} ({})\nkernel.{}-{} {}\n",
-                version, git_commit, version, git_commit, arch
-            )
-            .into_bytes()
-        }),
-    );
-    let _ = mkdir("/dev/pci");
-    let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
-    let mcfg = unsafe { &*mcfg_ptr };
-    let count = unsafe { mcfg.entry_count() };
-    for i in 0..count {
-        let entry = unsafe { &mcfg.entry(i) };
-        let devices = unsafe { pci::enumerate::enumerate(entry) };
-        for device in devices {
-            let _ = create_file(
-                format!(
-                    "/dev/pci/{}:{}.{}",
-                    device.bus, device.device, device.function
-                )
-                .as_str(),
-                ramfs::data::NodeData::virtual_read(move || {
-                    let (vendor_name, device_name) =
-                        pci::check(device.header.vendor_id, device.header.device_id);
-                    format!(
-                        "{:04x} {}\n{:04x} {}\n\n",
-                        device.header.vendor_id as u16,
-                        vendor_name.unwrap_or("Not found in pci.ids"),
-                        device.header.device_id as u16,
-                        device_name.unwrap_or("Not found in pci.ids")
-                    )
-                    .into_bytes()
-                }),
-            );
-        }
-    }
+    init_ramfs();
     init_exports();
     unsafe { MODULES = Some(Vec::new()) }
     if info.modules.count != 0 {
