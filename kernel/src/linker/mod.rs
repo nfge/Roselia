@@ -100,7 +100,7 @@ impl Linker {
                     let s = match sym.st_shndx {
                         SHN_UNDEF => {
                             if cfg!(debug_assertions) {
-                                serial_println!("Resolving external: {}\n", name);
+                                serial_println!("Resolving external: {}", name);
                             }
                             log_info!("Resolving external: {}\n", name);
 
@@ -108,7 +108,7 @@ impl Linker {
                                 Some(s) => s,
                                 None => {
                                     serial_println!("Symbol not found: {}", name);
-                                    log_fail!("Symbol not found: {}", name);
+                                    log_fail!("Symbol not found: {}\n", name);
                                     return Err(RelocateError::SymbolNotFound);
                                 }
                             }
