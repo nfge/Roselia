@@ -75,7 +75,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::apic::init_lapic();
     x86_64::instructions::interrupts::enable();
     timer::calibrate();
-    cpu::sse::init_sse();
+    cpu::sse::init_sse_and_avx();
 
     unsafe {
         PAGE_ALLOCATOR = Some(PageAllocator::new(&info.memory_map));

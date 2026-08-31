@@ -22,6 +22,10 @@ pub fn chech_sse_support() -> bool {
 
     f.has_sse() && f.has_sse2()
 }
+pub fn chech_avx_support() -> bool {
+    let cpuid = CpuId::new();
+    cpuid.get_feature_info().unwrap().has_avx()
+}
 pub fn get_cpu_therm() -> Option<u8> {
     match get_cpu_vendor().unwrap().as_str() {
         "GenuineIntel" => {
