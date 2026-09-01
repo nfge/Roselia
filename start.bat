@@ -62,5 +62,5 @@ exit /b
 
 
 :run
-qemu-system-x86_64 -machine q35 -m 1G -drive if=pflash,format=raw,readonly=on,file="C:\Program Files\qemu\share\OVMF_CODE.fd" -drive if=pflash,format=raw,file=./os/OVMF/vars.fd -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -monitor stdio -cpu max -d int,cpu_reset,guest_errors -D qemu.log
+qemu-system-x86_64 -machine q35 -m 1G -drive if=pflash,format=raw,readonly=on,file="C:\Program Files\qemu\share\OVMF_CODE.fd" -drive if=pflash,format=raw,file=./os/OVMF/vars.fd -drive format=raw,file=fat:rw:os/ -rtc clock=host,base=utc -serial stdio -cpu max -d int,cpu_reset,guest_errors -D qemu.log
 goto :eof

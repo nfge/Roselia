@@ -20,7 +20,7 @@ mod timer;
 use crate::{
     func::reset,
     gop::{color::Color, graphics::Graphics},
-    memory::page_allocator::{PageAllocator},
+    memory::page_allocator::{PageAllocator, alloc_frame},
     module::{export::init_exports, load_module},
     ramfs::{RamFs, init_ramfs},
     terminal::Terminal,
@@ -34,6 +34,7 @@ use bootinfo::{
     time::GetTimeFn,
     variable::{GetVar, SetVar},
 };
+use x86_64::{VirtAddr, structures::paging::{OffsetPageTable,PageTable}};
 use core::{
     ffi::c_void, panic::PanicInfo,
 };
@@ -90,6 +91,11 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             );
         }
     }
+    let pml4_frame = alloc_frame().unwrap();
+    let pml4_virt = VirtAddr::new(0 + pml4_frame.start_address().as_u64());
+    let pml4: &mut PageTable = unsafe {&mut *pml4_virt.as_mut_ptr()};
+    pml4.zero();
+    let mut mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0))};
     memory::init_heap();
 
     unsafe {

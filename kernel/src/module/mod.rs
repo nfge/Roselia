@@ -15,6 +15,7 @@ use kernel_api::{
 };
 
 use spin::mutex::Mutex;
+use x86_64::structures::paging::{Mapper, Size4KiB};
 use crate::{linker::Linker, log_info, module::{error::LoadError}
 };
 
