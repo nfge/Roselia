@@ -20,7 +20,7 @@ use x86_64::{
     structures::paging::{Mapper, Page, PageTableFlags, Size4KiB},
 };
 
-use crate::{linker::error::RelocateError, log_debug, log_fail, log_info, module::KERNEL_EXPORTS};
+use crate::{kprintln, linker::error::RelocateError, log_debug, log_fail, log_info, module::KERNEL_EXPORTS, ramfs::read_file, terminal::export::kprintln};
 
 pub mod error;
 
@@ -227,9 +227,21 @@ impl Linker {
 }
 
 fn resolve_kernel_symbol(name: &str) -> Option<u64> {
-    KERNEL_EXPORTS
-        .lock()
-        .iter()
-        .find(|s| s.name == name)
-        .map(|s| s.addr.0 as u64)
+    // KERNEL_EXPORTS
+    //     .lock()
+    //     .iter()
+    //     .find(|s| s.name == name)
+    //     .map(|s| s.addr.0 as u64)
+    let data = read_file("/symbols").unwrap();
+    let text = core::str::from_utf8(&data).unwrap();
+    for line in text.lines() {
+        let Some((sname,saddr)) = line.split_once(":") else {
+            continue;
+        };
+        if sname == name {
+            let addr = u64::from_str_radix(saddr.trim_start_matches("0x"), 16).expect("Invalid address");
+            return Some(addr)
+        }
+    }
+    None
 }

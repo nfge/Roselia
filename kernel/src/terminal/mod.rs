@@ -626,12 +626,14 @@ impl Terminal {
                     self.new_line();
                 }
             }
-            KeyCode::Escape => {
-                self.print_string_ln("ESC");
-            }
+            KeyCode::Escape => {}
             KeyCode::Backspace => {
                 self.backspace();
-            }
+            },
+            KeyCode::ArrowUp => {},
+            KeyCode::ArrowDown => {},
+            KeyCode::ArrowLeft => {},
+            KeyCode::ArrowRight => {},
             _ => {
                 self.print_char(key_event_to_char(event).unwrap());
             }

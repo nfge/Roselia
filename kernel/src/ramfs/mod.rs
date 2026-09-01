@@ -9,7 +9,7 @@ use data::NodeData;
 use kernel_api::{acpi_tables::mcfg::Mcfg, ramfs::error::RamFSError};
 
 use crate::{
-    ACPI_TABLE, RAMFS, cpu::random::hardware_random, memory::page_allocator::{get_free_mem, get_total_memory, get_used_mem}, ramfs::{
+    ACPI_TABLE, RAMFS, cpu::random::hardware_random, memory::page_allocator::{get_free_mem, get_total_memory, get_used_mem}, module::KERNEL_EXPORTS, ramfs::{
         node::{Node, NodeId},
         types::NodeType,
     }
@@ -313,4 +313,15 @@ pub fn init_ramfs() {
             );
         }
     }
+    let _ = create_file("/symbols", NodeData::virtual_read(|| {
+        let mut symbols = Vec::new();
+        for symbol in KERNEL_EXPORTS.lock().iter() {
+            symbols.extend_from_slice(symbol.name.as_bytes());
+            symbols.push(b':');
+            let addr = format!("{:#x}", symbol.addr.0);
+            symbols.extend_from_slice(addr.as_bytes());
+            symbols.push(b'\n');
+        }
+        symbols
+    }));
 }
