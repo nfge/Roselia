@@ -1,11 +1,9 @@
+pub const INTEL: &str = "GenuineIntel";
+pub const AMD: &str = "AuthenticAMD";
+
 use raw_cpuid::{CpuId, ProcessorBrandString, VendorInfo};
 use x86::msr::{IA32_THERM_STATUS, rdmsr};
-// use x86::msr::IA32_THERM_STATUS;
 
-// pub fn get_frequency() -> Option<u16> {
-//     let cpuid = CpuId::new();
-//     return Some(cpuid.get_processor_frequency_info().unwrap().processor_base_frequency());
-// }
 pub fn get_cpu_vendor() -> Option<VendorInfo> {
     let cpuid = CpuId::new();
 
@@ -28,7 +26,7 @@ pub fn chech_avx_support() -> bool {
 }
 pub fn get_cpu_therm() -> Option<u8> {
     match get_cpu_vendor().unwrap().as_str() {
-        "GenuineIntel" => {
+        INTEL => {
             let therm_status = unsafe { rdmsr(IA32_THERM_STATUS) };
             let tj_value = unsafe { rdmsr(0x1A2) };
             let valid = ((therm_status >> 31) & 1) != 0;
@@ -41,22 +39,23 @@ pub fn get_cpu_therm() -> Option<u8> {
                 None
             }
         }
-        "AuthenticAMD" => None,
+        AMD => None,
         _ => None,
     }
 }
-// fn cpu_apic() -> bool {
-//     let cpuid = CpuId::new();
-//     return cpuid.get_feature_info().unwrap().has_apic();
-// }
-// fn cpu_acpi() -> bool {
-//     let cpuid = CpuId::new();
-//     return cpuid.get_feature_info().unwrap().has_acpi();
-// }
-// pub fn cpu_features() -> (bool, bool) {
-//     return (cpu_apic(), cpu_acpi());
-// }
+pub fn get_frequency() -> (u16,u16,u16) {
+    let cpuid = CpuId::new();
+    match get_cpu_vendor().unwrap().as_str() {
+        INTEL => {
+            let freq = cpuid.get_processor_frequency_info().unwrap();
+            return (freq.bus_frequency(),freq.processor_base_frequency(),freq.processor_max_frequency())
+        },
+        AMD => return (0,0,0),
+        _ => (0,0,0)
+    }
+}
 
 pub fn get_cpu() -> (Option<VendorInfo>, Option<ProcessorBrandString>) {
     return (get_cpu_vendor(), get_cpu_brand_name());
 }
+

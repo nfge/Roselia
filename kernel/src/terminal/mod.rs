@@ -266,9 +266,13 @@ impl Terminal {
             "cpu" => {
                 let cpu = cpu::cpuinfo::get_cpu();
                 let cpu_therm = cpu::cpuinfo::get_cpu_therm();
+                let cpu_freq = cpu::cpuinfo::get_frequency();
                 let _ = write!(self, "Vendor: {}\n", cpu.0.unwrap().as_str());
                 let _ = write!(self, "Model: {}\n", cpu.1.unwrap().as_str());
-                let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
+                if cpu::cpuinfo::get_cpu().0.unwrap().as_str() == cpu::cpuinfo::INTEL {
+                    let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
+                    let _ = write!(self, "Freq:\n Bus: {}\n Base: {}\n Max: {}\n", cpu_freq.0, cpu_freq.1,cpu_freq.2);
+                }
             }
             "echo" => {
                 let text = match command.args.first() {
