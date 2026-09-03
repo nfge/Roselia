@@ -6,11 +6,10 @@ use uefi::{
     mem::memory_map::{MemoryMap, MemoryMapOwned},
 };
 use x86_64::{
-    PhysAddr,
-    structures::paging::{FrameAllocator, PhysFrame, Size4KiB},
+    PhysAddr, VirtAddr, structures::paging::{FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB}
 };
 
-use crate::{MULTI_ALLOCATOR, kprintln, memory::bitmap::Bitmap};
+use crate::{MAPPER, MULTI_ALLOCATOR, kprintln, log_err, memory::bitmap::Bitmap};
 
 pub struct MultiAllocator<'a> {
     bitmap: Bitmap,
@@ -67,12 +66,12 @@ impl<'a> MultiAllocator<'a> {
         }
     }
     pub fn alloc_frame(&mut self) -> Option<PhysFrame> {
-        for page in 0..self.bitmap.total_pages {
-            if !self.bitmap.is_set(page) {
-                self.bitmap.set(page);
+        for frame in 0..self.bitmap.total_pages {
+            if !self.bitmap.is_set(frame) {
+                self.bitmap.set(frame);
 
                 return Some(PhysFrame::containing_address(PhysAddr::new(
-                    (page * 4096) as u64,
+                    (frame * 4096) as u64,
                 )));
             }
         }
@@ -105,8 +104,35 @@ impl<'a> MultiAllocator<'a> {
     }
     pub fn free_frames(&mut self, addr: PhysAddr, count: usize) {
         for i in 0..count {
-            let page = (addr.as_u64() as usize / 4096) + i;
-            self.bitmap.clear(page);
+            let frame = (addr.as_u64() as usize / 4096) + i;
+            self.bitmap.clear(frame);
+        }
+    }
+
+    pub fn alloc_page(&mut self) -> Option<Page> {
+        let frame = self.alloc_frame()?;
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(frame.start_address().as_u64()));
+        match unsafe {MAPPER.lock().as_mut().unwrap().map_to(page, frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE, self)} {
+            Ok(map) => {
+                map.flush();
+                return Some(page)
+            },
+            Err(e) => {
+                self.free_frame(frame);
+                log_err!("Failed to map: {:#?}", e);
+            }
+        }
+        None
+    }
+    pub fn free_page(&mut self, page: Page<Size4KiB>) {
+        match MAPPER.lock().as_mut().unwrap().unmap(page) {
+            Ok((frame, flush)) => {
+                flush.flush();
+                self.free_frame(frame);
+            } 
+            Err(e) => {
+                log_err!("Failed to unmap: {:#?}", e);
+            }
         }
     }
 }
