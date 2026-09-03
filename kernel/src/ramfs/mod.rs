@@ -9,7 +9,7 @@ use data::NodeData;
 use kernel_api::{acpi_tables::mcfg::Mcfg, ramfs::error::RamFSError};
 
 use crate::{
-    ACPI_TABLE, RAMFS, cpu::random::hardware_random, memory::page_allocator::{get_free_mem, get_total_memory, get_used_mem}, module::KERNEL_EXPORTS, ramfs::{
+    ACPI_TABLE, RAMFS, cpu::random::hardware_random, memory::multi_allocator::{get_free_mem, get_total_memory, get_used_mem}, module::KERNEL_EXPORTS, ramfs::{
         node::{Node, NodeId},
         types::NodeType,
     }

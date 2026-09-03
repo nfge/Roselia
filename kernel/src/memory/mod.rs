@@ -1,10 +1,10 @@
-pub mod page_allocator;
+pub mod multi_allocator;
 mod bitmap;
 use core::alloc::Layout;
 
 use linked_list_allocator::LockedHeap;
 
-use crate::memory::page_allocator::alloc_frames;
+use crate::memory::multi_allocator::alloc_frames;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();

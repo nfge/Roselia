@@ -7,17 +7,17 @@ use uefi::{
 };
 use x86_64::{
     PhysAddr,
-    structures::paging::{PhysFrame, Size4KiB},
+    structures::paging::{FrameAllocator, PhysFrame, Size4KiB},
 };
 
-use crate::{PAGE_ALLOCATOR, kprintln, memory::bitmap::Bitmap};
+use crate::{MULTI_ALLOCATOR, kprintln, memory::bitmap::Bitmap};
 
-pub struct PageAllocator<'a> {
+pub struct MultiAllocator<'a> {
     bitmap: Bitmap,
     mmap: &'a MemoryMapOwned,
 }
 
-impl<'a> PageAllocator<'a> {
+impl<'a> MultiAllocator<'a> {
     pub fn new(mmap: &'a MemoryMapOwned) -> Self {
         let bitmap = Bitmap::new(&mmap);
         Self {
@@ -111,10 +111,17 @@ impl<'a> PageAllocator<'a> {
     }
 }
 
+
+unsafe impl FrameAllocator<Size4KiB> for MultiAllocator<'_> {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        self.alloc_frame()
+    }
+}
+
 #[allow(unused)]
 pub fn alloc_frame() -> Option<PhysFrame> {
     unsafe {
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             return Some(allocator.alloc_frame().expect("Failed alloc pages"));
         }
     }
@@ -123,7 +130,7 @@ pub fn alloc_frame() -> Option<PhysFrame> {
 #[allow(unused)]
 pub fn free_frame(frame: PhysFrame) {
     unsafe {
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.free_frame(frame);
         }
     }
@@ -131,7 +138,7 @@ pub fn free_frame(frame: PhysFrame) {
 #[allow(unused)]
 pub fn alloc_frames(count: usize) -> Option<PhysAddr> {
     unsafe {
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             return Some(allocator.alloc_frames(count).expect("Failed alloc pages"));
         }
     }
@@ -140,7 +147,7 @@ pub fn alloc_frames(count: usize) -> Option<PhysAddr> {
 #[allow(unused)]
 pub fn free_frames(addr: PhysAddr, count: usize) {
     unsafe {
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.free_frames(addr, count);
         }
     }
@@ -150,7 +157,7 @@ pub fn free_frames(addr: PhysAddr, count: usize) {
 pub fn get_total_memory() -> usize {
     let mut total = 0;
     unsafe {
-        if let Some(alloc) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        if let Some(alloc) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             total += alloc.bitmap.total_pages
         }
     }
@@ -160,7 +167,7 @@ pub fn get_total_memory() -> usize {
 pub fn get_free_mem() -> usize {
     let mut free = 0;
     unsafe {
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             for entry in allocator.mmap.entries() {
                 if entry.ty == MemoryType::CONVENTIONAL {
                     let start_page = entry.phys_start as usize / 4096;
@@ -182,7 +189,7 @@ pub fn get_used_mem() -> usize {
     let mut used = 0;
 
     unsafe {
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             for entry in allocator.mmap.entries() {
                 if entry.ty == MemoryType::CONVENTIONAL
                     || entry.ty == MemoryType::LOADER_DATA

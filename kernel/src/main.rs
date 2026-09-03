@@ -20,28 +20,28 @@ mod timer;
 use crate::{
     func::reset,
     gop::{color::Color, graphics::Graphics},
-    memory::page_allocator::{PageAllocator, alloc_frame},
+    memory::multi_allocator::{MultiAllocator, alloc_frame},
     module::{export::init_exports, load_module},
     ramfs::{RamFs, init_ramfs},
     terminal::Terminal,
     timer::sleep,
 };
 
-use alloc::{boxed::Box,vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,
     reset::ResetFn,
     time::GetTimeFn,
     variable::{GetVar, SetVar},
 };
-use x86_64::{VirtAddr, structures::paging::{OffsetPageTable,PageTable}};
-use core::{
-    ffi::c_void, panic::PanicInfo,
-};
-use kernel_api::{
-    module::{Module, raw::RawModules},
-};
+use core::{ffi::c_void, panic::PanicInfo};
+use kernel_api::module::{Module, raw::RawModules};
+use spin::mutex::Mutex;
 use utils::serial_println;
+use x86_64::{
+    VirtAddr,
+    structures::paging::{OffsetPageTable, PageTable},
+};
 
 static mut FB_PTR: Option<*mut u32> = None;
 static mut RESET_FN: Option<ResetFn> = None;
@@ -52,8 +52,10 @@ static mut ACPI_TABLE: Option<*const c_void> = None;
 
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
-static mut PAGE_ALLOCATOR: Option<PageAllocator<'static>> = None;
+static mut MULTI_ALLOCATOR: Option<MultiAllocator<'static>> = None;
 static mut MODULES: Option<Vec<Module>> = None;
+
+static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
@@ -79,8 +81,8 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::sse::init_sse_and_avx();
 
     unsafe {
-        PAGE_ALLOCATOR = Some(PageAllocator::new(&info.memory_map));
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        MULTI_ALLOCATOR = Some(MultiAllocator::new(&info.memory_map));
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.init(
                 info.kernel_info.start_address,
                 info.kernel_info.pages,
@@ -91,11 +93,17 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             );
         }
     }
-    let pml4_frame = alloc_frame().unwrap();
-    let pml4_virt = VirtAddr::new(0 + pml4_frame.start_address().as_u64());
-    let pml4: &mut PageTable = unsafe {&mut *pml4_virt.as_mut_ptr()};
-    pml4.zero();
-    let mut mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0))};
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let pml4_frame = alloc_frame().unwrap();
+        let pml4_virt = VirtAddr::new(0 + pml4_frame.start_address().as_u64());
+        let pml4: &mut PageTable = unsafe { &mut *pml4_virt.as_mut_ptr() };
+        pml4.zero();
+
+        let mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0)) };
+
+        *MAPPER.lock() = Some(mapper);
+    });
+
     memory::init_heap();
 
     unsafe {
