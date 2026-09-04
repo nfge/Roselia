@@ -179,6 +179,16 @@ pub fn free_frames(addr: PhysAddr, count: usize) {
     }
 }
 
+#[allow(unused)]
+pub fn alloc_page() -> Option<Page> {
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
+            return allocator.alloc_page()
+        }
+    }
+    None
+}
+
 #[allow(dead_code)]
 pub fn get_total_memory() -> usize {
     let mut total = 0;

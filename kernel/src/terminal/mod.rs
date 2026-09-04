@@ -48,6 +48,7 @@ pub struct Terminal {
     buf_x: usize,
     buf_y: usize,
     running: bool,
+    pwd: String,
 }
 
 impl Terminal {
@@ -55,6 +56,8 @@ impl Terminal {
         let (width, height) = graphics.mode_info.resolution();
         let cols = width / (8 * scale);
         let rows = height / (16 * scale);
+        let mut pwd = String::new();
+        pwd.push('/');
         Self {
             graphics: graphics,
             keyboard: KeyBoard::new(),
@@ -70,6 +73,7 @@ impl Terminal {
             buf_x: 0,
             buf_y: 0,
             running: false,
+            pwd: pwd,
         }
     }
     pub fn print_char(&mut self, char: char) {
@@ -106,12 +110,6 @@ impl Terminal {
         self.char_buffer[self.buf_y][self.buf_x] = c;
         self.buf_x += 1;
     }
-    // fn push_command(&mut self, c: char){
-    //     if self.cmd_buf_len < self.cmd_buffer.len() {
-    //         self.cmd_buffer[self.cmd_buf_len] = c;
-    //         self.cmd_buf_len += 1;
-    //     }
-    // }
     pub fn flush_screen(&mut self) {
         for y in 0..self.height {
             for x in 0..self.width {
@@ -124,15 +122,6 @@ impl Terminal {
         self.x = 0;
         self.y = 0;
     }
-    // fn flashback(&mut self) {
-    //     for y in 0..self.graphics.mode_info.resolution().1 {
-    //         for x in 0..self.graphics.mode_info.resolution().0 {
-    //             self.graphics.draw_pixel(x, y, Color::White as u32);
-    //         }
-    //     }
-    //     sleep(700);
-    //     self.flush_screen();
-    // }
     fn new_line(&mut self) {
         self.x = 0;
         self.buf_x = 0;
@@ -218,7 +207,8 @@ impl Terminal {
         }
         self.flush_screen();
         self.running = true;
-        self.print_char('>');
+        let cpwd = self.pwd.clone();
+        let _ = write!(self, "{}>", cpwd.as_str());
         while self.running {
             if let Some(key) = self.keyboard.get_key() {
                 self.handle_keyboard(key);
@@ -271,7 +261,11 @@ impl Terminal {
                 let _ = write!(self, "Model: {}\n", cpu.1.unwrap().as_str());
                 if cpu::cpuinfo::get_cpu().0.unwrap().as_str() == cpu::cpuinfo::INTEL {
                     let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
-                    let _ = write!(self, "Freq:\n Bus: {}\n Base: {}\n Max: {}\n", cpu_freq.0, cpu_freq.1,cpu_freq.2);
+                    let _ = write!(
+                        self,
+                        "Freq:\n Bus: {}\n Base: {}\n Max: {}\n",
+                        cpu_freq.0, cpu_freq.1, cpu_freq.2
+                    );
                 }
             }
             "echo" => {
@@ -285,21 +279,38 @@ impl Terminal {
                 self.print_string_ln(text);
             }
             "cat" => match command.args.first() {
-                Some(arg) => match is_valid(arg.as_str()) {
-                    Ok(_) => match read_file(arg.as_str()) {
-                        Ok(data) => {
-                            let text = core::str::from_utf8(&data).unwrap();
-                            let _ = write!(self, "{}", text);
+                Some(arg) => {
+                    let target = if arg.starts_with('/') {
+                        arg.clone()
+                    } else {
+                        let mut base = self.pwd.clone();
+                        if !base.ends_with('/') {
+                            base.push('/');
                         }
+                        base + arg
+                    };
+                    match is_valid(&target) {
+                        Ok(_) => match read_file(&target) {
+                            Ok(data) => match core::str::from_utf8(&data) {
+                                Ok(text) => {
+                                    let _ = write!(self, "{}", text);
+                                }
+                                Err(_) => {
+                                    let _ = write!(self, "Not a valid utf-8 file\n");
+                                }
+                            },
+                            Err(e) => {
+                                let _ = write!(self, "{:#?}\n", e);
+                            }
+                        },
                         Err(e) => {
                             let _ = write!(self, "{:#?}\n", e);
                         }
-                    },
-                    Err(e) => {
-                        let _ = write!(self, "{:#?}\n", e);
                     }
-                },
-                None => {}
+                }
+                None => {
+                    let _ = write!(self, "missing file operand\n");
+                }
             },
             "ls" => match command.args.first() {
                 Some(path) => match check_directory(path.as_str()) {
@@ -307,6 +318,29 @@ impl Terminal {
                         for node in nodes {
                             let _ = write!(self, "{}\n", node.name.as_str());
                         }
+                    }
+                    Err(e) => {
+                        let _ = write!(self, "{:#?}\n", e);
+                    }
+                },
+                None => {
+                    let cpwd = self.pwd.clone();
+                    match check_directory(&cpwd.as_str()) {
+                        Ok(nodes) => {
+                            for node in nodes {
+                                let _ = write!(self, "{}\n", node.name.as_str());
+                            }
+                        }
+                        Err(e) => {
+                            let _ = write!(self, "{:#?}\n", e);
+                        }
+                    }
+                }
+            },
+            "cd" => match command.args.first() {
+                Some(s) => match is_valid(s.as_str()) {
+                    Ok(_) => {
+                        self.pwd = s.to_string();
                     }
                     Err(e) => {
                         let _ = write!(self, "{:#?}\n", e);
@@ -573,15 +607,20 @@ impl Terminal {
                             if module.info.flags & ACCEPT_ARGS != 0 {
                                 let init: extern "C" fn(*const ModuleArgs) -> i32 =
                                     unsafe { core::mem::transmute(module.entry_fn) };
-                                let raw_argv: Vec<Vec<u8>> = command.args.iter().map(|s| {
-                                    let mut bytes = s.as_bytes().to_vec();
-                                    bytes.push(0);
-                                    bytes
-                                }).collect();
-                                let argv: Vec<*const u8> = raw_argv.iter().map(|s| s.as_ptr()).collect();
+                                let raw_argv: Vec<Vec<u8>> = command
+                                    .args
+                                    .iter()
+                                    .map(|s| {
+                                        let mut bytes = s.as_bytes().to_vec();
+                                        bytes.push(0);
+                                        bytes
+                                    })
+                                    .collect();
+                                let argv: Vec<*const u8> =
+                                    raw_argv.iter().map(|s| s.as_ptr()).collect();
                                 let args = ModuleArgs {
                                     argc: argv.len() as u64,
-                                    argv: argv.as_ptr()
+                                    argv: argv.as_ptr(),
                                 };
                                 let result = init(&args as *const ModuleArgs);
                                 found = true;
@@ -622,7 +661,8 @@ impl Terminal {
                 if !event.shift {
                     self.handle_command();
                     if self.running {
-                        self.print_char('>');
+                        let cpwd = self.pwd.clone();
+                        let _ = write!(self, "{}>", cpwd.as_str());
                     } else {
                         return;
                     }
@@ -633,11 +673,11 @@ impl Terminal {
             KeyCode::Escape => {}
             KeyCode::Backspace => {
                 self.backspace();
-            },
-            KeyCode::ArrowUp => {},
-            KeyCode::ArrowDown => {},
-            KeyCode::ArrowLeft => {},
-            KeyCode::ArrowRight => {},
+            }
+            KeyCode::ArrowUp => {}
+            KeyCode::ArrowDown => {}
+            KeyCode::ArrowLeft => {}
+            KeyCode::ArrowRight => {}
             _ => {
                 self.print_char(key_event_to_char(event).unwrap());
             }
