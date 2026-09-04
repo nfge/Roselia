@@ -363,7 +363,7 @@ impl Terminal {
                 let t = get_time();
                 match t {
                     Ok(time) => {
-                        let _ = write!(self, "{}-{}-{}\n", time.year, time.month, time.day);
+                        let _ = write!(self, "{}.{}.{}\n", time.day, time.month, time.year);
                     }
                     Err(_) => {
                         self.print_string_ln("Error during reading rtc");
