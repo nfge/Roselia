@@ -2,17 +2,17 @@ use kernel_api::keyboard::keyevent::KeyEvent;
 use core::fmt::Write;
 use crate::TERMINAL;
 
-pub extern "Rust" fn kprint(s: &str) {
+pub extern "Rust" fn kprint(arg: core::fmt::Arguments) {
     unsafe {
         if !TERMINAL.is_null() {
             let term = TERMINAL;
-            let _ = write!((*term), "{s}");
+            let _ = (*term).print_fmt(arg);
         }
     }
 }
-pub extern "Rust" fn kprintln(s: &str) {
-    kprint(s);
-    kprint("\n");
+pub extern "Rust" fn kprintln(arg: core::fmt::Arguments) {
+    kprint(arg);
+    kprint(format_args!("\n"));
 }
 
 pub extern "Rust" fn get_key() -> Option<KeyEvent> {
@@ -33,9 +33,9 @@ pub extern "Rust" fn set_cursor_cell(cell_x: Option<usize>, cell_y: Option<usize
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn kernel_printchar(c: u8) {
-    if unsafe {!TERMINAL.is_null()} {
-        unsafe {(*TERMINAL).print_char(c as char);}
-    }
-}
+// #[unsafe(no_mangle)]
+// pub extern "C" fn kernel_printchar(c: u8) {
+//     if unsafe {!TERMINAL.is_null()} {
+//         unsafe {(*TERMINAL).print_char(c as char);}
+//     }
+// }

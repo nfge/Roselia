@@ -1,27 +1,42 @@
 use crate::gop::{color::Color, fonts::font8x16::FontChar};
+use alloc::{vec, vec::Vec};
 use uefi::proto::console::gop::ModeInfo;
 
 pub struct Graphics {
     pub framebuffer_ptr: *mut u8,
     pub mode_info: ModeInfo,
+    pub back_buffer: Vec<u32>,
 }
 
 impl Graphics {
     pub fn new(fb: *mut u8, mode_info: ModeInfo) -> Self {
+        let stride = mode_info.stride();
+        let height = mode_info.resolution().1;
         Self {
             framebuffer_ptr: fb,
             mode_info: mode_info,
+            back_buffer: vec![0u32; stride * height],
         }
     }
     pub fn draw_pixel(&mut self, x: usize, y: usize, color: u32) {
-        let fb = self.framebuffer_ptr as *mut u32;
+        let (width, height) = self.mode_info.resolution();
+
+        if x >= width || y >= height {
+            return;
+        }
         let offset = y * self.mode_info.stride() + x;
 
-        unsafe {
-            fb.add(offset).write_volatile(color);
-        }
+        self.back_buffer[offset] = color;
     }
-    pub fn draw_char( &mut self,c: char,font: &[u8],offset_x: usize,offset_y: usize,scale: usize,color: Color) {
+    pub fn draw_char(
+        &mut self,
+        c: char,
+        font: &[u8],
+        offset_x: usize,
+        offset_y: usize,
+        scale: usize,
+        color: Color,
+    ) {
         let index = c as usize;
 
         if index >= 256 {
@@ -68,11 +83,47 @@ impl Graphics {
             }
         }
     }
-    pub fn flush(&mut self) {
-        for y in 0..self.mode_info.resolution().1 {
-            for x in 0..self.mode_info.resolution().0 {
-                self.draw_pixel(x, y, Color::Black as u32);
+    pub fn draw_line(&mut self, x1: isize, y1: isize, x2: isize, y2: isize, color: Color) {
+        let mut x = x1;
+        let mut y = y1;
+
+        let dx = (x2 - x1).abs();
+        let dy = -(y2 - y1).abs();
+
+        let sx = if x1 < x2 { 1 } else { -1 };
+        let sy = if y1 < y2 { 1 } else { -1 };
+
+        let mut error = dx + dy;
+        loop {
+            self.draw_pixel(x as usize, y as usize, color as u32);
+
+            if x == x2 && y == y2 {
+                break;
             }
+
+            let e2 = 2 * error;
+
+            if e2 >= dy {
+                error += dy;
+                x += sx;
+            }
+
+            if e2 <= dx {
+                error += dx;
+                y += sy;
+            }
+        }
+    }
+    pub fn flush(&mut self) {
+        self.back_buffer.fill(Color::Black as u32);
+    }
+    pub fn present(&mut self) {
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                self.back_buffer.as_ptr(),
+                self.framebuffer_ptr as *mut u32,
+                self.mode_info.stride() * self.mode_info.resolution().1,
+            );
         }
     }
 }

@@ -31,8 +31,8 @@ static MODULE_INFO: ModuleInfo = ModuleInfo {
 
 
 unsafe extern "Rust" {
-    fn kprint(s: &str);
-    fn kprintln(s: &str);
+    fn kprint(args: core::fmt::Arguments);
+    fn kprintln(args: core::fmt::Arguments);
     fn kalloc(layout:Layout) -> Result<core::ptr::NonNull<u8>, ()>;
     fn kfree(ptr: NonNull<u8>, layout:Layout);
 }
@@ -40,7 +40,7 @@ unsafe extern "Rust" {
 #[unsafe(no_mangle)]
 pub extern "C" fn module_init() -> i32 {
     unsafe {
-        kprint("This is example module!\n");
+        kprint(format_args!("This is example module!\n"));
     };
     return 0
 }
