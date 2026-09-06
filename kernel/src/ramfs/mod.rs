@@ -9,10 +9,14 @@ use data::NodeData;
 use kernel_api::{acpi_tables::mcfg::Mcfg, ramfs::error::RamFSError};
 
 use crate::{
-    ACPI_TABLE, RAMFS, cpu::random::hardware_random, memory::multi_allocator::{get_free_mem, get_total_memory, get_used_mem}, module::KERNEL_EXPORTS, ramfs::{
+    ACPI_TABLE, RAMFS,
+    cpu::random::hardware_random,
+    memory::multi_allocator::{get_free_mem, get_total_memory, get_used_mem},
+    module::KERNEL_EXPORTS,
+    ramfs::{
         node::{Node, NodeId},
         types::NodeType,
-    }
+    },
 };
 
 pub struct RamFs {
@@ -116,7 +120,9 @@ impl RamFs {
             node.data = NodeData::File(Vec::new());
         }
 
-        let end = offset.checked_add(data.len()).ok_or(RamFSError::InvalidOffset)?;
+        let end = offset
+            .checked_add(data.len())
+            .ok_or(RamFSError::InvalidOffset)?;
 
         // if let NodeData::File(buf) = &mut node.data {
         //     if buf.len() < end {
@@ -257,7 +263,11 @@ pub fn init_ramfs() {
     let _ = mkdir("/kernel").unwrap();
     let _ = mkdir("/sys").unwrap();
     let _ = mkdir("/dev").unwrap();
-    let _ = create_file("/kernel/log", crate::ramfs::data::NodeData::File(Vec::new())).unwrap();
+    let _ = create_file(
+        "/kernel/log",
+        crate::ramfs::data::NodeData::File(Vec::new()),
+    )
+    .unwrap();
     let _ = create_file(
         "/sys/memory",
         crate::ramfs::data::NodeData::virtual_read(|| {
@@ -274,14 +284,24 @@ pub fn init_ramfs() {
             let git_commit = env!("GIT_COMMIT");
             let arch = if cfg!(target_arch = "x86_64") {
                 "x86_64"
+            } else if cfg!(target_arch = "aarch64") {
+                "aarch64"
             } else {
                 "Not Found"
             };
-            format!(
-                "Roselia Kernel {} ({})\nkernel.{}-{} {}\n",
-                version, git_commit, version, git_commit, arch
-            )
-            .into_bytes()
+            if cfg!(debug_assertions) {
+                format!(
+                    "Roselia Kernel {} ({})\nkernel.{}-{}-dev {}\n",
+                    version, git_commit, version, git_commit, arch
+                )
+                .into_bytes()
+            } else {
+                format!(
+                    "Roselia Kernel {} ({})\nkernel.{}-{} {}\n",
+                    version, git_commit, version, git_commit, arch
+                )
+                .into_bytes()
+            }
         }),
     );
     let _ = mkdir("/dev/pci");
@@ -313,15 +333,18 @@ pub fn init_ramfs() {
             );
         }
     }
-    let _ = create_file("/symbols", NodeData::virtual_read(|| {
-        let mut symbols = Vec::new();
-        for symbol in KERNEL_EXPORTS.lock().iter() {
-            symbols.extend_from_slice(symbol.name.as_bytes());
-            symbols.push(b':');
-            let addr = format!("{:#x}", symbol.addr.0);
-            symbols.extend_from_slice(addr.as_bytes());
-            symbols.push(b'\n');
-        }
-        symbols
-    }));
+    let _ = create_file(
+        "/symbols",
+        NodeData::virtual_read(|| {
+            let mut symbols = Vec::new();
+            for symbol in KERNEL_EXPORTS.lock().iter() {
+                symbols.extend_from_slice(symbol.name.as_bytes());
+                symbols.push(b':');
+                let addr = format!("{:#x}", symbol.addr.0);
+                symbols.extend_from_slice(addr.as_bytes());
+                symbols.push(b'\n');
+            }
+            symbols
+        }),
+    );
 }
