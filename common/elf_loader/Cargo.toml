@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 kernel_api = {path = "../../kernel_api"}
-uefi="0.39.0"
+uefi="0.40.0"
