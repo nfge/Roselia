@@ -9,6 +9,7 @@ use crate::{
     timer::sleep,
 };
 pub mod loglevel;
+pub mod export;
 
 pub struct Logger {
     offset: u64,

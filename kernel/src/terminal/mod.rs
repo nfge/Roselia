@@ -576,7 +576,7 @@ impl Terminal {
                             .unwrap();
                             if name == s.as_str() {
                                 kprint!(
-                                    "Name: {}\nModule version: {}\nMagic: {}\nFlags:{}\n",
+                                    "Name: {}\nModule version: {}\nMagic: {}\nFlags: {}\n",
                                     name,
                                     module.info.module_version,
                                     module.info.magic,
