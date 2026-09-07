@@ -6,13 +6,11 @@ authors = ["nfge Github: <https://github.com/nfge>"]
 
 
 [dependencies]
-# bootloader = "0.9"
-x86_64 = "0.15.5"
 uefi = "0.40.0"
 raw-cpuid = "11.6.0"
 itoa = "1.0.18"
 heapless = "=0.9.3"
-x86 = "0.52.0"
+
 spin = "0.12.2"
 lazy_static = {version = "1.5.0", features = ["spin_no_std"]}
 
@@ -21,14 +19,16 @@ kernel_api={path = "../kernel_api"}
 bootinfo={path = "../common/bootinfo"}
 acpi = {path = "../common/acpi"}
 pci={path = "../common/pci"}
-# mem={path = "../tools/mem"}
 utils={path = "../utils"}
 linked_list_allocator = "0.10.6"
-# rusttype = {version = "0.9.3",default-features = false, features = ["libm-math"]}
-# libm = "0.2.16"
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+x86 = "0.52.0"
+x86_64 = "0.15.5"
 
 [build-dependencies]
 cc = "1.4.0"
+
 
 
 [[bin]]
