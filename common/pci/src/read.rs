@@ -24,6 +24,12 @@ pub unsafe fn read_header_legacy(
         latency_timer: read_u8(bus, device, function, 0x0D),
         header_type: read_u8(bus, device, function, 0x0E),
         bist: read_u8(bus, device, function, 0x0F),
+        bar0: read_u32(bus, device, function, 0x10),
+        bar1: read_u32(bus, device, function, 0x14),
+        bar2: read_u32(bus, device, function, 0x18),
+        bar3: read_u32(bus, device, function, 0x1C),
+        bar4: read_u32(bus, device, function, 0x20),
+        bar5: read_u32(bus, device, function, 0x24)
     }
 }
 

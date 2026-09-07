@@ -23,7 +23,7 @@ lazy_static! {
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.general_protection_fault.set_handler_fn(gp_handler);
         idt.page_fault.set_handler_fn(pagefault_handler);
-        idt[33].set_handler_fn(keyboard::irq::keyboard_irq);
+        idt[33].set_handler_fn(keyboard::ps2::irq::keyboard_irq);
         idt[0xFF].set_handler_fn(spurious_handler);
         idt
     };
