@@ -18,11 +18,13 @@ jobs:
         rustup default nightly
         rustup component add rust-src --toolchain nightly
         rustup target add x86_64-unknown-uefi
+        rustup target add x86_64-unknown-none
         sudo apt install dosfstools mtools xorriso
     - name: Build
       run: |
         cargo +nightly build -Z json-target-spec -p kernel --target x86_64.json --release
         cargo build -p bootloader --target x86_64-unknown-uefi --release
+        cargo +nightly build -p example --target x86_64-unknown-none --release
     - name: Prepare artifacts
       run: |
         mkdir out
@@ -32,6 +34,7 @@ jobs:
         cp -r target/x86_64/release/kernel out/kernel.elf
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/BOOT/BOOTX64.efi
         cp -r target/x86_64-unknown-uefi/release/bootloader.efi out/EFI/Roselia/boot.efi
+        cp -r target/x86_64-unknown-none/release/example out/modules/example.kmod
     - name: Create EFI image
       run: |
         dd if=/dev/zero of=efiboot.img bs=1M count=64
@@ -46,6 +49,8 @@ jobs:
         mcopy -i efiboot.img out/EFI/BOOT/BOOTX64.efi ::/EFI/BOOT/
         mcopy -i efiboot.img out/EFI/Roselia/boot.efi ::/EFI/Roselia/
         mcopy -i efiboot.img out/kernel.elf ::/
+        mcopy -i efiboot.img out/modules/example.kmod ::/modules
+
         mkdir iso
         cp -r out/* iso/
         cp efiboot.img iso/

@@ -22,9 +22,9 @@ goto run
 
 
 :build_dev
-cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json 
-cargo build -p bootloader --target x86_64-unknown-uefi
-cargo +nightly build -p example --target x86_64-unknown-none
+cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json || exit /b %errorlevel%
+cargo build -p bootloader --target x86_64-unknown-uefi || exit /b %errorlevel%
+cargo +nightly build -p example --target x86_64-unknown-none || exit /b %errorlevel%
 
 if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
@@ -42,9 +42,9 @@ exit /b
 
 
 :build_release
-cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json --release
-cargo build -p bootloader --target x86_64-unknown-uefi --release
-cargo +nightly build -p example --target x86_64-unknown-none --release
+cargo +nightly -Z json-target-spec build -p kernel --target x86_64.json --release || exit /b %errorlevel%
+cargo build -p bootloader --target x86_64-unknown-uefi --release || exit /b %errorlevel%
+cargo +nightly build -p example --target x86_64-unknown-none --release || exit /b %errorlevel%
 
 if not exist os\ mkdir os
 if not exist os\EFI\BOOT mkdir os\EFI\BOOT
