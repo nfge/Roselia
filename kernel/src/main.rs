@@ -18,34 +18,30 @@ mod timer;
 
 // mod uart;
 use crate::{
-    cpu::random::hardware_random,
     func::reset,
     gop::{color::Color, graphics::Graphics},
-    memory::page_allocator::{PageAllocator, get_free_mem, get_total_memory, get_used_mem},
+    memory::multi_allocator::{MultiAllocator, alloc_frame},
     module::{export::init_exports, load_module},
-    ramfs::{RamFs, create_file, mkdir},
+    ramfs::{RamFs, init_ramfs},
     terminal::Terminal,
     timer::sleep,
 };
 
-use acpi::get_table;
-use alloc::{boxed::Box, format, vec::Vec};
+use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,
     reset::ResetFn,
     time::GetTimeFn,
     variable::{GetVar, SetVar},
 };
-use core::{
-    ffi::c_void,
-    panic::PanicInfo,
-    ptr::{null, null_mut},
-};
-use kernel_api::{
-    acpi_tables::mcfg::Mcfg,
-    module::{Module, RawModules},
-};
+use core::{ffi::c_void, panic::PanicInfo};
+use kernel_api::module::{Module, raw::RawModules};
+use spin::mutex::Mutex;
 use utils::serial_println;
+use x86_64::{
+    VirtAddr,
+    structures::paging::{OffsetPageTable, PageTable},
+};
 
 static mut FB_PTR: Option<*mut u32> = None;
 static mut RESET_FN: Option<ResetFn> = None;
@@ -56,8 +52,10 @@ static mut ACPI_TABLE: Option<*const c_void> = None;
 
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
-static mut PAGE_ALLOCATOR: Option<PageAllocator<'static>> = None;
+static mut MULTI_ALLOCATOR: Option<MultiAllocator<'static>> = None;
 static mut MODULES: Option<Vec<Module>> = None;
+
+static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
@@ -80,11 +78,11 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::apic::init_lapic();
     x86_64::instructions::interrupts::enable();
     timer::calibrate();
-    cpu::sse::init_sse();
+    cpu::sse::init_sse_and_avx();
 
     unsafe {
-        PAGE_ALLOCATOR = Some(PageAllocator::new(&info.memory_map));
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(PAGE_ALLOCATOR) {
+        MULTI_ALLOCATOR = Some(MultiAllocator::new(&info.memory_map));
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.init(
                 info.kernel_info.start_address,
                 info.kernel_info.pages,
@@ -95,70 +93,23 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             );
         }
     }
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let pml4_frame = alloc_frame().unwrap();
+        let pml4_virt = VirtAddr::new(0 + pml4_frame.start_address().as_u64());
+        let pml4: &mut PageTable = unsafe { &mut *pml4_virt.as_mut_ptr() };
+        pml4.zero();
+
+        let mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0)) };
+
+        *MAPPER.lock() = Some(mapper);
+    });
+
     memory::init_heap();
 
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
     }
-    let _ = mkdir("/kernel").unwrap();
-    let _ = mkdir("/sys").unwrap();
-    let _ = mkdir("/dev").unwrap();
-    let _ = create_file("/kernel/log", ramfs::data::NodeData::File(Vec::new())).unwrap();
-    let _ = create_file(
-        "/sys/memory",
-        ramfs::data::NodeData::virtual_read(|| {
-            let used = get_used_mem();
-            let free = get_free_mem();
-            let total = get_total_memory();
-            format!("total: {}KB\nfree: {}KB\nused: {}KB\n", total, free, used).into_bytes()
-        }),
-    );
-    let _ = create_file(
-        "/kernel/info",
-        ramfs::data::NodeData::virtual_read(|| {
-            let version = env!("CARGO_PKG_VERSION");
-            let git_commit = env!("GIT_COMMIT");
-            let arch = if cfg!(target_arch = "x86_64") {
-                "x86_64"
-            } else {
-                "Not Found"
-            };
-            format!(
-                "Roselia Kernel {} ({})\nkernel.{}-{} {}\n",
-                version, git_commit, version, git_commit, arch
-            )
-            .into_bytes()
-        }),
-    );
-    let _ = mkdir("/dev/pci");
-    let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
-    let mcfg = unsafe { &*mcfg_ptr };
-    let count = unsafe { mcfg.entry_count() };
-    for i in 0..count {
-        let entry = unsafe { &mcfg.entry(i) };
-        let devices = unsafe { pci::enumerate::enumerate(entry) };
-        for device in devices {
-            let _ = create_file(
-                format!(
-                    "/dev/pci/{}:{}.{}",
-                    device.bus, device.device, device.function
-                )
-                .as_str(),
-                ramfs::data::NodeData::virtual_read(move || {
-                    let (vendor_name, device_name) =
-                        pci::check(device.header.vendor_id, device.header.device_id);
-                    format!(
-                        "{:04x} {}\n{:04x} {}\n\n",
-                        device.header.vendor_id as u16,
-                        vendor_name.unwrap_or("Not found in pci.ids"),
-                        device.header.device_id as u16,
-                        device_name.unwrap_or("Not found in pci.ids")
-                    )
-                    .into_bytes()
-                }),
-            );
-        }
-    }
+    init_ramfs();
     init_exports();
     unsafe { MODULES = Some(Vec::new()) }
     if info.modules.count != 0 {

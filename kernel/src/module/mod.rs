@@ -10,11 +10,12 @@ use kernel_api::{
         elf64phdr::{Elf64Phdr, PF_R, PF_X, PT_LOAD},
         elf64shdr::Elf64Shdr,
     },
-    module::{Module, ModuleInfo, RawModule},
+    module::{Module, ModuleInfo, raw::RawModule},
     symbol::{KernelSymbol, SymAddr},
 };
 
 use spin::mutex::Mutex;
+use x86_64::structures::paging::{Mapper, Size4KiB};
 use crate::{linker::Linker, log_info, module::{error::LoadError}
 };
 

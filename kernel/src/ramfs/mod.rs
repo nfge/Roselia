@@ -3,12 +3,16 @@ pub mod data;
 mod node;
 mod types;
 
-use alloc::vec::Vec;
+use acpi::get_table;
+use alloc::{format, vec::Vec};
 use data::NodeData;
-use kernel_api::ramfs::error::RamFSError;
+use kernel_api::{acpi_tables::mcfg::Mcfg, ramfs::error::RamFSError};
 
 use crate::{
-    RAMFS,
+    ACPI_TABLE, RAMFS,
+    cpu::random::hardware_random,
+    memory::multi_allocator::{get_free_mem, get_total_memory, get_used_mem},
+    module::KERNEL_EXPORTS,
     ramfs::{
         node::{Node, NodeId},
         types::NodeType,
@@ -116,7 +120,9 @@ impl RamFs {
             node.data = NodeData::File(Vec::new());
         }
 
-        let end = offset.checked_add(data.len()).ok_or(RamFSError::InvalidOffset)?;
+        let end = offset
+            .checked_add(data.len())
+            .ok_or(RamFSError::InvalidOffset)?;
 
         // if let NodeData::File(buf) = &mut node.data {
         //     if buf.len() < end {
@@ -251,4 +257,94 @@ pub fn check_directory(path: &str) -> Result<Vec<&Node>, RamFSError> {
         }
     }
     Ok(childrens)
+}
+
+pub fn init_ramfs() {
+    let _ = mkdir("/kernel").unwrap();
+    let _ = mkdir("/sys").unwrap();
+    let _ = mkdir("/dev").unwrap();
+    let _ = create_file(
+        "/kernel/log",
+        crate::ramfs::data::NodeData::File(Vec::new()),
+    )
+    .unwrap();
+    let _ = create_file(
+        "/sys/memory",
+        crate::ramfs::data::NodeData::virtual_read(|| {
+            let used = get_used_mem();
+            let free = get_free_mem();
+            let total = get_total_memory();
+            format!("total: {}KB\nfree: {}KB\nused: {}KB\n", total, free, used).into_bytes()
+        }),
+    );
+    let _ = create_file(
+        "/kernel/info",
+        crate::ramfs::data::NodeData::virtual_read(|| {
+            let version = env!("CARGO_PKG_VERSION");
+            let git_commit = env!("GIT_COMMIT");
+            let arch = if cfg!(target_arch = "x86_64") {
+                "x86_64"
+            } else if cfg!(target_arch = "aarch64") {
+                "aarch64"
+            } else {
+                "Not Found"
+            };
+            if cfg!(debug_assertions) {
+                format!(
+                    "Roselia Kernel {} ({})\nkernel.{}-{}-dev {}\n",
+                    version, git_commit, version, git_commit, arch
+                )
+                .into_bytes()
+            } else {
+                format!(
+                    "Roselia Kernel {} ({})\nkernel.{}-{} {}\n",
+                    version, git_commit, version, git_commit, arch
+                )
+                .into_bytes()
+            }
+        }),
+    );
+    let _ = mkdir("/dev/pci");
+    let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
+    let mcfg = unsafe { &*mcfg_ptr };
+    let count = unsafe { mcfg.entry_count() };
+    for i in 0..count {
+        let entry = unsafe { &mcfg.entry(i) };
+        let devices = unsafe { pci::enumerate::enumerate(entry) };
+        for device in devices {
+            let _ = create_file(
+                format!(
+                    "/dev/pci/{}:{}.{}",
+                    device.bus, device.device, device.function
+                )
+                .as_str(),
+                crate::ramfs::data::NodeData::virtual_read(move || {
+                    let (vendor_name, device_name) =
+                        pci::check(device.header.vendor_id, device.header.device_id);
+                    format!(
+                        "{:04x} {}\n{:04x} {}\n\n",
+                        device.header.vendor_id as u16,
+                        vendor_name.unwrap_or("Not found in pci.ids"),
+                        device.header.device_id as u16,
+                        device_name.unwrap_or("Not found in pci.ids")
+                    )
+                    .into_bytes()
+                }),
+            );
+        }
+    }
+    let _ = create_file(
+        "/symbols",
+        NodeData::virtual_read(|| {
+            let mut symbols = Vec::new();
+            for symbol in KERNEL_EXPORTS.lock().iter() {
+                symbols.extend_from_slice(symbol.name.as_bytes());
+                symbols.push(b':');
+                let addr = format!("{:#x}", symbol.addr.0);
+                symbols.extend_from_slice(addr.as_bytes());
+                symbols.push(b'\n');
+            }
+            symbols
+        }),
+    );
 }

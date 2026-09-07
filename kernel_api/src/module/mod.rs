@@ -1,3 +1,19 @@
+pub mod raw;
+
+pub const ACCEPT_ARGS: u32 = 1 << 0;
+
+#[repr(C)]
+pub struct Module {
+    pub entry_fn: *const (),
+    pub address: u64,
+    pub info: ModuleInfo
+}
+
+unsafe impl Send for Module {}
+unsafe impl Sync for Module {}
+
+
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ModuleInfo {
@@ -12,32 +28,15 @@ pub struct ModuleInfo {
 
 
 #[repr(C)]
-pub struct RawModule {
-    pub raw_ptr: u64,
-    pub raw_len: u64,
-    pub base: u64,
-    pub address: u64,
-    pub len: u64,
-    pub load_bias: i64
-}
-
-#[repr(C)]
-pub struct RawModules {
-    pub ptr: *mut RawModule,
-    pub count: usize
+#[derive(Copy, Clone)]
+pub struct ModuleArgs {
+    pub argc: u64,
+    pub argv: *const *const u8
 }
 
 
 
-#[repr(C)]
-pub struct Module {
-    pub entry_fn: *const (),
-    pub address: u64,
-    pub info: ModuleInfo
-}
 
-unsafe impl Send for Module {}
-unsafe impl Sync for Module {}
 
 #[repr(C)]
 pub struct Buffer {

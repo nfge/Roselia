@@ -1,6 +1,6 @@
 use kernel_api::{
     elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr},
-    module::RawModule,
+    module::raw::RawModule,
 };
 use uefi::{
     CStr16, Status,

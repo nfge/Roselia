@@ -1,4 +1,5 @@
 use crate::{
+    kprint,
     ACPI_TABLE, MODULES, TERMINAL,
     cpu::{self},
     func::{get_time, poweroff, reset},
@@ -16,21 +17,22 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::fmt::Write;
+use core::fmt::{Arguments, Write};
 use kernel_api::{
     acpi_tables::mcfg::Mcfg,
     keyboard::{
         keycode::{KeyCode, key_event_to_char},
         keyevent::KeyEvent,
     },
+    module::{ACCEPT_ARGS, ModuleArgs},
 };
 use utils::serial_println;
 
 mod command;
+pub mod export;
 mod lexer;
 mod parser;
 mod token;
-pub mod export;
 
 pub struct Terminal {
     graphics: Graphics,
@@ -47,6 +49,7 @@ pub struct Terminal {
     buf_x: usize,
     buf_y: usize,
     running: bool,
+    pwd: String,
 }
 
 impl Terminal {
@@ -54,6 +57,8 @@ impl Terminal {
         let (width, height) = graphics.mode_info.resolution();
         let cols = width / (8 * scale);
         let rows = height / (16 * scale);
+        let mut pwd = String::new();
+        pwd.push('/');
         Self {
             graphics: graphics,
             keyboard: KeyBoard::new(),
@@ -69,9 +74,10 @@ impl Terminal {
             buf_x: 0,
             buf_y: 0,
             running: false,
+            pwd: pwd,
         }
     }
-    pub fn print_char(&mut self, char: char) {
+    pub fn write_char(&mut self, char: char) {
         match char {
             '\n' => self.new_line(),
             '\r' => {
@@ -88,14 +94,26 @@ impl Terminal {
             }
         }
     }
-    pub fn print_string(&mut self, text: &str) {
+    pub fn write_string(&mut self, text: &str) {
         for c in text.chars() {
-            self.print_char(c);
+            self.write_char(c);
         }
+    }
+    pub fn print_char(&mut self, char: char) {
+        self.write_char(char);
+        self.graphics.present();
+    }
+    pub fn print_string(&mut self, text: &str) {
+        self.write_string(text);
+        self.graphics.present();
     }
     pub fn print_string_ln(&mut self, text: &str) {
         self.print_string(text);
         self.new_line();
+    }
+    pub fn print_fmt(&mut self, args: Arguments) {
+        self.write_fmt(args).unwrap();
+        self.graphics.present();
     }
     fn push(&mut self, c: char) {
         if self.buf_y >= self.rows || self.buf_x >= self.cols {
@@ -105,33 +123,15 @@ impl Terminal {
         self.char_buffer[self.buf_y][self.buf_x] = c;
         self.buf_x += 1;
     }
-    // fn push_command(&mut self, c: char){
-    //     if self.cmd_buf_len < self.cmd_buffer.len() {
-    //         self.cmd_buffer[self.cmd_buf_len] = c;
-    //         self.cmd_buf_len += 1;
-    //     }
-    // }
     pub fn flush_screen(&mut self) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                self.graphics.draw_pixel(x, y, Color::Black as u32);
-            }
-        }
+        self.graphics.flush();
+        self.graphics.present();
         self.char_buffer = vec![vec![' '; self.cols]; self.rows];
         self.buf_x = 0;
         self.buf_y = 0;
         self.x = 0;
         self.y = 0;
     }
-    // fn flashback(&mut self) {
-    //     for y in 0..self.graphics.mode_info.resolution().1 {
-    //         for x in 0..self.graphics.mode_info.resolution().0 {
-    //             self.graphics.draw_pixel(x, y, Color::White as u32);
-    //         }
-    //     }
-    //     sleep(700);
-    //     self.flush_screen();
-    // }
     fn new_line(&mut self) {
         self.x = 0;
         self.buf_x = 0;
@@ -149,11 +149,8 @@ impl Terminal {
         self.redraw();
     }
     fn redraw(&mut self) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                self.graphics.draw_pixel(x, y, Color::Black as u32);
-            }
-        }
+        self.graphics.flush();
+        self.graphics.present();
 
         for row in 0..self.rows {
             for col in 0..self.cols {
@@ -199,6 +196,7 @@ impl Terminal {
                     .draw_pixel(self.x + x, self.y + y, Color::Black as u32);
             }
         }
+        self.graphics.present();
     }
     #[allow(dead_code)]
     pub fn run(&mut self) {
@@ -217,7 +215,8 @@ impl Terminal {
         }
         self.flush_screen();
         self.running = true;
-        self.print_char('>');
+        let cpwd = self.pwd.clone();
+        kprint!("{}>", cpwd.as_str());
         while self.running {
             if let Some(key) = self.keyboard.get_key() {
                 self.handle_keyboard(key);
@@ -249,10 +248,10 @@ impl Terminal {
             "info" => match read_file("/kernel/info") {
                 Ok(data) => {
                     let s = core::str::from_utf8(&data).unwrap();
-                    let _ = write!(self, "{s}");
+                    kprint!("{s}");
                 }
                 Err(e) => {
-                    let _ = write!(self, "{:#?}\n", e);
+                    kprint!("{:#?}\n", e);
                 }
             },
             "reset" => {
@@ -265,9 +264,16 @@ impl Terminal {
             "cpu" => {
                 let cpu = cpu::cpuinfo::get_cpu();
                 let cpu_therm = cpu::cpuinfo::get_cpu_therm();
-                let _ = write!(self, "Vendor: {}\n", cpu.0.unwrap().as_str());
-                let _ = write!(self, "Model: {}\n", cpu.1.unwrap().as_str());
-                let _ = write!(self, "Temp: {}\n", cpu_therm.unwrap_or(0));
+                let cpu_freq = cpu::cpuinfo::get_frequency();
+                kprint!("Vendor: {}\n", cpu.0.unwrap().as_str());
+                kprint!("Model: {}\n", cpu.1.unwrap().as_str());
+                if cpu::cpuinfo::get_cpu().0.unwrap().as_str() == cpu::cpuinfo::INTEL {
+                    let _ = self.print_fmt(format_args!("Temp: {}\n", cpu_therm.unwrap_or(0)));
+                    kprint!(
+                        "Freq:\n Bus: {}\n Base: {}\n Max: {}\n",
+                        cpu_freq.0, cpu_freq.1, cpu_freq.2
+                    );
+                }
             }
             "echo" => {
                 let text = match command.args.first() {
@@ -280,31 +286,71 @@ impl Terminal {
                 self.print_string_ln(text);
             }
             "cat" => match command.args.first() {
-                Some(arg) => match is_valid(arg.as_str()) {
-                    Ok(_) => match read_file(arg.as_str()) {
-                        Ok(data) => {
-                            let text = core::str::from_utf8(&data).unwrap();
-                            let _ = write!(self, "{}", text);
+                Some(arg) => {
+                    let target = if arg.starts_with('/') {
+                        arg.clone()
+                    } else {
+                        let mut base = self.pwd.clone();
+                        if !base.ends_with('/') {
+                            base.push('/');
                         }
+                        base + arg
+                    };
+                    match is_valid(&target) {
+                        Ok(_) => match read_file(&target) {
+                            Ok(data) => match core::str::from_utf8(&data) {
+                                Ok(text) => {
+                                    kprint!("{}", text);
+                                }
+                                Err(_) => {
+                                    kprint!("Not a valid utf-8 file\n");
+                                }
+                            },
+                            Err(e) => {
+                                kprint!("{:#?}\n", e);
+                            }
+                        },
                         Err(e) => {
-                            let _ = write!(self, "{:#?}\n", e);
+                            kprint!("{:#?}\n", e);
                         }
-                    },
-                    Err(e) => {
-                        let _ = write!(self, "{:#?}\n", e);
                     }
-                },
-                None => {}
+                }
+                None => {
+                    kprint!("missing file operand\n");
+                }
             },
             "ls" => match command.args.first() {
                 Some(path) => match check_directory(path.as_str()) {
                     Ok(nodes) => {
                         for node in nodes {
-                            let _ = write!(self, "{}\n", node.name.as_str());
+                            kprint!("{}\n", node.name.as_str());
                         }
                     }
                     Err(e) => {
-                        let _ = write!(self, "{:#?}\n", e);
+                        kprint!("{:#?}\n", e);
+                    }
+                },
+                None => {
+                    let cpwd = self.pwd.clone();
+                    match check_directory(&cpwd.as_str()) {
+                        Ok(nodes) => {
+                            for node in nodes {
+                                kprint!("{}\n", node.name.as_str());
+                            }
+                        }
+                        Err(e) => {
+                            kprint!("{:#?}\n", e);
+                        }
+                    }
+                }
+            },
+            "cd" => match command.args.first() {
+                Some(s) => match is_valid(s.as_str()) {
+                    Ok(_) => {
+                        self.pwd = s.to_string();
+                    }
+                    Err(e) => {
+                        kprint!("{:#?}\n", e);
                     }
                 },
                 None => {}
@@ -313,7 +359,7 @@ impl Terminal {
                 let t = get_time();
                 match t {
                     Ok(time) => {
-                        let _ = write!(self, "{}:{}:{}\n", time.hour, time.minute, time.second);
+                        kprint!("{}:{}:{}\n", time.hour, time.minute, time.second);
                     }
                     Err(_) => {
                         self.print_string_ln("Error during reading rtc");
@@ -324,7 +370,7 @@ impl Terminal {
                 let t = get_time();
                 match t {
                     Ok(time) => {
-                        let _ = write!(self, "{}-{}-{}\n", time.year, time.month, time.day);
+                        kprint!("{}.{}.{}\n", time.day, time.month, time.year);
                     }
                     Err(_) => {
                         self.print_string_ln("Error during reading rtc");
@@ -384,15 +430,15 @@ impl Terminal {
                     crate::timer::TICKS_PER_SEC.load(core::sync::atomic::Ordering::Relaxed);
                 let ticks = crate::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
                 let seconds = ticks / ticks_per_sec;
-                let _ = write!(self, "{:?}s\n", seconds);
+                kprint!("{:?}s\n", seconds);
             }
             "heap" => match command.args.first() {
                 Some(text) => match text.as_str() {
                     "free" => {
-                        let _ = write!(self, "Free memory: {}KB\n", get_heap_free() / 1024);
+                        kprint!("Free memory: {}KB\n", get_heap_free() / 1024);
                     }
                     "used" => {
-                        let _ = write!(self, "Used memory: {}KB\n", get_heap_used() / 1024);
+                        kprint!("Used memory: {}KB\n", get_heap_used() / 1024);
                     }
                     _ => self.print_string_ln("Usage: heap [free || used]"),
                 },
@@ -401,10 +447,10 @@ impl Terminal {
             "mem" => match read_file("/sys/memory") {
                 Ok(data) => {
                     let s = core::str::from_utf8(&data).unwrap();
-                    let _ = write!(self, "{}", s);
+                    kprint!("{}", s);
                 }
                 Err(e) => {
-                    let _ = write!(self, "{:#?}\n", e);
+                    kprint!("{:#?}\n", e);
                 }
             },
             "resolution" => {
@@ -412,8 +458,7 @@ impl Terminal {
                 let height = self.height;
                 let cols = self.cols;
                 let rows = self.rows;
-                let _ = write!(
-                    self,
+                kprint!(
                     "Width: {}. Height: {} ({}x{} chars)",
                     width, height, cols, rows
                 );
@@ -438,13 +483,11 @@ impl Terminal {
                                             device.header.vendor_id,
                                             device.header.device_id,
                                         );
-                                        let _ = write!(
-                                            self,
+                                        kprint!(
                                             "{}:{}.{}\n",
                                             device.bus, device.device, device.function
                                         );
-                                        let _ = write!(
-                                            self,
+                                        kprint!(
                                             "{:04x} {}\n{:04x} {}\n\n",
                                             device.header.vendor_id as u16,
                                             vendor_name.unwrap_or("Not found in pci.ids"),
@@ -460,13 +503,11 @@ impl Terminal {
                                             device.header.vendor_id,
                                             device.header.device_id,
                                         );
-                                        let _ = write!(
-                                            self,
+                                        kprint!(
                                             "{}:{}.{}\n",
                                             device.bus, device.device, device.function
                                         );
-                                        let _ = write!(
-                                            self,
+                                        kprint!(
                                             "{:04x} {}\n{:04x} {}\n\n",
                                             device.header.vendor_id as u16,
                                             vendor_name.unwrap_or("Not found in pci.ids"),
@@ -491,13 +532,11 @@ impl Terminal {
                                             };
                                             let (vendor_name, device_name) =
                                                 pci::check(vendor_id, device_id);
-                                            let _ = write!(
-                                                self,
+                                            kprint!(
                                                 "{}:{}.{}\n",
                                                 device.bus, device.device, device.function
                                             );
-                                            let _ = write!(
-                                                self,
+                                            kprint!(
                                                 "{:04x} {}\n{:04x} {}\n\n",
                                                 device.header.vendor_id as u16,
                                                 vendor_name.unwrap_or("Not found in pci.ids"),
@@ -520,7 +559,7 @@ impl Terminal {
             "readlog" => {
                 let data = read_file("/kernel/log").unwrap();
                 let text = core::str::from_utf8(&data).unwrap();
-                let _ = write!(self, "{}", text);
+                kprint!("{}", text);
             }
             "modinfo" => match command.args.first() {
                 Some(s) => unsafe {
@@ -536,9 +575,8 @@ impl Terminal {
                             )
                             .unwrap();
                             if name == s.as_str() {
-                                let _ = write!(
-                                    self,
-                                    "Name: {}\nModule version: {}\nMagic: {}\nFlags:{}\n",
+                                kprint!(
+                                    "Name: {}\nModule version: {}\nMagic: {}\nFlags: {}\n",
                                     name,
                                     module.info.module_version,
                                     module.info.magic,
@@ -551,7 +589,7 @@ impl Terminal {
                     }
                 },
                 None => self.print_string_ln("Usage modinfo [module name]"),
-            },
+            }
             _ => {
                 let name = command.name.as_str();
                 if let Some(modules) = unsafe { &*core::ptr::addr_of_mut!(MODULES) } {
@@ -565,11 +603,44 @@ impl Terminal {
                             .unwrap_or(module.info.name.len());
 
                         if core::str::from_utf8(&module.info.name[..end]).unwrap() == name {
-                            let init: extern "C" fn() =
-                                unsafe { core::mem::transmute(module.entry_fn) };
-                            init();
-                            found = true;
-                            break;
+                            if module.info.flags & ACCEPT_ARGS != 0 {
+                                let init: extern "C" fn(*const ModuleArgs) -> i32 =
+                                    unsafe { core::mem::transmute(module.entry_fn) };
+                                let raw_argv: Vec<Vec<u8>> = command
+                                    .args
+                                    .iter()
+                                    .map(|s| {
+                                        let mut bytes = s.as_bytes().to_vec();
+                                        bytes.push(0);
+                                        bytes
+                                    })
+                                    .collect();
+                                let argv: Vec<*const u8> =
+                                    raw_argv.iter().map(|s| s.as_ptr()).collect();
+                                let args = ModuleArgs {
+                                    argc: argv.len() as u64,
+                                    argv: argv.as_ptr(),
+                                };
+                                let result = init(&args as *const ModuleArgs);
+                                found = true;
+                                if result == 0 {
+                                    break;
+                                } else {
+                                    kprint!("Module exited with error code {}\n", result);
+                                    break;
+                                }
+                            } else {
+                                let init: extern "C" fn() -> i32 =
+                                    unsafe { core::mem::transmute(module.entry_fn) };
+                                let result = init();
+                                found = true;
+                                if result == 0 {
+                                    break;
+                                } else {
+                                    kprint!("Module exited with error code {}\n", result);
+                                    break;
+                                }
+                            }
                         }
                     }
 
@@ -587,7 +658,8 @@ impl Terminal {
                 if !event.shift {
                     self.handle_command();
                     if self.running {
-                        self.print_char('>');
+                        let cpwd = self.pwd.clone();
+                        kprint!("{}>", cpwd.as_str());
                     } else {
                         return;
                     }
@@ -595,12 +667,14 @@ impl Terminal {
                     self.new_line();
                 }
             }
-            KeyCode::Escape => {
-                self.print_string_ln("ESC");
-            }
+            KeyCode::Escape => {}
             KeyCode::Backspace => {
                 self.backspace();
             }
+            KeyCode::ArrowUp => {}
+            KeyCode::ArrowDown => {}
+            KeyCode::ArrowLeft => {}
+            KeyCode::ArrowRight => {}
             _ => {
                 self.print_char(key_event_to_char(event).unwrap());
             }
@@ -612,7 +686,7 @@ impl Terminal {
         self.buf_x = x;
         self.buf_y = y;
     }
-    pub fn set_cursor_cell(&mut self, cell_x:Option<usize>, cell_y: Option<usize>) {
+    pub fn set_cursor_cell(&mut self, cell_x: Option<usize>, cell_y: Option<usize>) {
         if let Some(cell_x) = cell_x {
             self.x = cell_x * 8;
             self.buf_x = cell_x * 8;
@@ -622,23 +696,23 @@ impl Terminal {
             self.buf_y = cell_y * 16;
         }
     }
-    pub fn clear_line(&mut self) {
-        let char_width = 8;
-        let char_height = 16;
-        for px in 0..(self.x * char_width) {
-            for py in 0..char_height {
-                self.graphics
-                    .draw_pixel(px, self.y + py, Color::Black as u32);
-            }
-        }
-        self.x = 0;
-        self.buf_x = 0;
-    }
+    // pub fn clear_line(&mut self) {
+    //     let char_width = 8;
+    //     let char_height = 16;
+    //     for px in 0..(self.x * char_width) {
+    //         for py in 0..char_height {
+    //             self.graphics
+    //                 .draw_pixel(px, self.y + py, Color::Black as u32);
+    //         }
+    //     }
+    //     self.x = 0;
+    //     self.buf_x = 0;
+    // }
 }
 
 impl core::fmt::Write for Terminal {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        self.print_string(s);
+        self.write_string(s);
         Ok(())
     }
 }
@@ -646,10 +720,9 @@ impl core::fmt::Write for Terminal {
 #[macro_export]
 macro_rules! kprint {
     ($($arg:tt)*) => {{
-        use core::fmt::Write;
         if unsafe { !$crate::TERMINAL.is_null() } {
             let term = unsafe {$crate::TERMINAL};
-            unsafe { let _ = write!((*term),  $($arg)*); };
+            unsafe { let _ = (*term).print_fmt(format_args!($($arg)*)); };
         }
     }};
 }
@@ -657,14 +730,12 @@ macro_rules! kprint {
 #[macro_export]
 macro_rules! kprintln {
     ($($arg:tt)*) => {{
-        use core::fmt::Write;
         if unsafe { !$crate::TERMINAL.is_null() } {
             let term = unsafe {$crate::TERMINAL};
             unsafe {
-                let _ = write!((*term),  $($arg)*);
-                let _ = write!((*term), "\n");
+                let _ = (*term).print_fmt(format_args!($($arg)*));
+                let _ = (*term).print_fmt(format_args!("\n"));
             };
         }
     }};
 }
-

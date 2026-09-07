@@ -9,7 +9,7 @@ use bootinfo::{
     time::get_uefi_time,
     variable::{get_variable, set_variable},
 };
-use kernel_api::module::{RawModules};
+use kernel_api::module::raw::{RawModules};
 
 use core::{panic::PanicInfo, ptr::null, time::Duration, usize};
 use uefi::{

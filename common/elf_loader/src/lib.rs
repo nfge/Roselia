@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use kernel_api::{elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr, elf64phdr::PT_LOAD}, module::RawModule};
+use kernel_api::{elf::{elf64ehdr::Elf64Ehdr, elf64phdr::Elf64Phdr, elf64phdr::PT_LOAD}, module::raw::RawModule};
 use uefi::{
     CStr16, Status,
     boot::{MemoryType, ScopedProtocol, allocate_pages},
