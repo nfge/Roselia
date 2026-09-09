@@ -5,6 +5,7 @@ use uefi::{
     boot::MemoryType,
     mem::memory_map::{MemoryMap, MemoryMapOwned},
 };
+use utils::serial_println;
 use x86_64::{
     PhysAddr, VirtAddr,
     structures::paging::{
@@ -131,6 +132,9 @@ impl<'a> MultiAllocator<'a> {
             Err(e) => {
                 self.free_frame(frame);
                 log_err!("Failed to map: {:#?}", e);
+                if cfg!(debug_assertions) {
+                    serial_println!("Failed to map: {:#?}", e);
+                }
             }
         }
         None
@@ -143,6 +147,9 @@ impl<'a> MultiAllocator<'a> {
             }
             Err(e) => {
                 log_err!("Failed to unmap: {:#?}", e);
+                if cfg!(debug_assertions) {
+                    serial_println!("Failed to unmap: {:#?}", e);
+                }
             }
         }
     }
@@ -152,7 +159,6 @@ impl<'a> MultiAllocator<'a> {
             let addr = physaddr + (i as u64) * Size4KiB::SIZE;
             let frame = PhysFrame::containing_address(addr);
             let page = Page::<Size4KiB>::containing_address(VirtAddr::new(addr.as_u64()));
-
             let result = unsafe {
                 MAPPER.lock().as_mut().unwrap().map_to(
                     page,
@@ -167,6 +173,9 @@ impl<'a> MultiAllocator<'a> {
                 }
                 Err(e) => {
                     log_err!("Failed to map page {}/{}: {:#?}", i, count, e);
+                    if cfg!(debug_assertions) {
+                        serial_println!("Failed to map page {}/{}: {:#?}", i, count, e);
+                    }
                     for j in 0..i {
                         let addr = physaddr + (j as u64) * Size4KiB::SIZE;
                         let page =
@@ -186,13 +195,22 @@ impl<'a> MultiAllocator<'a> {
     }
     pub fn free_pages(&mut self, addr: VirtAddr, count: usize) {
         for i in 0..count {
-            match MAPPER.lock().as_mut().unwrap().unmap(Page::<Size4KiB>::containing_address(addr + (i as u64) * Size4KiB::SIZE)) {
+            match MAPPER
+                .lock()
+                .as_mut()
+                .unwrap()
+                .unmap(Page::<Size4KiB>::containing_address(
+                    addr + (i as u64) * Size4KiB::SIZE,
+                )) {
                 Ok((phys, f)) => {
                     f.flush();
                     self.free_frame(phys);
                 }
                 Err(e) => {
                     log_err!("Failed to unmap {}/{} {:#?}", i, count, e);
+                    if cfg!(debug_assertions) {
+                        serial_println!("Failed to unmap {}/{} {:#?}", i, count, e);
+                    }
                 }
             }
         }
@@ -250,7 +268,7 @@ pub fn alloc_page() -> Option<Page> {
     None
 }
 #[allow(unused)]
-pub fn free_page(page: Page::<Size4KiB>) {
+pub fn free_page(page: Page<Size4KiB>) {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.free_page(page);
