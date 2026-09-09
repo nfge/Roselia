@@ -4,7 +4,7 @@ use core::alloc::Layout;
 
 use linked_list_allocator::LockedHeap;
 
-use crate::memory::multi_allocator::alloc_frames;
+use crate::memory::multi_allocator::{alloc_frames, alloc_pages};
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -12,7 +12,7 @@ static ALLOCATOR: LockedHeap = LockedHeap::empty();
 pub fn init_heap() {
     let heap_size = 24 * 1024 * 1024;
     let pages = (heap_size + 4096 - 1) / 4096;
-    let heap_start = alloc_frames(pages).unwrap();
+    let heap_start = alloc_pages(pages).unwrap();
     unsafe {ALLOCATOR.lock().init(heap_start.as_u64() as *mut u8, heap_size)};
 }
 pub fn get_heap_free() -> usize {
