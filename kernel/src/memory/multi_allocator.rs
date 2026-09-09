@@ -172,9 +172,9 @@ impl<'a> MultiAllocator<'a> {
                     f.flush();
                 }
                 Err(e) => {
-                    log_err!("Failed to map page {}/{}: {:#?}", i, count, e);
+                    log_err!("Failed to map page {}/{}. e: {:#?}", i, count, e);
                     if cfg!(debug_assertions) {
-                        serial_println!("Failed to map page {}/{}: {:#?}", i, count, e);
+                        serial_println!("Failed to map page {}/{}. e: {:#?}", i, count, e);
                     }
                     for j in 0..i {
                         let addr = physaddr + (j as u64) * Size4KiB::SIZE;
@@ -207,9 +207,9 @@ impl<'a> MultiAllocator<'a> {
                     self.free_frame(phys);
                 }
                 Err(e) => {
-                    log_err!("Failed to unmap {}/{} {:#?}", i, count, e);
+                    log_err!("Failed to unmap {}/{}. e: {:#?}", i, count, e);
                     if cfg!(debug_assertions) {
-                        serial_println!("Failed to unmap {}/{} {:#?}", i, count, e);
+                        serial_println!("Failed to unmap {}/{}. e: {:#?}", i, count, e);
                     }
                 }
             }
