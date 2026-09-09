@@ -1,9 +1,9 @@
-use core::{ffi::c_void, panic::PanicInfo};
+use core::{ffi::c_void};
 
-use acpi::{get_ptr_table, get_table};
+use acpi::{get_ptr_table};
 use pci::{check, find_by_class, find_by_id};
 
-use crate::{ACPI_TABLE, cpu::cpuinfo::get_cpu, export_symbol, kprintln, logger::export::log, memory::{kalloc, kfree}, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintln}};
+use crate::{ACPI_TABLE,export_symbol,logger::export::log, memory::{kalloc, kfree}, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintln}};
 
 
 pub fn init_exports() {

@@ -1,4 +1,3 @@
-use core::ops::Add;
 
 use kernel_api::module::raw::{RawModule, RawModules};
 use uefi::{
@@ -13,7 +12,7 @@ use x86_64::{
     },
 };
 
-use crate::{MAPPER, MULTI_ALLOCATOR, kprintln, log_err, memory::bitmap::Bitmap};
+use crate::{MAPPER, MULTI_ALLOCATOR,log_err, memory::bitmap::Bitmap};
 
 pub struct MultiAllocator<'a> {
     bitmap: Bitmap,

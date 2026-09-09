@@ -4,7 +4,7 @@ use core::alloc::Layout;
 
 use linked_list_allocator::LockedHeap;
 
-use crate::memory::multi_allocator::{alloc_frames, alloc_pages};
+use crate::memory::multi_allocator::{alloc_pages};
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
