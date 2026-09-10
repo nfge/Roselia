@@ -34,13 +34,21 @@ use bootinfo::{
     time::{GetTimeFn, OriginalGetTimeFn},
     variable::{GetVar, SetVar},
 };
-use uefi::{boot::MemoryType, mem::memory_map::MemoryMap};
 use core::{ffi::c_void, panic::PanicInfo};
-use kernel_api::{acpi_tables::rsdp::Rsdp, module::{Module, raw::{RawModule, RawModules}}};
+use kernel_api::{
+    acpi_tables::rsdp::Rsdp,
+    module::{
+        Module,
+        raw::{RawModule, RawModules},
+    },
+};
 use spin::mutex::Mutex;
+use uefi::{boot::MemoryType, mem::memory_map::MemoryMap};
 use utils::serial_println;
 use x86_64::{
-    PhysAddr, VirtAddr, registers::control::{Cr3, Cr3Flags}, structures::paging::{OffsetPageTable, PageTable}
+    PhysAddr, VirtAddr,
+    registers::control::{Cr3, Cr3Flags},
+    structures::paging::{OffsetPageTable, PageTable},
 };
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -99,10 +107,18 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         let mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0)) };
         *MAPPER.lock() = Some(mapper);
         let _ = map(pml4_frame.start_address(), pml4_frame.size() as usize);
-        let _ = map(PhysAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64), info.kernel_info.stack_info.stack_pages).unwrap();
-        // let _ = map(PhysAddr::new(info.kernel_info.start_address as u64), info.kernel_info.pages).unwrap();
-        if let Some(allocator) = unsafe {&*core::ptr::addr_of_mut!(MULTI_ALLOCATOR)} {
-            let _ = map(PhysAddr::new(allocator.bitmap.bitmap_start as u64), allocator.bitmap.bitmap_pages).unwrap();
+        let _ = map(
+            PhysAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
+            info.kernel_info.stack_info.stack_pages,
+        ).unwrap();
+        let _ = map(PhysAddr::new(info as *const BootInfo as u64), core::mem::size_of::<BootInfo>()).unwrap();
+        let _ = map(PhysAddr::new(info.kernel_info.start_address as u64), info.kernel_info.pages).unwrap();
+        if let Some(allocator) = unsafe { &*core::ptr::addr_of_mut!(MULTI_ALLOCATOR) } {
+            let _ = map(
+                PhysAddr::new(allocator.bitmap.bitmap_start as u64),
+                allocator.bitmap.bitmap_pages,
+            )
+            .unwrap();
         }
         if info.modules.count != 0 {
             let modules_bytes = info.modules.count * core::mem::size_of::<RawModule>();
@@ -117,30 +133,33 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 let _ = map(PhysAddr::new(module.base), image_pages).unwrap();
             }
         }
-        let _ = map(PhysAddr::new(info.gop.framebuffer_ptr as u64), info.gop.size.div_ceil(4096)).unwrap();
-        let _ = map(PhysAddr::new(info.memory_map.buffer().as_ptr() as u64), info.memory_map.len()).unwrap();
+        let _ = map(
+            PhysAddr::new(info.gop.framebuffer_ptr as u64),
+            info.gop.size.div_ceil(4096),
+        )
+        .unwrap();
+        let _ = map(
+            PhysAddr::new(info.memory_map.buffer().as_ptr() as u64),
+            info.memory_map.len().div_ceil(4096),
+        )
+        .unwrap();
         for entry in info.memory_map.entries() {
-            if entry.ty == MemoryType::RUNTIME_SERVICES_CODE || entry.ty == MemoryType::RUNTIME_SERVICES_DATA {
+            if entry.ty == MemoryType::RUNTIME_SERVICES_CODE
+                || entry.ty == MemoryType::RUNTIME_SERVICES_DATA
+            {
                 let _ = map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
             }
         }
 
-        if unsafe {!ACPI_TABLE.unwrap().is_null()} {
-            let rsdp = unsafe {ACPI_TABLE.unwrap() as *const Rsdp};
-            let length = unsafe {
-                if (*rsdp).revision >= 2 {
-                    (*rsdp).length as usize
-                } else {
-                    20
-                }
-            };
-            let _ = map(PhysAddr::new(info.acpi_table_ptr as u64), length).unwrap();
+        for entry in info.memory_map.entries() {
+            if entry.ty == MemoryType::ACPI_RECLAIM || entry.ty == MemoryType::ACPI_NON_VOLATILE {
+                map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+            }
         }
-        unsafe {Cr3::write(pml4_frame, Cr3::read().1)};
+        unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
     });
 
     memory::init_heap();
-
     unsafe {
         RAMFS = Box::into_raw(Box::new(RamFs::new()));
     }

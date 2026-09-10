@@ -8,8 +8,8 @@ use crate::{
     ramfs::{is_valid, write_file},
     timer::sleep,
 };
-pub mod loglevel;
 pub mod export;
+pub mod loglevel;
 
 pub struct Logger {
     offset: u64,
@@ -23,11 +23,19 @@ impl Logger {
     }
     pub fn write_into_log(&mut self, line: &str) {
         let data: &[u8] = line.as_bytes();
-        let _ = is_valid("/kernel/log").unwrap();
-        let _ = write_file("/kernel/log", self.offset as usize, data).unwrap();
-        self.offset += data.len() as u64;
+
+        if let Ok(_) = is_valid("/kernel/log") {
+            let _ = write_file("/kernel/log", self.offset as usize, data).unwrap();
+            self.offset += data.len() as u64;
+        } else {
+            return;
+        }
     }
-    pub fn write_with_loglevel(&mut self,args: core::fmt::Arguments<'_>, level: LogLevel) -> core::fmt::Result {
+    pub fn write_with_loglevel(
+        &mut self,
+        args: core::fmt::Arguments<'_>,
+        level: LogLevel,
+    ) -> core::fmt::Result {
         use core::fmt::Write;
         write!(self, "[ {} ] ", level)?;
         self.write_fmt(args)

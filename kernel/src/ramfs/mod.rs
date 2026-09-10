@@ -7,6 +7,7 @@ use acpi::get_table;
 use alloc::{format, vec::Vec};
 use data::NodeData;
 use kernel_api::{acpi_tables::mcfg::Mcfg, ramfs::error::RamFSError};
+use utils::serial_println;
 
 use crate::{
     ACPI_TABLE, RAMFS,
@@ -233,6 +234,8 @@ pub fn write_file(path: &str, offset: usize, data: &[u8]) -> Result<(), RamFSErr
     unsafe {
         if !RAMFS.is_null() {
             let _ = (*RAMFS).write(path, offset, data)?;
+        } else {
+            return Err(RamFSError::NotInitialized)
         }
     }
     Ok(())
@@ -304,35 +307,35 @@ pub fn init_ramfs() {
             }
         }),
     );
-    let _ = mkdir("/dev/pci");
-    let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
-    let mcfg = unsafe { &*mcfg_ptr };
-    let count = unsafe { mcfg.entry_count() };
-    for i in 0..count {
-        let entry = unsafe { &mcfg.entry(i) };
-        let devices = unsafe { pci::enumerate::enumerate(entry) };
-        for device in devices {
-            let _ = create_file(
-                format!(
-                    "/dev/pci/{}:{}.{}",
-                    device.bus, device.device, device.function
-                )
-                .as_str(),
-                crate::ramfs::data::NodeData::virtual_read(move || {
-                    let (vendor_name, device_name) =
-                        pci::check(device.header.vendor_id, device.header.device_id);
-                    format!(
-                        "{:04x} {}\n{:04x} {}\n\n",
-                        device.header.vendor_id as u16,
-                        vendor_name.unwrap_or("Not found in pci.ids"),
-                        device.header.device_id as u16,
-                        device_name.unwrap_or("Not found in pci.ids")
-                    )
-                    .into_bytes()
-                }),
-            );
-        }
-    }
+    // let _ = mkdir("/dev/pci");
+    // let mcfg_ptr = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG").unwrap() };
+    // let mcfg = unsafe { &*mcfg_ptr };
+    // let count = unsafe { mcfg.entry_count() };
+    // for i in 0..count {
+    //     let entry = unsafe { &mcfg.entry(i) };
+    //     let devices = unsafe { pci::enumerate::enumerate(entry) };
+    //     for device in devices {
+    //         let _ = create_file(
+    //             format!(
+    //                 "/dev/pci/{}:{}.{}",
+    //                 device.bus, device.device, device.function
+    //             )
+    //             .as_str(),
+    //             crate::ramfs::data::NodeData::virtual_read(move || {
+    //                 let (vendor_name, device_name) =
+    //                     pci::check(device.header.vendor_id, device.header.device_id);
+    //                 format!(
+    //                     "{:04x} {}\n{:04x} {}\n\n",
+    //                     device.header.vendor_id as u16,
+    //                     vendor_name.unwrap_or("Not found in pci.ids"),
+    //                     device.header.device_id as u16,
+    //                     device_name.unwrap_or("Not found in pci.ids")
+    //                 )
+    //                 .into_bytes()
+    //             }),
+    //         );
+    //     }
+    // }
     let _ = create_file(
         "/symbols",
         NodeData::virtual_read(|| {

@@ -239,7 +239,12 @@ impl<'a> MultiAllocator<'a> {
                 Ok(f) => {
                     f.flush();
                 }
-                Err(e) => return Err(e),
+                Err(MapToError::PageAlreadyMapped(_)) => {
+                    continue;
+                }
+                Err(e) => {
+                    return Err(e);
+                }
             }
         }
         Ok(())

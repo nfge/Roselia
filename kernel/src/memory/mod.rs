@@ -3,8 +3,6 @@ pub mod multi_allocator;
 use core::alloc::Layout;
 
 use linked_list_allocator::LockedHeap;
-use utils::serial_println;
-
 use crate::memory::multi_allocator::alloc_pages;
 
 #[global_allocator]

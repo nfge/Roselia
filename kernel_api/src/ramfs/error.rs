@@ -7,5 +7,6 @@ pub enum RamFSError {
     InvalidPath,
     InvalidOffset,
     NotSupported,
+    NotInitialized,
     Null
 }
