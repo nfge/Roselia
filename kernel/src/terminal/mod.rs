@@ -358,8 +358,8 @@ impl Terminal {
             "time" => {
                 let t = get_time();
                 match t {
-                    Ok(time) => {
-                        kprint!("{}:{}:{}\n", time.hour, time.minute, time.second);
+                    Ok((time, caps)) => {
+                        kprint!("{}:{}:{}\n", time.hour(), time.minute(), time.second());
                     }
                     Err(_) => {
                         self.print_string_ln("Error during reading rtc");
@@ -369,8 +369,8 @@ impl Terminal {
             "date" => {
                 let t = get_time();
                 match t {
-                    Ok(time) => {
-                        kprint!("{}.{}.{}\n", time.day, time.month, time.year);
+                    Ok((time, caps)) => {
+                        kprint!("{}.{}.{}\n", time.day(), time.month(), time.year());
                     }
                     Err(_) => {
                         self.print_string_ln("Error during reading rtc");

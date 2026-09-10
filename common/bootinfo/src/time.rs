@@ -1,6 +1,6 @@
 use uefi::{
     Result,
-    runtime::{Daylight, get_time_and_caps},
+    runtime::{Daylight, Time, TimeCapabilities, get_time_and_caps},
 };
 use kernel_api::time::KernelTime;
 
@@ -28,4 +28,7 @@ pub extern "win64" fn get_uefi_time() -> Result<KernelTime> {
 // }
 #[allow(improper_ctypes_definitions)]
 pub type GetTimeFn = extern "win64" fn() -> Result<KernelTime>;
+
+#[allow(improper_ctypes_definitions)]
+pub type OriginalGetTimeFn = extern "win64" fn () -> Result<(Time, TimeCapabilities)>;
 // pub type SetTimeFn = fn() -> Result<()>;

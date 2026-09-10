@@ -1,8 +1,9 @@
 use lazy_static::lazy_static;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::{PhysAddr, VirtAddr, structures::{idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode}, paging::{Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB}}};
 
-use crate::{keyboard, kprintln, log, timer};
+use crate::{MAPPER, MULTI_ALLOCATOR, keyboard, kprintln, log, log_fail, log_info, timer};
 use utils::serial_println;
+
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -34,14 +35,14 @@ pub fn init_idt() {
 }
 
 extern "x86-interrupt" fn spurious_handler(_: InterruptStackFrame) {
-    kprintln!("Spurious");
+    log_info!("Spurious");
 }
 // extern "x86-interrupt" fn default_handler(_:InterruptStackFrame){
 //     loop {}
 // }
-extern "x86-interrupt" fn double_fault_handler(_: InterruptStackFrame, _: u64) -> ! {
+extern "x86-interrupt" fn double_fault_handler(stack: InterruptStackFrame, _: u64) -> ! {
     serial_println!("Double fault");
-    loop {}
+    panic!("Double fault\n{:#?}", stack);
 }
 extern "x86-interrupt" fn invalid_opcode_handler(stack: InterruptStackFrame) {
     panic!("Invalid opcode\n{:#?}", stack)

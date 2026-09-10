@@ -7,7 +7,6 @@ use bootinfo::{
     kernelinfo::KernelInfo,
     reset::reset_fn,
     time::get_uefi_time,
-    variable::{get_variable, set_variable},
 };
 use kernel_api::module::raw::{RawModules};
 
@@ -22,7 +21,7 @@ use uefi::{
         console::text::{Input, Key, ScanCode},
         media::file::{File, FileAttribute},
     },
-    runtime::{ResetType, VariableAttributes, VariableVendor},
+    runtime::{ResetType, VariableAttributes, VariableVendor, get_time_and_caps, get_variable, reset},
     system::with_config_table,
     table::cfg::ConfigTableEntry,
 };
@@ -102,10 +101,10 @@ fn main() -> Status {
             pages: kernel_pages,
         },
         gop: framebuffer,
-        reset: reset_fn as *const (),
-        time: get_uefi_time as *const (),
-        get_var: get_variable as *const (),
-        set_var: set_variable as *const (),
+        reset: runtime::reset as *const (),
+        time: runtime::get_time_and_caps as *const (),
+        get_var: runtime::get_variable as *const (),
+        set_var: runtime::set_variable as *const (),
         memory_map: mmap,
         acpi_table_ptr: acpi_ptr,
         modules: RawModules {ptr: modules, count: modules_count}

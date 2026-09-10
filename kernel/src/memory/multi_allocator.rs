@@ -8,7 +8,7 @@ use utils::serial_println;
 use x86_64::{
     PhysAddr, VirtAddr,
     structures::paging::{
-        FrameAllocator, Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB,
+        FrameAllocator, Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB, mapper::MapToError,
     },
 };
 
@@ -154,6 +154,7 @@ impl<'a> MultiAllocator<'a> {
     }
     pub fn alloc_pages(&mut self, count: usize) -> Option<VirtAddr> {
         let physaddr = self.alloc_frames(count)?;
+        let mut maped: usize = 0;
         for i in 0..count {
             let addr = physaddr + (i as u64) * Size4KiB::SIZE;
             let frame = PhysFrame::containing_address(addr);
@@ -169,13 +170,14 @@ impl<'a> MultiAllocator<'a> {
             match result {
                 Ok(f) => {
                     f.flush();
+                    maped += 1;
                 }
                 Err(e) => {
                     log_err!("Failed to map page {}/{}. e: {:#?}", i, count, e);
                     if cfg!(debug_assertions) {
                         serial_println!("Failed to map page {}/{}. e: {:#?}", i, count, e);
                     }
-                    for j in 0..i {
+                    for j in 0..maped {
                         let addr = physaddr + (j as u64) * Size4KiB::SIZE;
                         let page =
                             Page::<Size4KiB>::containing_address(VirtAddr::new(addr.as_u64()));
@@ -187,6 +189,7 @@ impl<'a> MultiAllocator<'a> {
                         let addr = physaddr + (j as u64) * Size4KiB::SIZE;
                         self.free_frame(PhysFrame::containing_address(addr));
                     }
+                    return None
                 }
             }
         }
@@ -213,6 +216,21 @@ impl<'a> MultiAllocator<'a> {
                 }
             }
         }
+    }
+    pub fn map(&mut self, addr: PhysAddr, count: usize) -> Result<(),MapToError<Size4KiB>> {
+        let saddr = addr.as_u64();
+        for p in 0..count {
+            let addr = saddr as usize + p * Size4KiB::SIZE as usize;
+            let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr as u64));
+            let page = Page::<Size4KiB>::containing_address(VirtAddr::new(addr as u64));
+            match unsafe {MAPPER.lock().as_mut().unwrap().map_to(page, frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE, self)} {
+                Ok(f) => {
+                    f.flush();
+                }
+                Err(e) => return Err(e)
+            }
+        }
+        Ok(())
     }
 }
 
@@ -288,6 +306,17 @@ pub fn free_pages(addr: VirtAddr, count: usize) {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.free_pages(addr, count);
+        }
+    }
+}
+#[allow(unused)]
+pub fn map(addr: PhysAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
+    unsafe {
+        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
+            allocator.map(addr, count)?;
+            return Ok(())
+        } else {
+            panic!("Allocator not initialized");
         }
     }
 }

@@ -9,7 +9,6 @@ pub fn init_gop() -> gop_table {
     let mut gop = open_protocol_exclusive::<GraphicsOutput>(g_handle).unwrap();
     let gop_info = gop.current_mode_info();
     let mut fb = gop.frame_buffer();
-
     let framebuffer = gop_table {
         framebuffer_ptr: fb.as_mut_ptr(),
         size: fb.size(),

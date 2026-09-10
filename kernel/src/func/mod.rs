@@ -6,6 +6,7 @@ use kernel_api::acpi_tables::{
 use acpi::{get_table,get_tables,func::{SLP_EN, SLP_TYP_SHIFT, find_sleep_type}};
 
 use kernel_api::time::KernelTime;
+use uefi::runtime::{Time, TimeCapabilities};
 use x86::io::outb;
 use x86_64::instructions::hlt;
 
@@ -69,7 +70,7 @@ pub unsafe fn poweroff() -> ! {
     }
 }
 
-pub fn get_time() -> Result<KernelTime, uefi::Error<()>> {
+pub fn get_time() -> Result<(Time,TimeCapabilities), uefi::Error> {
     unsafe { TIME_FN.unwrap()() }
 }
 pub fn set_uefi_var(
