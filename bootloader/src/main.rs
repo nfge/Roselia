@@ -4,7 +4,7 @@
 mod init;
 use bootinfo::{
     BootInfo,
-    kernelinfo::KernelInfo,
+    kernelinfo::{KernelInfo, StackInfo},
     reset::reset_fn,
     time::get_uefi_time,
 };
@@ -93,12 +93,19 @@ fn main() -> Status {
             }
         }
     });
+    let stack_pages: usize = 32;
+    let stack_ptr = allocate_pages(boot::AllocateType::AnyPages, MemoryType::LOADER_DATA, stack_pages).unwrap();
+    let stack_top = stack_ptr.as_ptr() as u64 + (stack_pages * 0x1000) as u64;
     let mmap = unsafe { exit_boot_services(None) };
 
     let bootinfo = BootInfo {
         kernel_info: KernelInfo {
             start_address: kernel_start_addr,
             pages: kernel_pages,
+            stack_info: StackInfo {
+                stack_ptr: stack_ptr,
+                stack_pages: stack_pages
+            }
         },
         gop: framebuffer,
         reset: runtime::reset as *const (),
@@ -109,8 +116,18 @@ fn main() -> Status {
         acpi_table_ptr: acpi_ptr,
         modules: RawModules {ptr: modules, count: modules_count}
     };
-
-    kernel_entry(&bootinfo as *const BootInfo);
+    unsafe {
+        core::arch::asm!(
+            "mov rsp, {stack}",
+            "mov rbp, 0",
+            "call {kernel}",
+            stack = in(reg) stack_top,
+            kernel = in(reg) kernel_entry,
+            in("rdi") &bootinfo as *const BootInfo,
+            options(noreturn)
+        )
+    }
+    // kernel_entry(&bootinfo as *const BootInfo);
 }
 
 #[panic_handler]

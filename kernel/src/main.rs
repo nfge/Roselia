@@ -83,8 +83,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         MULTI_ALLOCATOR = Some(MultiAllocator::new(&info.memory_map));
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.init(
-                info.kernel_info.start_address,
-                info.kernel_info.pages,
+                &info.kernel_info,
                 RawModules {
                     ptr: info.modules.ptr,
                     count: info.modules.count,
@@ -99,7 +98,12 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         pml4.zero();
         let mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0)) };
         *MAPPER.lock() = Some(mapper);
-        let _ = map(PhysAddr::new(info.kernel_info.start_address as u64), info.kernel_info.pages).unwrap();
+        let _ = map(pml4_frame.start_address(), pml4_frame.size() as usize);
+        let _ = map(PhysAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64), info.kernel_info.stack_info.stack_pages).unwrap();
+        // let _ = map(PhysAddr::new(info.kernel_info.start_address as u64), info.kernel_info.pages).unwrap();
+        if let Some(allocator) = unsafe {&*core::ptr::addr_of_mut!(MULTI_ALLOCATOR)} {
+            let _ = map(PhysAddr::new(allocator.bitmap.bitmap_start as u64), allocator.bitmap.bitmap_pages).unwrap();
+        }
         if info.modules.count != 0 {
             let modules_bytes = info.modules.count * core::mem::size_of::<RawModule>();
             let modules_pages = modules_bytes.div_ceil(4096);

@@ -1,9 +1,14 @@
 use lazy_static::lazy_static;
-use x86_64::{PhysAddr, VirtAddr, structures::{idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode}, paging::{Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB}}};
+use x86_64::{
+    PhysAddr, VirtAddr,
+    structures::{
+        idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+        paging::{Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB},
+    },
+};
 
 use crate::{MAPPER, MULTI_ALLOCATOR, keyboard, kprintln, log, log_fail, log_info, timer};
 use utils::serial_println;
-
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -54,12 +59,25 @@ extern "x86-interrupt" fn debug_handler(stack: InterruptStackFrame) {
     serial_println!("[Debug] {:#?}", stack);
 }
 extern "x86-interrupt" fn breakpoint_handler(_stack: InterruptStackFrame) {
-    serial_println!("Reached breakpoint at {:016x}\n",_stack.stack_pointer);
-    log!("Reached breakpoint at {:016x}\n",_stack.stack_pointer);
+    serial_println!("Reached breakpoint at {:016x}\n", _stack.stack_pointer);
+    log!("Reached breakpoint at {:016x}\n", _stack.stack_pointer);
 }
 
-extern "x86-interrupt" fn pagefault_handler(stack: InterruptStackFrame, err_code: PageFaultErrorCode) {
+extern "x86-interrupt" fn pagefault_handler(
+    stack: InterruptStackFrame,
+    err_code: PageFaultErrorCode,
+) {
     use x86_64::registers::control::Cr2;
-    serial_println!("Page Fault\n{:#?}\n{:#?}\nCr2:{:?}", stack, err_code, Cr2::read());
-    panic!("Page Fault\n{:#?}\n{:#?}\nCr2:{:?}",stack, err_code,Cr2::read());
+    serial_println!(
+        "Page Fault\n{:#?}\n{:#?}\nCr2:{:?}",
+        stack,
+        err_code,
+        Cr2::read()
+    );
+    panic!(
+        "Page Fault\n{:#?}\n{:#?}\nCr2:{:?}",
+        stack,
+        err_code,
+        Cr2::read()
+    );
 }
