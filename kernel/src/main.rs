@@ -157,7 +157,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
             }
         }
-        unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
+        // unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
     });
 
     memory::init_heap();
