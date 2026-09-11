@@ -1,4 +1,4 @@
-use bootinfo::kernelinfo::KernelInfo;
+use bootinfo::{BootInfo, kernelinfo::KernelInfo};
 use kernel_api::module::raw::{RawModule, RawModules};
 use uefi::{
     boot::MemoryType,
@@ -28,7 +28,7 @@ impl<'a> MultiAllocator<'a> {
             mmap: mmap,
         }
     }
-    pub fn init(&mut self, kernel_info: &KernelInfo, modules: RawModules) {
+    pub fn init(&mut self, info: &BootInfo, kernel_info: &KernelInfo, modules: RawModules) {
         for i in 0..self.bitmap.total_pages {
             self.bitmap.set(i);
         }
@@ -44,11 +44,13 @@ impl<'a> MultiAllocator<'a> {
             }
         }
 
+        self.reserve_pages(self.mmap.buffer().as_ptr() as usize, self.mmap.buffer().len().div_ceil(4096));
         self.reserve_pages(kernel_info.start_address, kernel_info.pages);
         self.reserve_pages(
             kernel_info.stack_info.stack_ptr.as_ptr() as usize,
             kernel_info.stack_info.stack_pages,
         );
+        self.reserve_pages(info as *const BootInfo as usize, core::mem::size_of::<BootInfo>().div_ceil(4096));
         self.reserve_pages(self.bitmap.bitmap_start, self.bitmap.bitmap_pages);
         if modules.count != 0 {
             let array_bytes = modules.count * core::mem::size_of::<RawModule>();
@@ -77,7 +79,6 @@ impl<'a> MultiAllocator<'a> {
         for frame in 0..self.bitmap.total_pages {
             if !self.bitmap.is_set(frame) {
                 self.bitmap.set(frame);
-
                 return Some(PhysFrame::containing_address(PhysAddr::new(
                     (frame * 4096) as u64,
                 )));
@@ -239,8 +240,10 @@ impl<'a> MultiAllocator<'a> {
                 Ok(f) => {
                     f.flush();
                 }
-                Err(MapToError::PageAlreadyMapped(_)) => {
-                    continue;
+                Err(MapToError::PageAlreadyMapped(eframe)) => {
+                    if eframe.start_address() != frame.start_address() {
+                        return Err(MapToError::PageAlreadyMapped(eframe));
+                    }
                 }
                 Err(e) => {
                     return Err(e);
