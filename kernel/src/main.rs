@@ -27,6 +27,7 @@ use crate::{
     timer::sleep,
 };
 
+use acpi::get_table;
 use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,
@@ -36,14 +37,14 @@ use bootinfo::{
 };
 use core::{ffi::c_void, panic::PanicInfo};
 use kernel_api::{
-    acpi_tables::rsdp::Rsdp,
+    acpi_tables::{mcfg::Mcfg, rsdp::Rsdp},
     module::{
         Module,
         raw::{RawModule, RawModules},
     },
 };
 use spin::mutex::Mutex;
-use uefi::{boot::MemoryType, mem::memory_map::MemoryMap};
+use uefi::{boot::MemoryType, mem::memory_map::MemoryMap, proto::console::serial};
 use utils::serial_println;
 use x86_64::{
     PhysAddr, VirtAddr,
@@ -111,9 +112,18 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         let _ = map(
             PhysAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
             info.kernel_info.stack_info.stack_pages,
-        ).unwrap();
-        let _ = map(PhysAddr::new(info as *const BootInfo as u64), core::mem::size_of::<BootInfo>()).unwrap();
-        let _ = map(PhysAddr::new(info.kernel_info.start_address as u64), info.kernel_info.pages).unwrap();
+        )
+        .unwrap();
+        let _ = map(
+            PhysAddr::new(info as *const BootInfo as u64),
+            core::mem::size_of::<BootInfo>(),
+        )
+        .unwrap();
+        let _ = map(
+            PhysAddr::new(info.kernel_info.start_address as u64),
+            info.kernel_info.pages,
+        )
+        .unwrap();
         if let Some(allocator) = unsafe { &*core::ptr::addr_of_mut!(MULTI_ALLOCATOR) } {
             let _ = map(
                 PhysAddr::new(allocator.bitmap.bitmap_start as u64),
@@ -156,6 +166,22 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             if entry.ty == MemoryType::ACPI_RECLAIM || entry.ty == MemoryType::ACPI_NON_VOLATILE {
                 map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
             }
+            if entry.ty == MemoryType::MMIO
+                || entry.ty == MemoryType::MMIO_PORT_SPACE
+                || entry.ty == MemoryType::PAL_CODE
+            {
+                map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+            }
+        }
+        let mcfg_raw = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG") }.unwrap();
+        let mcfg = unsafe { &*mcfg_raw };
+        for i in unsafe { 0..mcfg.entry_count() } {
+            let entry = unsafe { mcfg.entry(i) };
+            let bus_count = entry.end_bus as u64 - entry.start_bus as u64 + 1;
+
+            let pages = (bus_count * 0x100000) / 0x1000;
+
+            map(PhysAddr::new(entry.base_address), pages as usize).unwrap();
         }
         // unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
     });

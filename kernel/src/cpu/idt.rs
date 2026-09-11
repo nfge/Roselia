@@ -1,3 +1,5 @@
+use core::hint::spin_loop;
+
 use lazy_static::lazy_static;
 use x86_64::{
     PhysAddr, VirtAddr,
@@ -53,7 +55,7 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack: InterruptStackFrame) {
     panic!("Invalid opcode\n{:#?}", stack)
 }
 extern "x86-interrupt" fn gp_handler(_stack: InterruptStackFrame, code: u64) {
-    panic!("General Protection\n{:#?}", code);
+    panic!("General Protection\n{:#?}\nCode:{:#?}",_stack, code);
 }
 extern "x86-interrupt" fn debug_handler(stack: InterruptStackFrame) {
     serial_println!("[Debug] {:#?}", stack);
