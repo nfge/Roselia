@@ -91,6 +91,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         MULTI_ALLOCATOR = Some(MultiAllocator::new(&info.memory_map));
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.init(
+                info,
                 &info.kernel_info,
                 RawModules {
                     ptr: info.modules.ptr,
