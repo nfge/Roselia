@@ -358,22 +358,22 @@ impl Terminal {
             "time" => {
                 let t = get_time();
                 match t {
-                    Ok((time, caps)) => {
+                    Ok((time, _)) => {
                         kprint!("{}:{}:{}\n", time.hour(), time.minute(), time.second());
                     }
-                    Err(_) => {
-                        self.print_string_ln("Error during reading rtc");
+                    Err(e) => {
+                        kprint!("Rtc err: {}\n", e);
                     }
                 }
             }
             "date" => {
                 let t = get_time();
                 match t {
-                    Ok((time, caps)) => {
+                    Ok((time, _)) => {
                         kprint!("{}.{}.{}\n", time.day(), time.month(), time.year());
                     }
-                    Err(_) => {
-                        self.print_string_ln("Error during reading rtc");
+                    Err(e) => {
+                        kprint!("Rtc err: {}\n", e);
                     }
                 }
             }

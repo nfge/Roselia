@@ -6,7 +6,7 @@ use kernel_api::time::KernelTime;
 
 
 #[allow(improper_ctypes_definitions)]
-pub extern "win64" fn get_uefi_time() -> Result<KernelTime> {
+pub extern "efiapi" fn get_uefi_time() -> Result<KernelTime> {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let (time, _caps) = get_time_and_caps()?;
         Ok(KernelTime {
@@ -30,5 +30,5 @@ pub extern "win64" fn get_uefi_time() -> Result<KernelTime> {
 pub type GetTimeFn = extern "win64" fn() -> Result<KernelTime>;
 
 #[allow(improper_ctypes_definitions)]
-pub type OriginalGetTimeFn = extern "win64" fn () -> Result<(Time, TimeCapabilities)>;
+pub type OriginalGetTimeFn = extern "efiapi" fn () -> Result<(Time, TimeCapabilities)>;
 // pub type SetTimeFn = fn() -> Result<()>;

@@ -155,14 +155,6 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         )
         .unwrap();
         for entry in info.memory_map.entries() {
-            if entry.ty == MemoryType::RUNTIME_SERVICES_CODE
-                || entry.ty == MemoryType::RUNTIME_SERVICES_DATA
-            {
-                let _ = map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
-            }
-        }
-
-        for entry in info.memory_map.entries() {
             if entry.ty == MemoryType::ACPI_RECLAIM || entry.ty == MemoryType::ACPI_NON_VOLATILE {
                 map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
             }
@@ -171,6 +163,14 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 || entry.ty == MemoryType::PAL_CODE
             {
                 map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+            }
+            if entry.ty == MemoryType::RUNTIME_SERVICES_CODE
+                || entry.ty == MemoryType::RUNTIME_SERVICES_DATA
+            {
+                let _ = map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+            }
+            if entry.ty == MemoryType::LOADER_DATA || entry.ty == MemoryType::LOADER_CODE {
+                let _ = map(PhysAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
             }
         }
         let mcfg_raw = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG") }.unwrap();
@@ -183,7 +183,10 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 
             map(PhysAddr::new(entry.base_address), pages as usize).unwrap();
         }
-        // unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
+        unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
+        if cfg!(debug_assertions) {
+            serial_println!("Cr3 load successful");
+        }
     });
 
     memory::init_heap();

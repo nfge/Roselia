@@ -2,12 +2,12 @@ use uefi::{
     boot::MemoryType,
     mem::memory_map::{MemoryMap, MemoryMapOwned},
 };
-use utils::serial_println;
 
 pub struct Bitmap {
     pub bitmap_start: usize,
     pub bitmap_pages: usize,
     pub total_pages: usize,
+    pub usable_pages: usize
 }
 
 impl Bitmap {
@@ -15,11 +15,13 @@ impl Bitmap {
         let mut best_start: Option<*mut u8> = None;
         let mut best_size: usize = 0;
         let mut total_pages = 0;
+        let mut usable_pages = 0;
         for entry in mmap.entries() {
             if entry.ty == MemoryType::CONVENTIONAL
                 || entry.ty == MemoryType::LOADER_DATA
                 || entry.ty == MemoryType::LOADER_CODE
             {
+                usable_pages += entry.page_count as usize;
                 let start_page = entry.phys_start as usize / 4096;
                 let end_page = start_page + entry.page_count as usize;
                 total_pages = total_pages.max(end_page);
@@ -40,6 +42,7 @@ impl Bitmap {
             bitmap_start: start_addr as usize,
             bitmap_pages,
             total_pages,
+            usable_pages
         }
     }
     pub fn set(&mut self, page: usize) {

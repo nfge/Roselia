@@ -346,7 +346,7 @@ pub fn get_total_memory() -> usize {
     let mut total = 0;
     unsafe {
         if let Some(alloc) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
-            total += alloc.bitmap.total_pages
+            total += alloc.bitmap.usable_pages
         }
     }
     total * 4
@@ -357,7 +357,7 @@ pub fn get_free_mem() -> usize {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             for entry in allocator.mmap.entries() {
-                if entry.ty == MemoryType::CONVENTIONAL {
+                if entry.ty == MemoryType::CONVENTIONAL || entry.ty == MemoryType::LOADER_CODE || entry.ty == MemoryType::LOADER_DATA {
                     let start_page = entry.phys_start as usize / 4096;
 
                     for i in 0..entry.page_count as usize {

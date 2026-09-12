@@ -55,7 +55,10 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack: InterruptStackFrame) {
     panic!("Invalid opcode\n{:#?}", stack)
 }
 extern "x86-interrupt" fn gp_handler(_stack: InterruptStackFrame, code: u64) {
-    panic!("General Protection\n{:#?}\nCode:{:#?}",_stack, code);
+    serial_println!("General Protection\n{:#?}\nCode:{:#?}",_stack, code);
+    loop {
+        spin_loop();
+    }
 }
 extern "x86-interrupt" fn debug_handler(stack: InterruptStackFrame) {
     serial_println!("[Debug] {:#?}", stack);
