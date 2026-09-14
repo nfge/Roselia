@@ -73,12 +73,6 @@ extern "x86-interrupt" fn pagefault_handler(
     err_code: PageFaultErrorCode,
 ) {
     use x86_64::registers::control::Cr2;
-    serial_println!(
-        "Page Fault\n{:#?}\n{:#?}\nCr2:{:?}",
-        stack,
-        err_code,
-        Cr2::read()
-    );
     panic!(
         "Page Fault\n{:#?}\n{:#?}\nCr2:{:?}",
         stack,

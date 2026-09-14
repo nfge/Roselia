@@ -35,6 +35,7 @@ use bootinfo::{
     time::{GetTimeFn, OriginalGetTimeFn},
     variable::{GetVar, SetVar},
 };
+use x86::io::outb;
 use core::{ffi::c_void, panic::PanicInfo};
 use kernel_api::{
     acpi_tables::{mcfg::Mcfg, rsdp::Rsdp},
@@ -230,8 +231,18 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    serial_println!("{}", _info);
+    serial_println!("Kernel Panic: {}", _info);
     kprintln!("Kernel Panic: {}", _info);
     sleep(3000);
-    unsafe { reset() };
+
+    unsafe { 
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            reset();
+
+            outb(0xCF9, 0x09);
+
+            core::arch::asm!("lidt [{zero}]", zero = in(reg) &0u64);
+            core::arch::asm!("int3");
+        })
+    }
 }
