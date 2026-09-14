@@ -9,7 +9,7 @@ use crate::{
     memory::{get_heap_free, get_heap_used},
     ramfs::{check_directory, create_file, is_valid, mkdir, read_file, write_file},
     terminal::{command::Command, token::Token},
-    timer::sleep,
+    timer::sleep::sleep,
 };
 use acpi::get_table;
 use alloc::{

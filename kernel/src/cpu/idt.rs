@@ -29,8 +29,18 @@ lazy_static! {
         idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
         idt.debug.set_handler_fn(debug_handler);
         idt.breakpoint.set_handler_fn(breakpoint_handler);
-        idt.general_protection_fault.set_handler_fn(gp_handler);
-        idt.page_fault.set_handler_fn(pagefault_handler);
+
+        unsafe {
+            idt.general_protection_fault
+                .set_handler_fn(gp_handler)
+                .set_stack_index(1)
+        };
+        unsafe {
+            idt.page_fault
+                .set_handler_fn(pagefault_handler)
+                .set_stack_index(2)
+        };
+
         idt[33].set_handler_fn(keyboard::ps2::irq::keyboard_irq);
         idt[0xFF].set_handler_fn(spurious_handler);
         idt
@@ -55,7 +65,13 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack: InterruptStackFrame) {
     panic!("Invalid opcode\n{:#?}", stack)
 }
 extern "x86-interrupt" fn gp_handler(_stack: InterruptStackFrame, code: u64) {
-    serial_println!("General Protection\n{:#?}\nCode:{:#?}",_stack, code);
+    let rip = _stack.instruction_pointer.as_u64();
+    let cs =  _stack.code_segment.0;
+    let flags = _stack.cpu_flags.bits();
+    let rsp = _stack.stack_pointer.as_u64();
+    let ss = _stack.stack_segment.0;
+    let code =  code;
+    serial_println!("General Protection\nrip: {:#x}\ncs: {:#x}\nflags: {:#x}\nrsp: {:#x}\nss: {:#x}\ncode: {:#x}",rip,cs,flags,rsp,ss,code);
     loop {
         spin_loop();
     }
@@ -73,10 +89,15 @@ extern "x86-interrupt" fn pagefault_handler(
     err_code: PageFaultErrorCode,
 ) {
     use x86_64::registers::control::Cr2;
+    let rip = stack.instruction_pointer.as_u64();
+    let cs = stack.code_segment.0;
+    let flags = stack.cpu_flags.bits();
+    let rsp = stack.stack_pointer.as_u64();
+    let ss = stack.stack_segment.0;
+    let cr2 = Cr2::read();
+
     panic!(
-        "Page Fault\n{:#?}\n{:#?}\nCr2:{:?}",
-        stack,
-        err_code,
-        Cr2::read()
+        "Page Fault\nrip: {:#x}\ncs: {:#x}\nflags: {:#x}\nrsp: {:#x}\nss: {:#x}\nerr_code: {:?}\nCr2: {:?}",
+        rip, cs, flags, rsp, ss, err_code, cr2
     );
 }

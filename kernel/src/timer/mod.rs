@@ -1,9 +1,8 @@
 // pub mod timer;
-pub(in crate::timer) mod sleep;
+pub mod sleep;
 pub mod irq;
 use core::{arch::x86_64::_rdtsc, sync::atomic::AtomicU64};
 
-pub use sleep::sleep;
 use x86_64::instructions::port::Port;
 
 pub static TICKS: AtomicU64 = AtomicU64::new(0);

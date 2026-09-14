@@ -24,7 +24,7 @@ use crate::{
     module::{export::init_exports, load_module},
     ramfs::{RamFs, init_ramfs},
     terminal::Terminal,
-    timer::sleep,
+    timer::sleep::spin_sleep
 };
 
 use acpi::get_table;
@@ -233,8 +233,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("Kernel Panic: {}", _info);
     kprintln!("Kernel Panic: {}", _info);
-    sleep(3000);
-
+    spin_sleep(3000);
     unsafe { 
         x86_64::instructions::interrupts::without_interrupts(|| {
             reset();
