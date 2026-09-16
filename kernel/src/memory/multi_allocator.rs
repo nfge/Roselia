@@ -223,12 +223,12 @@ impl<'a> MultiAllocator<'a> {
             }
         }
     }
-    pub fn map(&mut self, addr: PhysAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
-        let saddr = addr.as_u64();
+    pub fn map(&mut self, phys: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
         for p in 0..count {
-            let addr = saddr as usize + p * Size4KiB::SIZE as usize;
+            let addr = phys.as_u64() as usize + p * Size4KiB::SIZE as usize;
+            let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
             let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr as u64));
-            let page = Page::<Size4KiB>::containing_address(VirtAddr::new(addr as u64));
+            let page = Page::<Size4KiB>::containing_address(VirtAddr::new(vaddr as u64));
             match unsafe {
                 MAPPER.lock().as_mut().unwrap().map_to(
                     page,
@@ -330,10 +330,10 @@ pub fn free_pages(addr: VirtAddr, count: usize) {
     }
 }
 #[allow(unused)]
-pub fn map(addr: PhysAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
+pub fn map(addr: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
-            allocator.map(addr, count)?;
+            allocator.map(addr,virt, count)?;
             return Ok(());
         } else {
             panic!("Allocator not initialized");

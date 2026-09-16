@@ -64,14 +64,16 @@ extern "x86-interrupt" fn double_fault_handler(stack: InterruptStackFrame, _: u6
 extern "x86-interrupt" fn invalid_opcode_handler(stack: InterruptStackFrame) {
     panic!("Invalid opcode\n{:#?}", stack)
 }
-extern "x86-interrupt" fn gp_handler(_stack: InterruptStackFrame, code: u64) {
-    let rip = _stack.instruction_pointer.as_u64();
-    let cs =  _stack.code_segment.0;
-    let flags = _stack.cpu_flags.bits();
-    let rsp = _stack.stack_pointer.as_u64();
-    let ss = _stack.stack_segment.0;
-    let code =  code;
-    serial_println!("General Protection\nrip: {:#x}\ncs: {:#x}\nflags: {:#x}\nrsp: {:#x}\nss: {:#x}\ncode: {:#x}",rip,cs,flags,rsp,ss,code);
+extern "x86-interrupt" fn gp_handler(stack: InterruptStackFrame, code: u64) {
+    serial_println!(
+        "General Protection\nrip: {:#x}\ncs: {:#x}\nflags: {:#x}\nrsp: {:#x}\nss: {:#x}\ncode: {:#x}",
+        stack.instruction_pointer.as_u64(),
+        stack.code_segment.0,
+        stack.cpu_flags.bits(),
+        stack.stack_pointer.as_u64(),
+        stack.stack_segment.0,
+        code
+    );
     loop {
         spin_loop();
     }
@@ -89,15 +91,15 @@ extern "x86-interrupt" fn pagefault_handler(
     err_code: PageFaultErrorCode,
 ) {
     use x86_64::registers::control::Cr2;
-    let rip = stack.instruction_pointer.as_u64();
-    let cs = stack.code_segment.0;
-    let flags = stack.cpu_flags.bits();
-    let rsp = stack.stack_pointer.as_u64();
-    let ss = stack.stack_segment.0;
-    let cr2 = Cr2::read();
 
     panic!(
         "Page Fault\nrip: {:#x}\ncs: {:#x}\nflags: {:#x}\nrsp: {:#x}\nss: {:#x}\nerr_code: {:?}\nCr2: {:?}",
-        rip, cs, flags, rsp, ss, err_code, cr2
+        stack.instruction_pointer.as_u64(),
+        stack.code_segment.0,
+        stack.cpu_flags.bits(),
+        stack.stack_pointer.as_u64(),
+        stack.stack_segment.0,
+        err_code,
+        Cr2::read()
     );
 }
