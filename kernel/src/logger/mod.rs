@@ -1,15 +1,10 @@
-use core::{ops::Add, sync::atomic::AtomicU64};
-
-use alloc::{fmt::format, format};
 use spin::mutex::Mutex;
 
 use crate::{
-    logger::loglevel::LogLevel,
     ramfs::{is_valid, write_file},
-    timer::sleep,
 };
+use kernel_api::logger::loglevel::LogLevel;
 pub mod export;
-pub mod loglevel;
 
 pub struct Logger {
     offset: u64,
@@ -62,7 +57,7 @@ macro_rules! log {
 macro_rules! log_info {
     ($($arg:tt)*) => {{
         let logger = &crate::logger::LOGGER;
-        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), crate::logger::loglevel::LogLevel::Info);
+        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), kernel_api::logger::loglevel::LogLevel::Info);
     }};
 }
 
@@ -70,7 +65,7 @@ macro_rules! log_info {
 macro_rules! log_warn {
     ($($arg:tt)*) => {{
         let logger = &crate::logger::LOGGER;
-        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), crate::logger::loglevel::LogLevel::Warning);
+        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), kernel_api::logger::loglevel::LogLevel::Warning);
     }};
 }
 
@@ -78,7 +73,7 @@ macro_rules! log_warn {
 macro_rules! log_err {
     ($($arg:tt)*) => {{
         let logger = &crate::logger::LOGGER;
-        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), crate::logger::loglevel::LogLevel::Error);
+        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), kernel_api::logger::loglevel::LogLevel::Error);
     }};
 }
 
@@ -86,7 +81,7 @@ macro_rules! log_err {
 macro_rules! log_fail {
     ($($arg:tt)*) => {{
         let logger = &crate::logger::LOGGER;
-        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), crate::logger::loglevel::LogLevel::Fail);
+        let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), kernel_api::logger::loglevel::LogLevel::Fail);
     }};
 }
 
@@ -95,7 +90,7 @@ macro_rules! log_debug {
     ($($arg:tt)*) => {{
         if cfg!(debug_assertions) {
             let logger = &crate::logger::LOGGER;
-            let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), crate::logger::loglevel::LogLevel::Debug);
+            let _ = logger.lock().write_with_loglevel(format_args!($($arg)*), kernel_api::logger::loglevel::LogLevel::Debug);
         }
     }};
 }

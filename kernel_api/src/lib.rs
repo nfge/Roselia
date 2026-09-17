@@ -9,3 +9,4 @@ pub mod keyboard;
 pub mod module;
 pub mod symbol;
 pub mod ramfs;
+pub mod logger;

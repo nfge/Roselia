@@ -16,7 +16,7 @@ pub fn init_exports() {
     export_symbol!("read", read_file);
     export_symbol!("write", write_file);
 
-    export_symbol!("log", log);
+    export_symbol!("klog", log);
 
     export_symbol!("get_acpi_table", get_acpi_table);
     export_symbol!("get_ptr_table", get_ptr_table);

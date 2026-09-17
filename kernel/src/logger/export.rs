@@ -1,6 +1,7 @@
 use core::fmt::Arguments;
 
-use crate::{log_debug, log_err, log_fail, log_info, log_warn, logger::loglevel::LogLevel};
+use crate::{log_debug, log_err, log_fail, log_info, log_warn};
+use kernel_api::logger::loglevel::LogLevel;
 
 pub extern "Rust" fn log(args: Arguments, level: LogLevel) {
     match level {
