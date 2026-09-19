@@ -18,13 +18,7 @@ mod timer;
 
 // mod uart;
 use crate::{
-    func::reset,
-    gop::{color::Color, graphics::Graphics},
-    memory::multi_allocator::{MultiAllocator, alloc_frame, map},
-    module::{export::init_exports, load_module},
-    ramfs::{RamFs, init_ramfs},
-    terminal::Terminal,
-    timer::sleep::spin_sleep
+    func::reset, gop::{color::Color, graphics::Graphics}, memory::{multi_allocator::{MultiAllocator, alloc_frame, alloc_frames, map}, pool_allocator::PoolAllocator}, module::{export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, timer::sleep::spin_sleep
 };
 
 use acpi::get_table;
@@ -48,9 +42,7 @@ use spin::mutex::Mutex;
 use uefi::{boot::MemoryType, mem::memory_map::MemoryMap, proto::console::serial};
 use utils::serial_println;
 use x86_64::{
-    PhysAddr, VirtAddr,
-    registers::control::{Cr3, Cr3Flags},
-    structures::paging::{OffsetPageTable, PageTable},
+    PhysAddr, VirtAddr, registers::control::{Cr3, Cr3Flags}, structures::paging::{OffsetPageTable, PageTable, PhysFrame},
 };
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -63,6 +55,7 @@ static mut ACPI_TABLE: Option<*const c_void> = None;
 static mut TERMINAL: *mut Terminal = core::ptr::null_mut();
 static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 static mut MULTI_ALLOCATOR: Option<MultiAllocator<'static>> = None;
+static mut PAGETABLE_POOL_ALLOCATOR: Option<PoolAllocator> = None;
 static mut MODULES: Option<Vec<Module>> = None;
 
 static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
@@ -103,13 +96,17 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         }
     }
     x86_64::instructions::interrupts::without_interrupts(|| {
-        let pml4_frame = alloc_frame().unwrap();
+        let addr = alloc_frames(256).unwrap();
+        let mut allocator = PoolAllocator::new(addr.as_u64(), 256, 0);
+        let pml4_frame = PhysFrame::containing_address(PhysAddr::new(allocator.alloc_frames(1).unwrap()));
+        unsafe {
+            PAGETABLE_POOL_ALLOCATOR = Some(allocator);
+        }
         let pml4_virt = VirtAddr::new(0 + pml4_frame.start_address().as_u64());
         let pml4: &mut PageTable = unsafe { &mut *pml4_virt.as_mut_ptr() };
         pml4.zero();
         let mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0)) };
         *MAPPER.lock() = Some(mapper);
-        let _ = map(pml4_frame.start_address(),VirtAddr::new(pml4_frame.start_address().as_u64()), pml4_frame.size() as usize);
         let _ = map(
             PhysAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
             VirtAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
@@ -189,6 +186,11 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             let pages = (bus_count * 0x100000) / 0x1000;
 
             map(PhysAddr::new(entry.base_address),VirtAddr::new(entry.base_address), pages as usize).unwrap();
+        }
+        if let Some(alloc) = unsafe {&mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR)} {
+            for chunk in alloc.chunks() {
+                let _ = map(PhysAddr::new(chunk.start),VirtAddr::new(chunk.start),chunk.count);
+            }
         }
         unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
         if cfg!(debug_assertions) {

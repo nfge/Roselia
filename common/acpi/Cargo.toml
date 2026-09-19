@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 utils={path = "../../utils"}
 kernel_api={path = "../../kernel_api"}
+acpi = "6.1.1"

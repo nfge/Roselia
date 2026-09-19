@@ -1,5 +1,6 @@
 mod bitmap;
 pub mod multi_allocator;
+pub mod pool_allocator;
 use core::alloc::Layout;
 
 use linked_list_allocator::LockedHeap;

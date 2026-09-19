@@ -13,7 +13,7 @@ use x86_64::{
     },
 };
 
-use crate::{MAPPER, MULTI_ALLOCATOR, log_err, memory::bitmap::Bitmap};
+use crate::{MAPPER, MULTI_ALLOCATOR, PAGETABLE_POOL_ALLOCATOR, log_err, memory::bitmap::Bitmap};
 
 pub struct MultiAllocator<'a> {
     pub bitmap: Bitmap,
@@ -44,13 +44,19 @@ impl<'a> MultiAllocator<'a> {
             }
         }
 
-        self.reserve_pages(self.mmap.buffer().as_ptr() as usize, self.mmap.buffer().len().div_ceil(4096));
+        self.reserve_pages(
+            self.mmap.buffer().as_ptr() as usize,
+            self.mmap.buffer().len().div_ceil(4096),
+        );
         self.reserve_pages(kernel_info.start_address, kernel_info.pages);
         self.reserve_pages(
             kernel_info.stack_info.stack_ptr.as_ptr() as usize,
             kernel_info.stack_info.stack_pages,
         );
-        self.reserve_pages(info as *const BootInfo as usize, core::mem::size_of::<BootInfo>().div_ceil(4096));
+        self.reserve_pages(
+            info as *const BootInfo as usize,
+            core::mem::size_of::<BootInfo>().div_ceil(4096),
+        );
         self.reserve_pages(self.bitmap.bitmap_start, self.bitmap.bitmap_pages);
         if modules.count != 0 {
             let array_bytes = modules.count * core::mem::size_of::<RawModule>();
@@ -122,12 +128,15 @@ impl<'a> MultiAllocator<'a> {
         let frame = self.alloc_frame()?;
         let page =
             Page::<Size4KiB>::containing_address(VirtAddr::new(frame.start_address().as_u64()));
+        let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
+            .as_mut()
+            .unwrap();
         match unsafe {
             MAPPER.lock().as_mut().unwrap().map_to(
                 page,
                 frame,
                 PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                self,
+                alloc,
             )
         } {
             Ok(map) => {
@@ -165,12 +174,15 @@ impl<'a> MultiAllocator<'a> {
             let addr = physaddr + (i as u64) * Size4KiB::SIZE;
             let frame = PhysFrame::containing_address(addr);
             let page = Page::<Size4KiB>::containing_address(VirtAddr::new(addr.as_u64()));
+            let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
+                .as_mut()
+                .unwrap();
             let result = unsafe {
                 MAPPER.lock().as_mut().unwrap().map_to(
                     page,
                     frame,
                     PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                    self,
+                    alloc,
                 )
             };
             match result {
@@ -223,41 +235,9 @@ impl<'a> MultiAllocator<'a> {
             }
         }
     }
-    pub fn map(&mut self, phys: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
-        for p in 0..count {
-            let addr = phys.as_u64() as usize + p * Size4KiB::SIZE as usize;
-            let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
-            let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr as u64));
-            let page = Page::<Size4KiB>::containing_address(VirtAddr::new(vaddr as u64));
-            match unsafe {
-                MAPPER.lock().as_mut().unwrap().map_to(
-                    page,
-                    frame,
-                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                    self,
-                )
-            } {
-                Ok(f) => {
-                    f.flush();
-                }
-                Err(MapToError::PageAlreadyMapped(eframe)) => {
-                    if eframe.start_address() != frame.start_address() {
-                        return Err(MapToError::PageAlreadyMapped(eframe));
-                    }
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
-        Ok(())
-    }
-}
+    // pub fn map(&mut self, phys: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
 
-unsafe impl FrameAllocator<Size4KiB> for MultiAllocator<'_> {
-    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        self.alloc_frame()
-    }
+    // }
 }
 
 #[allow(unused)]
@@ -331,14 +311,41 @@ pub fn free_pages(addr: VirtAddr, count: usize) {
 }
 #[allow(unused)]
 pub fn map(addr: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
-    unsafe {
-        if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
-            allocator.map(addr,virt, count)?;
-            return Ok(());
-        } else {
-            panic!("Allocator not initialized");
+    for p in 0..count {
+        let addr = addr.as_u64() as usize + p * Size4KiB::SIZE as usize;
+        let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
+        let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr as u64));
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(vaddr as u64));
+        let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
+            .as_mut()
+            .unwrap();
+        let res = unsafe {
+            MAPPER
+                .lock()
+                .as_mut()
+                .unwrap()
+                .map_to(
+                    page,
+                    frame,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                    alloc,
+                )
+        };
+        match res {
+            Ok(f) => {
+                f.flush();
+            }
+            Err(MapToError::PageAlreadyMapped(eframe)) => {
+                if eframe.start_address() != frame.start_address() {
+                    return Err(MapToError::PageAlreadyMapped(eframe));
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
         }
     }
+    Ok(())
 }
 
 #[allow(dead_code)]
@@ -357,7 +364,10 @@ pub fn get_free_mem() -> usize {
     unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             for entry in allocator.mmap.entries() {
-                if entry.ty == MemoryType::CONVENTIONAL || entry.ty == MemoryType::LOADER_CODE || entry.ty == MemoryType::LOADER_DATA {
+                if entry.ty == MemoryType::CONVENTIONAL
+                    || entry.ty == MemoryType::LOADER_CODE
+                    || entry.ty == MemoryType::LOADER_DATA
+                {
                     let start_page = entry.phys_start as usize / 4096;
 
                     for i in 0..entry.page_count as usize {
