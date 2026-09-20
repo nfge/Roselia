@@ -1,6 +1,6 @@
 [package]
 name = "kernel"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2024"
 authors = ["nfge Github: <https://github.com/nfge>"]
 
@@ -10,7 +10,7 @@ uefi = "0.40.0"
 raw-cpuid = "11.6.0"
 itoa = "1.0.18"
 heapless = "=0.9.3"
-
+lock_api = "=0.4.14"
 spin = "0.12.2"
 lazy_static = {version = "1.5.0", features = ["spin_no_std"]}
 

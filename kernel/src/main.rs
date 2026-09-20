@@ -9,6 +9,7 @@ mod func;
 mod gop;
 mod keyboard;
 mod linker;
+mod lock;
 mod logger;
 mod memory;
 mod module;
@@ -18,7 +19,17 @@ mod timer;
 
 // mod uart;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics}, memory::{multi_allocator::{MultiAllocator, alloc_frame, alloc_frames, map}, pool_allocator::PoolAllocator}, module::{export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, timer::sleep::spin_sleep
+    func::reset,
+    gop::{color::Color, graphics::Graphics},
+    lock::{CurrentThreadId, RawSpinMutex},
+    memory::{
+        multi_allocator::{MultiAllocator, alloc_frame, alloc_frames, map},
+        pool_allocator::PoolAllocator,
+    },
+    module::{export::init_exports, load_module},
+    ramfs::{RamFs, init_ramfs},
+    terminal::Terminal,
+    timer::sleep::spin_sleep,
 };
 
 use acpi::get_table;
@@ -29,8 +40,11 @@ use bootinfo::{
     time::{GetTimeFn, OriginalGetTimeFn},
     variable::{GetVar, SetVar},
 };
-use x86::io::outb;
-use core::{ffi::c_void, panic::PanicInfo};
+use core::{
+    cell::{RefCell, UnsafeCell},
+    ffi::c_void,
+    panic::PanicInfo,
+};
 use kernel_api::{
     acpi_tables::{mcfg::Mcfg, rsdp::Rsdp},
     module::{
@@ -38,11 +52,16 @@ use kernel_api::{
         raw::{RawModule, RawModules},
     },
 };
-use spin::mutex::Mutex;
+use lock_api::{RawMutex, ReentrantMutex};
 use uefi::{boot::MemoryType, mem::memory_map::MemoryMap, proto::console::serial};
 use utils::serial_println;
+use x86::io::outb;
 use x86_64::{
-    PhysAddr, VirtAddr, registers::control::{Cr3, Cr3Flags}, structures::paging::{OffsetPageTable, PageTable, PhysFrame},
+    PhysAddr, VirtAddr,
+    registers::control::{Cr3, Cr3Flags},
+    structures::paging::{
+        Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PhysFrame, Size4KiB,
+    },
 };
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -58,7 +77,12 @@ static mut MULTI_ALLOCATOR: Option<MultiAllocator<'static>> = None;
 static mut PAGETABLE_POOL_ALLOCATOR: Option<PoolAllocator> = None;
 static mut MODULES: Option<Vec<Module>> = None;
 
-static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
+// static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
+static MAPPER: ReentrantMutex<
+    RawSpinMutex,
+    CurrentThreadId,
+    UnsafeCell<Option<OffsetPageTable<'static>>>,
+> = ReentrantMutex::new(UnsafeCell::new(None));
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
@@ -96,9 +120,10 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         }
     }
     x86_64::instructions::interrupts::without_interrupts(|| {
-        let addr = alloc_frames(256).unwrap();
-        let mut allocator = PoolAllocator::new(addr.as_u64(), 256, 0);
-        let pml4_frame = PhysFrame::containing_address(PhysAddr::new(allocator.alloc_frames(1).unwrap()));
+        let addr = alloc_frames(1024).unwrap();
+        let mut allocator = PoolAllocator::new(addr.as_u64(), 1024, 0);
+        let pml4_frame =
+            PhysFrame::containing_address(PhysAddr::new(allocator.alloc_frames(1).unwrap()));
         unsafe {
             PAGETABLE_POOL_ALLOCATOR = Some(allocator);
         }
@@ -106,23 +131,45 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         let pml4: &mut PageTable = unsafe { &mut *pml4_virt.as_mut_ptr() };
         pml4.zero();
         let mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0)) };
-        *MAPPER.lock() = Some(mapper);
+        unsafe { *MAPPER.lock().get() = Some(mapper) };
         let _ = map(
             PhysAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
             VirtAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
             info.kernel_info.stack_info.stack_pages,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        )
+        .unwrap();
+        let _ = map(
+            PhysAddr::new(
+                info.kernel_info
+                    .stack_info
+                    .stack_ptr
+                    .as_ptr()
+                    .wrapping_sub(1024) as u64,
+            ),
+            VirtAddr::new(
+                info.kernel_info
+                    .stack_info
+                    .stack_ptr
+                    .as_ptr()
+                    .wrapping_sub(1024) as u64,
+            ),
+            1,
+            PageTableFlags::PRESENT,
         )
         .unwrap();
         let _ = map(
             PhysAddr::new(info as *const BootInfo as u64),
             VirtAddr::new(info as *const BootInfo as u64),
             core::mem::size_of::<BootInfo>(),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )
         .unwrap();
         let _ = map(
             PhysAddr::new(info.kernel_info.start_address as u64),
             VirtAddr::new(info.kernel_info.start_address as u64),
             info.kernel_info.pages,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )
         .unwrap();
         if let Some(allocator) = unsafe { &*core::ptr::addr_of_mut!(MULTI_ALLOCATOR) } {
@@ -130,51 +177,96 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 PhysAddr::new(allocator.bitmap.bitmap_start as u64),
                 VirtAddr::new(allocator.bitmap.bitmap_start as u64),
                 allocator.bitmap.bitmap_pages,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
             )
             .unwrap();
         }
         if info.modules.count != 0 {
             let modules_bytes = info.modules.count * core::mem::size_of::<RawModule>();
             let modules_pages = modules_bytes.div_ceil(4096);
-            let _ = map(PhysAddr::new(info.modules.ptr as u64), VirtAddr::new(info.modules.ptr as u64), modules_pages).unwrap();
+            let _ = map(
+                PhysAddr::new(info.modules.ptr as u64),
+                VirtAddr::new(info.modules.ptr as u64),
+                modules_pages,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+            )
+            .unwrap();
             for i in 0..info.modules.count {
                 let module = unsafe { &*info.modules.ptr.add(i) };
                 let raw_pages = (module.raw_len as usize).div_ceil(4096);
-                let _ = map(PhysAddr::new(module.raw_ptr),VirtAddr::new(module.raw_ptr), raw_pages).unwrap();
+                let _ = map(
+                    PhysAddr::new(module.raw_ptr),
+                    VirtAddr::new(module.raw_ptr),
+                    raw_pages,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                )
+                .unwrap();
 
                 let image_pages = (module.len as usize).div_ceil(4096);
-                let _ = map(PhysAddr::new(module.base),VirtAddr::new(module.base), image_pages).unwrap();
+                let _ = map(
+                    PhysAddr::new(module.base),
+                    VirtAddr::new(module.base),
+                    image_pages,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                )
+                .unwrap();
             }
         }
         let _ = map(
             PhysAddr::new(info.gop.framebuffer_ptr as u64),
             VirtAddr::new(info.gop.framebuffer_ptr as u64),
             info.gop.size.div_ceil(4096),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )
         .unwrap();
         let _ = map(
             PhysAddr::new(info.memory_map.buffer().as_ptr() as u64),
             VirtAddr::new(info.memory_map.buffer().as_ptr() as u64),
             info.memory_map.len().div_ceil(4096),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )
         .unwrap();
         for entry in info.memory_map.entries() {
             if entry.ty == MemoryType::ACPI_RECLAIM || entry.ty == MemoryType::ACPI_NON_VOLATILE {
-                map(PhysAddr::new(entry.phys_start), VirtAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+                map(
+                    PhysAddr::new(entry.phys_start),
+                    VirtAddr::new(entry.phys_start),
+                    entry.page_count as usize,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                )
+                .unwrap();
             }
             if entry.ty == MemoryType::MMIO
                 || entry.ty == MemoryType::MMIO_PORT_SPACE
                 || entry.ty == MemoryType::PAL_CODE
             {
-                map(PhysAddr::new(entry.phys_start),VirtAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+                map(
+                    PhysAddr::new(entry.phys_start),
+                    VirtAddr::new(entry.phys_start),
+                    entry.page_count as usize,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                )
+                .unwrap();
             }
             if entry.ty == MemoryType::RUNTIME_SERVICES_CODE
                 || entry.ty == MemoryType::RUNTIME_SERVICES_DATA
             {
-                let _ = map(PhysAddr::new(entry.phys_start),VirtAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+                let _ = map(
+                    PhysAddr::new(entry.phys_start),
+                    VirtAddr::new(entry.phys_start),
+                    entry.page_count as usize,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                )
+                .unwrap();
             }
             if entry.ty == MemoryType::LOADER_DATA || entry.ty == MemoryType::LOADER_CODE {
-                let _ = map(PhysAddr::new(entry.phys_start),VirtAddr::new(entry.phys_start), entry.page_count as usize).unwrap();
+                let _ = map(
+                    PhysAddr::new(entry.phys_start),
+                    VirtAddr::new(entry.phys_start),
+                    entry.page_count as usize,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                )
+                .unwrap();
             }
         }
         let mcfg_raw = unsafe { get_table::<Mcfg>(ACPI_TABLE.unwrap(), b"MCFG") }.unwrap();
@@ -185,11 +277,22 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 
             let pages = (bus_count * 0x100000) / 0x1000;
 
-            map(PhysAddr::new(entry.base_address),VirtAddr::new(entry.base_address), pages as usize).unwrap();
+            map(
+                PhysAddr::new(entry.base_address),
+                VirtAddr::new(entry.base_address),
+                pages as usize,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+            )
+            .unwrap();
         }
-        if let Some(alloc) = unsafe {&mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR)} {
+        if let Some(alloc) = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) } {
             for chunk in alloc.chunks() {
-                let _ = map(PhysAddr::new(chunk.start),VirtAddr::new(chunk.start),chunk.count);
+                let _ = map(
+                    PhysAddr::new(chunk.start),
+                    VirtAddr::new(chunk.start),
+                    chunk.count,
+                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                );
             }
         }
         unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
@@ -242,7 +345,7 @@ fn panic(_info: &PanicInfo) -> ! {
     serial_println!("Kernel Panic: {}", _info);
     kprintln!("Kernel Panic: {}", _info);
     spin_sleep(3000);
-    unsafe { 
+    unsafe {
         x86_64::instructions::interrupts::without_interrupts(|| {
             reset();
 

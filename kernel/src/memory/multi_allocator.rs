@@ -131,8 +131,10 @@ impl<'a> MultiAllocator<'a> {
         let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
             .as_mut()
             .unwrap();
+        let guard = MAPPER.lock();
+        let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
         match unsafe {
-            MAPPER.lock().as_mut().unwrap().map_to(
+            mapper.map_to(
                 page,
                 frame,
                 PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
@@ -154,7 +156,9 @@ impl<'a> MultiAllocator<'a> {
         None
     }
     pub fn free_page(&mut self, page: Page<Size4KiB>) {
-        match MAPPER.lock().as_mut().unwrap().unmap(page) {
+        let guard = MAPPER.lock();
+        let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
+        match mapper.unmap(page) {
             Ok((frame, flush)) => {
                 flush.flush();
                 self.free_frame(frame);
@@ -170,6 +174,8 @@ impl<'a> MultiAllocator<'a> {
     pub fn alloc_pages(&mut self, count: usize) -> Option<VirtAddr> {
         let physaddr = self.alloc_frames(count)?;
         let mut maped: usize = 0;
+        let guard = MAPPER.lock();
+        let mut mapper = unsafe { (*guard.get()).as_mut().unwrap() };
         for i in 0..count {
             let addr = physaddr + (i as u64) * Size4KiB::SIZE;
             let frame = PhysFrame::containing_address(addr);
@@ -178,7 +184,7 @@ impl<'a> MultiAllocator<'a> {
                 .as_mut()
                 .unwrap();
             let result = unsafe {
-                MAPPER.lock().as_mut().unwrap().map_to(
+                mapper.map_to(
                     page,
                     frame,
                     PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
@@ -199,7 +205,8 @@ impl<'a> MultiAllocator<'a> {
                         let addr = physaddr + (j as u64) * Size4KiB::SIZE;
                         let page =
                             Page::<Size4KiB>::containing_address(VirtAddr::new(addr.as_u64()));
-                        if let Ok((_, f)) = MAPPER.lock().as_mut().unwrap().unmap(page) {
+                        if let Ok((_, f)) = mapper.unmap(page)
+                        {
                             f.flush();
                         }
                     }
@@ -214,14 +221,14 @@ impl<'a> MultiAllocator<'a> {
         Some(VirtAddr::new(physaddr.as_u64()))
     }
     pub fn free_pages(&mut self, addr: VirtAddr, count: usize) {
+        let guard = MAPPER.lock();
+        let mapper = unsafe{
+            (*guard.get()).as_mut().unwrap()
+        };
         for i in 0..count {
-            match MAPPER
-                .lock()
-                .as_mut()
-                .unwrap()
-                .unmap(Page::<Size4KiB>::containing_address(
-                    addr + (i as u64) * Size4KiB::SIZE,
-                )) {
+            match mapper.unmap(
+                Page::<Size4KiB>::containing_address(addr + (i as u64) * Size4KiB::SIZE),
+            ) {
                 Ok((phys, f)) => {
                     f.flush();
                     self.free_frame(phys);
@@ -310,7 +317,9 @@ pub fn free_pages(addr: VirtAddr, count: usize) {
     }
 }
 #[allow(unused)]
-pub fn map(addr: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToError<Size4KiB>> {
+pub fn map(addr: PhysAddr, virt: VirtAddr, count: usize, flags: PageTableFlags) -> Result<(), MapToError<Size4KiB>> {
+    let guard = MAPPER.lock();
+    let mut mapper = unsafe { (*guard.get()).as_mut().unwrap() };
     for p in 0..count {
         let addr = addr.as_u64() as usize + p * Size4KiB::SIZE as usize;
         let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
@@ -320,16 +329,12 @@ pub fn map(addr: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToErro
             .as_mut()
             .unwrap();
         let res = unsafe {
-            MAPPER
-                .lock()
-                .as_mut()
-                .unwrap()
-                .map_to(
-                    page,
-                    frame,
-                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                    alloc,
-                )
+            mapper.map_to(
+                page,
+                frame,
+                flags,
+                alloc,
+            )
         };
         match res {
             Ok(f) => {
@@ -347,7 +352,6 @@ pub fn map(addr: PhysAddr, virt: VirtAddr, count: usize) -> Result<(), MapToErro
     }
     Ok(())
 }
-
 #[allow(dead_code)]
 pub fn get_total_memory() -> usize {
     let mut total = 0;
