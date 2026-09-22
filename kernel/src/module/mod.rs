@@ -15,12 +15,12 @@ use kernel_api::{
 };
 
 use spin::mutex::Mutex;
-use crate::{linker::Linker, log_info, module::{error::LoadError}
+use x86_64::structures::paging::{Mapper, Size4KiB};
+use crate::{MAPPER, linker::Linker, log_info, module::error::LoadError
 };
 
 mod error;
 pub mod export;
-pub mod early;
 
 
 pub static KERNEL_EXPORTS: Mutex<Vec<KernelSymbol>> = Mutex::new(Vec::new());
@@ -44,8 +44,9 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     unsafe { 
         Linker::relocate_module(module, symtab, strtab)?;
     };
-
-    // unsafe { Linker::protect_module(module, mapper) };
+    let guard = MAPPER.lock();
+    let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
+    unsafe { Linker::protect_module(module, mapper) };
 
     let entry_addr = (module.load_bias + ehdr.e_entry as i64) as u64;
 
