@@ -17,7 +17,8 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::fmt::{Arguments, Write};
+use core::{fmt::{Arguments, Write}};
+use jiff::SignedDuration;
 use kernel_api::{
     acpi_tables::mcfg::Mcfg,
     keyboard::{
@@ -430,7 +431,8 @@ impl Terminal {
                     crate::timer::TICKS_PER_SEC.load(core::sync::atomic::Ordering::Relaxed);
                 let ticks = crate::timer::TICKS.load(core::sync::atomic::Ordering::Relaxed);
                 let seconds = ticks / ticks_per_sec;
-                kprint!("{:?}s\n", seconds);
+                let dur = SignedDuration::from_secs(seconds as i64);
+                kprint!("{dur:#}\n");
             }
             "heap" => match command.args.first() {
                 Some(text) => match text.as_str() {
