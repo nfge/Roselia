@@ -309,9 +309,15 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     init_exports();
     unsafe { MODULES = Some(Vec::new()) }
     if info.modules.count != 0 {
-        for i in 0..info.modules.count {
-            let rawmodule = unsafe { &*info.modules.ptr.add(i) };
-            let module = unsafe { load_module(&rawmodule).unwrap() };
+        let raw_modules = unsafe {core::slice::from_raw_parts(info.modules.ptr, info.modules.count)};
+        for rawmodule in raw_modules {
+            let module = unsafe { match load_module(&rawmodule) {
+                Ok(m) => m,
+                Err(e) => {
+                    log_fail!("Failed to load module 0x{:016x} with {:?}\n", rawmodule.address, e);
+                    continue;
+                }
+            }};
             unsafe {
                 if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
                     modules.push(module);

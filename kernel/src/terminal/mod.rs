@@ -545,6 +545,7 @@ impl Terminal {
                                                 device.header.device_id as u16,
                                                 device_name.unwrap_or("Not found in pci.ids")
                                             );
+                                            break;
                                         } else {
                                             self.print_string_ln("Using: pci id vendor:device");
                                         }
@@ -578,9 +579,10 @@ impl Terminal {
                             .unwrap();
                             if name == s.as_str() {
                                 kprint!(
-                                    "Name: {}\nModule version: {}\nMagic: {}\nFlags: {}\n",
+                                    "Name: {}\nModule version: {}\n Abi version: {}\nMagic: {}\nFlags: {}\n",
                                     name,
                                     module.info.module_version,
+                                    module.info.abi_version,
                                     module.info.magic,
                                     module.info.flags
                                 );
