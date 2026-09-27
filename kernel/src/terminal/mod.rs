@@ -11,7 +11,7 @@ use crate::{
     terminal::{command::Command, token::Token},
     timer::sleep::sleep,
 };
-use acpi::get_table;
+use acpi::get::get_table;
 use alloc::{
     string::{String, ToString},
     vec,

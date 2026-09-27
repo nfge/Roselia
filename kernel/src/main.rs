@@ -16,6 +16,7 @@ mod module;
 mod ramfs;
 mod terminal;
 mod timer;
+mod thread;
 
 // mod uart;
 use crate::{
@@ -32,7 +33,7 @@ use crate::{
     timer::sleep::spin_sleep,
 };
 
-use acpi::get_table;
+use acpi::get::get_table;
 use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,

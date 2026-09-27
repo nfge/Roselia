@@ -1,6 +1,8 @@
 use core::ffi::c_void;
 
+use acpi::get::get_table;
 use kernel_api::acpi_tables::{
+    fadt::Fadt,
     madt::{Madt, MadtEntry},
     rsdp::Rsdp,
     sdtheader::SdtHeader,
@@ -8,10 +10,11 @@ use kernel_api::acpi_tables::{
 };
 use x86::{
     apic::ioapic::IoApic,
+    io::{inw, outw},
     msr::{IA32_APIC_BASE, IA32_X2APIC_LVT_TIMER, rdmsr, wrmsr},
 };
 
-use crate::{ACPI_TABLE};
+use crate::ACPI_TABLE;
 use utils::serial_println;
 
 pub fn init_x2apic() {
@@ -28,7 +31,6 @@ pub fn init_lapic() {
 }
 
 pub fn init_apic() {
-
     let mut apic_base = unsafe { rdmsr(IA32_APIC_BASE) };
 
     apic_base |= 1 << 11;
@@ -78,6 +80,9 @@ pub fn init_ioapic() {
                         if let MadtEntry::IoApic(io) = madt_entry {
                             let mut ioapic = IoApic::new({ io.io_apic_address } as usize);
                             ioapic.enable(1, rdmsr(0x802) as u8);
+                            
+                            let fadt = &*get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap();
+                            ioapic.enable(fadt.sci_interrupt as u8, rdmsr(0x802) as u8);
                         }
                     }
                 }
@@ -85,6 +90,11 @@ pub fn init_ioapic() {
         } else {
             serial_println!("Root table is not XSDT (found different signature)");
         }
+        let fadt = &*get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap();
+        let port = fadt.pm1a_event_block as u16;
+        outw(port, 1 << 8);
+        let en = inw(port + 2);
+        outw(port + 2, en | (1 << 8));
     }
 }
 pub fn send_eoi() {

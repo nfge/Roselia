@@ -3,15 +3,12 @@ pub mod data;
 mod node;
 mod types;
 
-use acpi::get_table;
 use alloc::{format, vec::Vec};
 use data::NodeData;
-use kernel_api::{acpi_tables::mcfg::Mcfg, ramfs::error::RamFSError};
-use utils::serial_println;
+use kernel_api::{ramfs::error::RamFSError};
 
 use crate::{
-    ACPI_TABLE, RAMFS,
-    cpu::random::hardware_random,
+    RAMFS,
     memory::multi_allocator::{get_free_mem, get_total_memory, get_used_mem},
     module::KERNEL_EXPORTS,
     ramfs::{

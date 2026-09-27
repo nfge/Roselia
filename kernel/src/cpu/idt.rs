@@ -1,6 +1,12 @@
-use core::hint::spin_loop;
+use core::{
+    hint::spin_loop,
+    ops::{Deref, Index},
+};
 
+use acpi::get::get_table;
+use kernel_api::acpi_tables::fadt::Fadt;
 use lazy_static::lazy_static;
+use x86::io::{inw, outw};
 use x86_64::{
     PhysAddr, VirtAddr,
     structures::{
@@ -9,7 +15,9 @@ use x86_64::{
     },
 };
 
-use crate::{MAPPER, MULTI_ALLOCATOR, keyboard, kprintln, log, log_fail, log_info, timer};
+use crate::{
+    ACPI_TABLE, MAPPER, MULTI_ALLOCATOR, cpu, func::{poweroff, reset}, keyboard, kprintln, log, log_fail, log_info, timer,
+};
 use utils::serial_println;
 
 lazy_static! {
@@ -43,6 +51,11 @@ lazy_static! {
 
         idt[33].set_handler_fn(keyboard::ps2::irq::keyboard_irq);
         idt[0xFF].set_handler_fn(spurious_handler);
+
+        let rfadt = unsafe { get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap() };
+        let fadt = unsafe { &*rfadt };
+        idt[fadt.sci_interrupt as u8 + 32].set_handler_fn(sci_handler);
+
         idt
     };
 }
@@ -58,7 +71,7 @@ extern "x86-interrupt" fn spurious_handler(_: InterruptStackFrame) {
 //     loop {}
 // }
 extern "x86-interrupt" fn double_fault_handler(stack: InterruptStackFrame, _: u64) -> ! {
-    serial_println!("Double fault");
+    serial_println!("Double fault \n{:#?}", stack);
     panic!("Double fault\n{:#?}", stack);
 }
 extern "x86-interrupt" fn invalid_opcode_handler(stack: InterruptStackFrame) {
@@ -102,4 +115,15 @@ extern "x86-interrupt" fn pagefault_handler(
         err_code,
         Cr2::read()
     );
+}
+
+extern "x86-interrupt" fn sci_handler(_stack: InterruptStackFrame) {
+    let fadt = unsafe { &*get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap() };
+    let status = unsafe { inw(fadt.pm1a_event_block as u16) };
+    unsafe { outw(fadt.pm1a_event_block as u16, status) };
+
+    if status & (1 << 8) != 0 {
+        unsafe {poweroff()};
+    }
+    cpu::apic::send_eoi();
 }
