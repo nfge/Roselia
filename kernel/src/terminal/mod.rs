@@ -1,15 +1,5 @@
 use crate::{
-    kprint,
-    ACPI_TABLE, MODULES, TERMINAL,
-    cpu::{self},
-    func::{get_time, poweroff, reset},
-    gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
-    keyboard::KeyBoard,
-    log,
-    memory::{get_heap_free, get_heap_used},
-    ramfs::{check_directory, create_file, is_valid, mkdir, read_file, write_file},
-    terminal::{command::Command, token::Token},
-    timer::sleep::sleep,
+    ACPI_TABLE, MODULES, TERMINAL, cpu::{self}, func::{get_time, poweroff, reset}, gop::{color::Color, fonts::VGA_FONT, graphics::Graphics}, keyboard::KeyBoard, kprint, log, log_fail, memory::{get_heap_free, get_heap_used}, module::CURRENT_MODULE_RSP, ramfs::{check_directory, create_file, is_valid, mkdir, read_file, write_file}, terminal::{command::Command, token::Token}, timer::sleep::sleep,
 };
 use acpi::get::get_table;
 use alloc::{
@@ -579,7 +569,7 @@ impl Terminal {
                             .unwrap();
                             if name == s.as_str() {
                                 kprint!(
-                                    "Name: {}\nModule version: {}\n Abi version: {}\nMagic: {}\nFlags: {}\n",
+                                    "Name: {}\nModule version: {}\nAbi version: {}\nMagic: {}\nFlags: {}\n",
                                     name,
                                     module.info.module_version,
                                     module.info.abi_version,
@@ -625,9 +615,26 @@ impl Terminal {
                                     argc: argv.len() as u64,
                                     argv: argv.as_ptr(),
                                 };
-                                let result = init(&args as *const ModuleArgs);
+                                let result: i32;
+                                unsafe {
+                                    core::arch::asm!(
+                                        "mov [{saved_rsp}], rsp",
+                                        "mov rdi, {args}",
+                                        "call {init}",
+                                        saved_rsp = sym CURRENT_MODULE_RSP,
+                                        args = in(reg) &args,
+                                        init = in(reg) init,
+                                        lateout("rax") result
+                                    )
+                                }
+                                // let result = init(&args as *const ModuleArgs);
+
                                 found = true;
-                                if result == 0 {
+                                if result >= 0 {
+                                    break;
+                                } else if result == -10 {
+                                    kprint!("Module panicked!\n");
+                                    log_fail!("Module {} panicked\n", name);
                                     break;
                                 } else {
                                     kprint!("Module exited with error code {}\n", result);
@@ -636,9 +643,23 @@ impl Terminal {
                             } else {
                                 let init: extern "C" fn() -> i32 =
                                     unsafe { core::mem::transmute(module.entry_fn) };
-                                let result = init();
+                                let result: i32;
+                                unsafe {
+                                    core::arch::asm!(
+                                        "mov [{saved_rsp}], rsp",
+                                        "call {init}",
+                                        saved_rsp = sym CURRENT_MODULE_RSP,
+                                        init = in(reg) init,
+                                        lateout("rax") result
+                                    );
+                                }
+                                // let result = init();
                                 found = true;
-                                if result == 0 {
+                                if result >= 0 {
+                                    break;
+                                } else if result == -10 {
+                                    kprint!("Module panicked!\n");
+                                    log_fail!("Module {} panicked\n", name);
                                     break;
                                 } else {
                                     kprint!("Module exited with error code {}\n", result);

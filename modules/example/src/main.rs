@@ -35,6 +35,7 @@ unsafe extern "Rust" {
     fn kprintln(args: core::fmt::Arguments);
     fn kalloc(layout:Layout) -> Result<core::ptr::NonNull<u8>, ()>;
     fn kfree(ptr: NonNull<u8>, layout:Layout);
+    fn module_panic() -> !;
 }
 
 #[unsafe(no_mangle)]
@@ -47,7 +48,7 @@ pub extern "C" fn module_init() -> i32 {
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
-    loop {}
+    unsafe {module_panic()};
 }
 
 

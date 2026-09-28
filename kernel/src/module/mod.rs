@@ -22,6 +22,8 @@ use crate::{MAPPER, linker::Linker, log_info, module::error::LoadError
 mod error;
 pub mod export;
 
+// temp
+pub static mut CURRENT_MODULE_RSP: u64 = 0;
 
 pub static KERNEL_EXPORTS: Mutex<Vec<KernelSymbol>> = Mutex::new(Vec::new());
 
