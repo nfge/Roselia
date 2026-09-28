@@ -146,14 +146,14 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                     .stack_info
                     .stack_ptr
                     .as_ptr()
-                    .wrapping_sub(1024) as u64,
+                    .wrapping_sub(4096) as u64,
             ),
             VirtAddr::new(
                 info.kernel_info
                     .stack_info
                     .stack_ptr
                     .as_ptr()
-                    .wrapping_sub(1024) as u64,
+                    .wrapping_sub(4096) as u64,
             ),
             1,
             PageTableFlags::PRESENT,

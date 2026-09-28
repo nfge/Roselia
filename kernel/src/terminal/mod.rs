@@ -583,6 +583,9 @@ impl Terminal {
                     }
                 },
                 None => self.print_string_ln("Usage modinfo [module name]"),
+            },
+            "overflow" => {
+                stack_overflow(10);
             }
             _ => {
                 let name = command.name.as_str();
@@ -763,4 +766,12 @@ macro_rules! kprintln {
             };
         }
     }};
+}
+
+#[inline(never)]
+fn stack_overflow(n: u64) {
+    let data = [0u8; 1024];
+    core::hint::black_box(&data);
+
+    stack_overflow(n + 1);
 }
