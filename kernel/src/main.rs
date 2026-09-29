@@ -15,8 +15,8 @@ mod memory;
 mod module;
 mod ramfs;
 mod terminal;
-mod timer;
 mod thread;
+mod timer;
 
 // mod uart;
 use crate::{
@@ -104,9 +104,9 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::apic::init_x2apic();
     cpu::apic::init_ioapic();
     cpu::apic::init_lapic();
+    cpu::sse::init_sse_and_avx();
     x86_64::instructions::interrupts::enable();
     timer::calibrate();
-    cpu::sse::init_sse_and_avx();
     unsafe {
         MULTI_ALLOCATOR = Some(MultiAllocator::new(&info.memory_map));
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
@@ -310,15 +310,22 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     init_exports();
     unsafe { MODULES = Some(Vec::new()) }
     if info.modules.count != 0 {
-        let raw_modules = unsafe {core::slice::from_raw_parts(info.modules.ptr, info.modules.count)};
+        let raw_modules =
+            unsafe { core::slice::from_raw_parts(info.modules.ptr, info.modules.count) };
         for rawmodule in raw_modules {
-            let module = unsafe { match load_module(&rawmodule) {
-                Ok(m) => m,
-                Err(e) => {
-                    log_fail!("Failed to load module 0x{:016x} with {:?}\n", rawmodule.address, e);
-                    continue;
+            let module = unsafe {
+                match load_module(&rawmodule) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        log_fail!(
+                            "Failed to load module 0x{:016x} with {:?}\n",
+                            rawmodule.address,
+                            e
+                        );
+                        continue;
+                    }
                 }
-            }};
+            };
             unsafe {
                 if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
                     modules.push(module);
@@ -350,7 +357,9 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("Kernel Panic: {}", _info);
-    kprintln!("Kernel Panic: {}", _info);
+    if !cfg!(debug_assertions) {
+        kprintln!("Kernel Panic: {}", _info);
+    }
     spin_sleep(3000);
     unsafe {
         x86_64::instructions::interrupts::without_interrupts(|| {
