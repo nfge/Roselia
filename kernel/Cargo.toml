@@ -6,7 +6,7 @@ authors = ["nfge Github: <https://github.com/nfge>"]
 
 
 [dependencies]
-uefi = "0.40.0"
+uefi = "0.41.0"
 raw-cpuid = "11.6.0"
 itoa = "1.0.18"
 heapless = "=0.9.3"
