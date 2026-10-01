@@ -79,10 +79,10 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack: InterruptStackFrame) {
 }
 extern "x86-interrupt" fn gp_handler(stack: InterruptStackFrame, code: u64) {
     serial_println!(
-        "General Protection\nrip: {:#x}\ncs: {:#x}\nflags: {:#x}\nrsp: {:#x}\nss: {:#x}\ncode: {:#x}",
+        "General Protection\nrip: {:#x}\ncs: {:#x}\nflags: {:?}\nrsp: {:#x}\nss: {:#x}\ncode: {:#x}",
         stack.instruction_pointer.as_u64(),
         stack.code_segment.0,
-        stack.cpu_flags.bits(),
+        stack.cpu_flags,
         stack.stack_pointer.as_u64(),
         stack.stack_segment.0,
         code
@@ -106,15 +106,18 @@ extern "x86-interrupt" fn pagefault_handler(
     use x86_64::registers::control::Cr2;
 
     panic!(
-        "Page Fault\nrip: {:#x}\ncs: {:#x}\nflags: {:#x}\nrsp: {:#x}\nss: {:#x}\nerr_code: {:?}\nCr2: {:?}",
+        "Page Fault\nrip: {:#x}\ncs: {:#x}\nflags: {:?}\nrsp: {:#x}\nss: {:#x}\nerr_code: {:?}\nCr2: {:?}",
         stack.instruction_pointer.as_u64(),
         stack.code_segment.0,
-        stack.cpu_flags.bits(),
+        stack.cpu_flags,
         stack.stack_pointer.as_u64(),
         stack.stack_segment.0,
         err_code,
         Cr2::read()
     );
+    loop {
+        spin_loop();
+    }
 }
 
 extern "x86-interrupt" fn sci_handler(_stack: InterruptStackFrame) {
