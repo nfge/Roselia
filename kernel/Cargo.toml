@@ -29,6 +29,7 @@ x86_64 = "0.15.5"
 
 [build-dependencies]
 cc = "1.4.0"
+vergen-gitcl = { version = "10", features = ["build"] }
 
 
 [[bin]]

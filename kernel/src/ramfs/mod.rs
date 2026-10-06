@@ -281,7 +281,7 @@ pub fn init_ramfs() {
         "/kernel/info",
         crate::ramfs::data::NodeData::virtual_read(|| {
             let version = env!("CARGO_PKG_VERSION");
-            let git_commit = env!("GIT_COMMIT");
+            let git_commit = option_env!("VERGEN_GIT_SHA").unwrap_or("unknown");
             let arch = if cfg!(target_arch = "x86_64") {
                 "x86_64"
             } else if cfg!(target_arch = "aarch64") {
@@ -292,13 +292,13 @@ pub fn init_ramfs() {
             if cfg!(debug_assertions) {
                 format!(
                     "Roselia Kernel {} ({})\nkernel.{}-{}-dev {}\n",
-                    version, git_commit, version, git_commit, arch
+                    version, git_commit.get(..7).unwrap(), version, git_commit.get(..7).unwrap(), arch
                 )
                 .into_bytes()
             } else {
                 format!(
                     "Roselia Kernel {} ({})\nkernel.{}-{} {}\n",
-                    version, git_commit, version, git_commit, arch
+                    version, git_commit.get(..7).unwrap(), version, git_commit.get(..7).unwrap(), arch
                 )
                 .into_bytes()
             }
