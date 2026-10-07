@@ -1,4 +1,10 @@
+use core::ffi::CStr;
+
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 pub mod raw;
+
 
 pub const ACCEPT_ARGS: u32 = 1 << 0;
 
@@ -32,6 +38,23 @@ pub struct ModuleInfo {
 pub struct ModuleArgs {
     pub argc: u64,
     pub argv: *const *const u8
+}
+
+#[cfg(feature = "alloc")]
+impl ModuleArgs {
+    fn to_vec(&self) -> Option<Vec<&str>> {
+        let mut argsv: Vec<&str> = Vec::new();
+        let args = unsafe {core::slice::from_raw_parts(self.argv,self.argc as usize)};
+        for i in 0..self.argc {
+            unsafe {
+                match CStr::from_ptr(args[i as usize].cast()).to_str().map(|s| argsv.push(s)) {
+                    Ok(_) => {},
+                    Err(_) => {return None}
+                }
+            }
+        }
+        return Some(argsv)
+    } 
 }
 
 

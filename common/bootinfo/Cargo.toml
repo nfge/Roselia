@@ -7,4 +7,4 @@ edition = "2024"
 uefi="0.41.0"
 x86_64 = "0.15.5"
 
-kernel_api={path = "../../kernel_api"}
+kernel_api={path = "../../kernel_api", features = ["module_api"]}

@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 uefi="0.41.0"
+
+[features]
+module_api = []
+alloc = []

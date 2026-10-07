@@ -15,7 +15,7 @@ spin = "0.12.2"
 jiff = { version = "0.2.37", default-features = false, features = ["alloc"] }
 lazy_static = {version = "1.5.0", features = ["spin_no_std"]}
 
-kernel_api={path = "../kernel_api"}
+kernel_api={path = "../kernel_api", features = ["module_api", "alloc"]}
 
 bootinfo={path = "../common/bootinfo"}
 acpi = {path = "../common/acpi"}
