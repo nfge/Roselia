@@ -3,12 +3,16 @@ use core::{ffi::c_void, panic::PanicInfo};
 use acpi::get::{get_ptr_table};
 use pci::{check, find_by_class, find_by_id};
 
-use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, module::CURRENT_MODULE_RSP, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintln}};
+use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, module::CURRENT_MODULE_RSP, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}};
 
 
 pub fn init_exports() {
+
     export_symbol!("kprint", kprint);
     export_symbol!("kprintln", kprintln);
+
+    export_symbol!("kprintf", kprintf);
+    export_symbol!("kprintfln", kprintfln);
 
     export_symbol!("kalloc", kalloc);
     export_symbol!("kfree", kfree);

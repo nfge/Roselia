@@ -2,7 +2,24 @@ use kernel_api::keyboard::keyevent::KeyEvent;
 use core::fmt::Write;
 use crate::TERMINAL;
 
-pub extern "Rust" fn kprint(arg: core::fmt::Arguments) {
+pub extern "Rust" fn kprint(s: &str) {
+    unsafe {
+        if !TERMINAL.is_null() {
+            let term = TERMINAL;
+            let _ = (*term).print_fmt(format_args!("{s}"));
+        }
+    }
+}
+pub extern "Rust" fn kprintln(s: &str) {
+    unsafe {
+        if !TERMINAL.is_null() {
+            let term = TERMINAL;
+            let _ = (*term).print_fmt(format_args!("{s}"));
+        }
+    }
+}
+
+pub extern "Rust" fn kprintf(arg: core::fmt::Arguments) {
     unsafe {
         if !TERMINAL.is_null() {
             let term = TERMINAL;
@@ -10,9 +27,9 @@ pub extern "Rust" fn kprint(arg: core::fmt::Arguments) {
         }
     }
 }
-pub extern "Rust" fn kprintln(arg: core::fmt::Arguments) {
-    kprint(arg);
-    kprint(format_args!("\n"));
+pub extern "Rust" fn kprintfln(arg: core::fmt::Arguments) {
+    kprintf(arg);
+    kprintf(format_args!("\n"));
 }
 
 pub extern "Rust" fn get_key() -> Option<KeyEvent> {

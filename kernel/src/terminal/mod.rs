@@ -619,12 +619,12 @@ impl Terminal {
                                 unsafe {
                                     core::arch::asm!(
                                         "mov [{saved_rsp}], rsp",
-                                        "mov rdi, {args}",
                                         "call {init}",
                                         saved_rsp = sym CURRENT_MODULE_RSP,
-                                        args = in(reg) &args,
+                                        in("rdi") &args,
                                         init = in(reg) init,
-                                        lateout("rax") result
+                                        lateout("rax") result,
+                                        clobber_abi("C"),
                                     )
                                 }
                                 // let result = init(&args as *const ModuleArgs);

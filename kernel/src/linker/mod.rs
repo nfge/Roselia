@@ -20,7 +20,10 @@ use x86_64::{
     structures::paging::{Mapper, Page, PageTableFlags, Size4KiB},
 };
 
-use crate::{kprintln, linker::error::RelocateError, log_debug, log_fail, log_info, module::KERNEL_EXPORTS, ramfs::read_file, terminal::export::kprintln};
+use crate::{
+    kprintln, linker::error::RelocateError, log_debug, log_fail, log_info, module::KERNEL_EXPORTS,
+    ramfs::read_file, terminal::export::kprintln,
+};
 
 pub mod error;
 
@@ -142,25 +145,37 @@ impl Linker {
             )
         };
 
-        for ph in phdrs.iter().filter(|p| p.p_type == PT_LOAD) {
+        let mut perms: alloc::collections::BTreeMap<u64, (bool, bool)> = Default::default();
+
+        for ph in phdrs
+            .iter()
+            .filter(|p| p.p_type == PT_LOAD && p.p_memsz != 0)
+        {
             let start = (module.load_bias + ph.p_vaddr as i64) as u64;
             let end = start + ph.p_memsz;
+            let mut a = start & !0xFFF;
+            while a < end {
+                let e = perms.entry(a).or_insert((false, false));
+                e.0 |= ph.p_flags & PF_W != 0;
+                e.1 |= ph.p_flags & PF_X != 0;
+                a += 0x1000;
+            }
+        }
 
+        for (addr, (w, x)) in perms {
             let mut flags = PageTableFlags::PRESENT;
-            if ph.p_flags & PF_W != 0 {
+            if w {
                 flags |= PageTableFlags::WRITABLE;
             }
-            if ph.p_flags & PF_X == 0 {
+            if !x {
                 flags |= PageTableFlags::NO_EXECUTE;
             }
-
-            let start_page = Page::<Size4KiB>::containing_address(VirtAddr::new(start));
-            let end_page = Page::<Size4KiB>::containing_address(VirtAddr::new(end - 1));
-
-            for page in Page::range_inclusive(start_page, end_page) {
-                unsafe {
-                    mapper.update_flags(page, flags).expect("Fail").flush();
-                }
+            let page = Page::<Size4KiB>::containing_address(VirtAddr::new(addr));
+            unsafe {
+                mapper
+                    .update_flags(page, flags)
+                    .expect("update flags error")
+                    .flush();
             }
         }
     }
@@ -235,12 +250,13 @@ fn resolve_kernel_symbol(name: &str) -> Option<u64> {
     let data = read_file("/symbols").unwrap();
     let text = core::str::from_utf8(&data).unwrap();
     for line in text.lines() {
-        let Some((sname,saddr)) = line.split_once(":") else {
+        let Some((sname, saddr)) = line.split_once(":") else {
             continue;
         };
         if sname == name {
-            let addr = u64::from_str_radix(saddr.trim_start_matches("0x"), 16).expect("Invalid address");
-            return Some(addr)
+            let addr =
+                u64::from_str_radix(saddr.trim_start_matches("0x"), 16).expect("Invalid address");
+            return Some(addr);
         }
     }
     None

@@ -40,8 +40,8 @@ pub struct ModuleArgs {
     pub argv: *const *const u8
 }
 
-#[cfg(feature = "alloc")]
 impl ModuleArgs {
+    #[cfg(feature = "alloc")]
     pub fn to_vec(&self) -> Option<Vec<&str>> {
         let mut argsv: Vec<&str> = Vec::new();
         let args = unsafe {core::slice::from_raw_parts(self.argv,self.argc as usize)};
