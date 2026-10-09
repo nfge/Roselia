@@ -71,7 +71,7 @@ pub fn check(vendor_id: u16, device_id: u16) -> (Option<&'static str>, Option<&'
     let vendor_id = format!("{:04x}", vendor_id);
     let device_id = format!("\t{:04x}", device_id);
     let mut vendor_name: Option<&'static str> = None;
-    let mut device_name: Option<&'static str> = None;
+    let mut _device_name: Option<&'static str> = None;
 
     let mut in_vendor = false;
 
@@ -91,8 +91,8 @@ pub fn check(vendor_id: u16, device_id: u16) -> (Option<&'static str>, Option<&'
         }
 
         if in_vendor && line.starts_with(device_id.as_str()) {
-            device_name = Some(line[device_id.len()..].trim());
-            return (vendor_name, device_name);
+            _device_name = Some(line[device_id.len()..].trim());
+            return (vendor_name, _device_name);
         }
     }
     (None, None)

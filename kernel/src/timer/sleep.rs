@@ -1,7 +1,6 @@
-use core::{arch::x86_64::_rdtsc, sync::atomic::Ordering};
+use core::{sync::atomic::Ordering};
 
 // use crate::{cpu::{cpuinfo::get_frequency,read_pit}};
-use x86_64::{instructions::nop};
 
 use crate::timer::{TICKS, TICKS_PER_SEC};
 

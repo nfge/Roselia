@@ -1,32 +1,25 @@
-use core::{
-    ops::Add,
-    slice,
-};
+use core::{ops::Add, slice};
 
 use alloc::vec::Vec;
 use kernel_api::{
     elf::{
         elf64ehdr::Elf64Ehdr,
-        elf64phdr::{Elf64Phdr,PF_X, PT_LOAD},
+        elf64phdr::{Elf64Phdr, PF_X, PT_LOAD},
         elf64shdr::Elf64Shdr,
     },
     module::{Module, ModuleInfo, raw::RawModule},
-    symbol::{KernelSymbol},
+    symbol::KernelSymbol,
 };
 
+use crate::{MAPPER, linker::Linker, log_fail, log_info, module::error::LoadError};
 use spin::mutex::Mutex;
-use x86_64::structures::paging::{Mapper, Size4KiB};
-use crate::{MAPPER, linker::Linker, log_info, module::error::LoadError
-};
-
-mod error;
+pub mod error;
 pub mod export;
 
 // temp
 pub static mut CURRENT_MODULE_RSP: u64 = 0;
 
 pub static KERNEL_EXPORTS: Mutex<Vec<KernelSymbol>> = Mutex::new(Vec::new());
-
 
 pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     let file =
@@ -36,15 +29,56 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     let info = unsafe { read_module_info(module).unwrap() };
 
     if info.magic != 0x524F_5345_4C49_4100 {
+        log_fail!(
+            "Failed to load module {} with {:?}\n",
+            core::str::from_utf8(
+                &info.name[..info
+                    .name
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(info.name.len())]
+            )
+            .unwrap(),
+            LoadError::InvalidMagic
+        );
         return Err(LoadError::InvalidMagic);
     }
     if info.abi_version != 1 {
+        log_fail!(
+            "Failed to load module {} with {:?}\n",
+            core::str::from_utf8(
+                &info.name[..info
+                    .name
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(info.name.len())]
+            )
+            .unwrap(),
+            LoadError::InvalidAbiVersion
+        );
         return Err(LoadError::InvalidAbiVersion);
     }
 
     let (symtab, strtab) = unsafe { Linker::parse_dyntab_dyntab(module).unwrap() };
-    unsafe { 
-        Linker::relocate_module(module, symtab, strtab)?;
+    unsafe {
+        match Linker::relocate_module(module, symtab, strtab) {
+            Ok(_) => {}
+            Err(e) => {
+                log_fail!(
+                    "Failed to load module {} with {:?}\n",
+                    core::str::from_utf8(
+                        &info.name[..info
+                            .name
+                            .iter()
+                            .position(|&c| c == 0)
+                            .unwrap_or(info.name.len())]
+                    )
+                    .unwrap(),
+                    e
+                );
+                return Err(LoadError::RelocateError(e));
+            }
+        }
     };
     let guard = MAPPER.lock();
     let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
@@ -53,6 +87,18 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     let entry_addr = (module.load_bias + ehdr.e_entry as i64) as u64;
 
     if !is_in_executable_segment(module, entry_addr) {
+        log_fail!(
+            "Failed to load module {} with {:?}\n",
+            core::str::from_utf8(
+                &info.name[..info
+                    .name
+                    .iter()
+                    .position(|&c| c == 0)
+                    .unwrap_or(info.name.len())]
+            )
+            .unwrap(),
+            LoadError::EntryNotExecutable
+        );
         return Err(LoadError::EntryNotExecutable);
     }
     log_info!(
@@ -133,9 +179,11 @@ pub unsafe fn read_module_info(module: &RawModule) -> Option<ModuleInfo> {
 #[macro_export]
 macro_rules! export_symbol {
     ($name:expr, $addr:expr) => {{
-        $crate::module::KERNEL_EXPORTS.lock().push(kernel_api::symbol::KernelSymbol {
-            name: $name,
-            addr: kernel_api::symbol::SymAddr($addr as *const () as usize)
-        })
+        $crate::module::KERNEL_EXPORTS
+            .lock()
+            .push(kernel_api::symbol::KernelSymbol {
+                name: $name,
+                addr: kernel_api::symbol::SymAddr($addr as *const () as usize),
+            })
     }};
 }

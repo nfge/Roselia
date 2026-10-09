@@ -1,4 +1,4 @@
-use core::{ffi::c_void, panic::PanicInfo};
+use core::{ffi::c_void};
 
 use acpi::get::{get_ptr_table};
 use pci::{check, find_by_class, find_by_id};

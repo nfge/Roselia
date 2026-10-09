@@ -7,7 +7,7 @@ use uefi::{
     boot::{self, MemoryType, ScopedProtocol, allocate_pages},
     cstr16, println,
     proto::media::{
-        file::{self, Directory, File, FileAttribute, FileInfo, FileMode},
+        file::{self, File, FileAttribute, FileInfo, FileMode},
         fs::SimpleFileSystem,
     },
 };
@@ -19,8 +19,8 @@ pub mod init_gop;
 pub fn get_kernel(
     filesys: &mut ScopedProtocol<SimpleFileSystem>,
 ) -> Result<(u64, usize, usize), uefi::Status> {
-    let mut kernel_start_addr: usize;
-    let mut kernel_pages: usize;
+    let kernel_start_addr: usize;
+    let kernel_pages: usize;
     let mut root = filesys.open_volume().expect("Failed to open volume");
     let kernel_name: &CStr16 = cstr16!("kernel.elf");
     let mut kernel = match root.open(&kernel_name, FileMode::Read, FileAttribute::empty()) {

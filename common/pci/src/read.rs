@@ -3,7 +3,7 @@ use x86::io::{inl, outl};
 use kernel_api::pci::PciHeader;
 
 pub unsafe fn read_header(addr: u64) -> PciHeader {
-    (addr as *const PciHeader).read_volatile()
+    unsafe {(addr as *const PciHeader).read_volatile()}
 }
 
 pub unsafe fn read_header_legacy(
@@ -12,24 +12,24 @@ pub unsafe fn read_header_legacy(
     function: u8,
 ) -> PciHeader {
     PciHeader {
-        vendor_id: read_u16(bus, device, function, 0x00),
-        device_id: read_u16(bus, device, function, 0x02),
-        command: read_u16(bus, device, function, 0x04),
-        status: read_u16(bus, device, function, 0x06),
-        revision_id: read_u8(bus, device, function, 0x08),
-        prog_if: read_u8(bus, device, function, 0x09),
-        subclass: read_u8(bus, device, function, 0x0A),
-        class_code: read_u8(bus, device, function, 0x0B),
-        cache_line_size: read_u8(bus, device, function, 0x0C),
-        latency_timer: read_u8(bus, device, function, 0x0D),
-        header_type: read_u8(bus, device, function, 0x0E),
-        bist: read_u8(bus, device, function, 0x0F),
-        bar0: read_u32(bus, device, function, 0x10),
-        bar1: read_u32(bus, device, function, 0x14),
-        bar2: read_u32(bus, device, function, 0x18),
-        bar3: read_u32(bus, device, function, 0x1C),
-        bar4: read_u32(bus, device, function, 0x20),
-        bar5: read_u32(bus, device, function, 0x24)
+        vendor_id: unsafe {read_u16(bus, device, function, 0x00)},
+        device_id: unsafe {read_u16(bus, device, function, 0x02)},
+        command: unsafe {read_u16(bus, device, function, 0x04)},
+        status: unsafe {read_u16(bus, device, function, 0x06)},
+        revision_id: unsafe {read_u8(bus, device, function, 0x08)},
+        prog_if: unsafe {read_u8(bus, device, function, 0x09)},
+        subclass: unsafe {read_u8(bus, device, function, 0x0A)},
+        class_code: unsafe {read_u8(bus, device, function, 0x0B)},
+        cache_line_size: unsafe {read_u8(bus, device, function, 0x0C)},
+        latency_timer: unsafe {read_u8(bus, device, function, 0x0D)},
+        header_type: unsafe {read_u8(bus, device, function, 0x0E)},
+        bist: unsafe {read_u8(bus, device, function, 0x0F)},
+        bar0: unsafe {read_u32(bus, device, function, 0x10)},
+        bar1: unsafe {read_u32(bus, device, function, 0x14)},
+        bar2: unsafe {read_u32(bus, device, function, 0x18)},
+        bar3: unsafe {read_u32(bus, device, function, 0x1C)},
+        bar4: unsafe {read_u32(bus, device, function, 0x20)},
+        bar5: unsafe {read_u32(bus, device, function, 0x24)}
     }
 }
 
@@ -42,19 +42,19 @@ pub unsafe fn read_u32(bus: u8, device: u8, function: u8, offset: u8) -> u32 {
         | ((function as u32) << 8)
         | ((offset as u32) & 0xFC);
 
-    outl(0xCF8, address);
-    inl(0xCFC)
+    unsafe {outl(0xCF8, address)};
+    unsafe {inl(0xCFC)}
 }
 
 pub unsafe fn read_u16(bus: u8, device: u8, function: u8, offset: u8) -> u16 {
-    let value = read_u32(bus, device, function, offset & !0x3);
+    let value = unsafe {read_u32(bus, device, function, offset & !0x3)};
 
     let shift = ((offset & 0x2) * 8) as u32;
     ((value >> shift) & 0xFFFF) as u16
 }
 
 pub unsafe fn read_u8(bus: u8, device: u8, function: u8, offset: u8) -> u8 {
-    let value = read_u32(bus, device, function, offset & !0x3);
+    let value = unsafe {read_u32(bus, device, function, offset & !0x3)};
 
     let shift = ((offset & 0x3) * 8) as u32;
     ((value >> shift) & 0xFF) as u8

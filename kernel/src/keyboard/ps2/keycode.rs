@@ -1,7 +1,7 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::keyboard::{KEYBOARD_BUFFER};
-use kernel_api::keyboard::{keyevent::KeyEvent, keycode::{KeyCode,scancode_to_keycode}};
+use kernel_api::keyboard::{keyevent::KeyEvent, keycode::{scancode_to_keycode}};
 
 
 static SHIFT: AtomicBool = AtomicBool::new(false);

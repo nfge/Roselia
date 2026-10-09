@@ -1,5 +1,3 @@
-use core::ffi::c_void;
-
 use acpi::get::get_table;
 use kernel_api::acpi_tables::{
     fadt::Fadt,

@@ -1,4 +1,4 @@
-use crate::gop::{color::Color, fonts::font8x16::FontChar};
+use crate::gop::{color::Color};
 use alloc::{vec, vec::Vec};
 use uefi::proto::console::gop::ModeInfo;
 
@@ -83,6 +83,7 @@ impl Graphics {
             }
         }
     }
+    #[allow(unused)]
     pub fn draw_line(&mut self, x1: isize, y1: isize, x2: isize, y2: isize, color: Color) {
         let mut x = x1;
         let mut y = y1;

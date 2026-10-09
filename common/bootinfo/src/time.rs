@@ -1,6 +1,6 @@
 use uefi::{
     Result,
-    runtime::{Daylight, Time, TimeCapabilities, get_time_and_caps},
+    runtime::{Time, TimeCapabilities, get_time_and_caps},
 };
 use kernel_api::time::KernelTime;
 

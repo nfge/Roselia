@@ -1,6 +1,6 @@
-use alloc::{string::ToString, vec::Vec};
+use alloc::{vec::Vec};
 
-use crate::{kprintln, terminal::{command::Command, token::Token}};
+use crate::{terminal::{command::Command, token::Token}};
 
 pub struct Parser;
 

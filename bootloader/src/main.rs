@@ -5,8 +5,6 @@ mod init;
 use bootinfo::{
     BootInfo,
     kernelinfo::{KernelInfo, StackInfo},
-    reset::reset_fn,
-    time::get_uefi_time,
 };
 use kernel_api::module::raw::{RawModules};
 
@@ -19,9 +17,8 @@ use uefi::{
     println,
     proto::{
         console::text::{Input, Key, ScanCode},
-        media::file::{File, FileAttribute},
     },
-    runtime::{ResetType, VariableAttributes, VariableVendor, get_time_and_caps, get_variable, reset},
+    runtime::{ResetType, VariableAttributes, VariableVendor},
     system::with_config_table,
     table::cfg::ConfigTableEntry,
 };

@@ -1,17 +1,16 @@
 use core::panic;
 
 use kernel_api::acpi_tables::{
-    dsdt::Dsdt, fadt::Fadt, rsdp::Rsdp, sdtheader::SdtHeader, ssdt::Ssdt, xsdt::Xsdt
+    dsdt::Dsdt, fadt::Fadt,sdtheader::SdtHeader, ssdt::Ssdt,
 };
 use acpi::{get::{get_table,get_tables},func::{SLP_EN, SLP_TYP_SHIFT, find_sleep_type}};
 
-use kernel_api::time::KernelTime;
 use uefi::runtime::{Time, TimeCapabilities};
 use x86::io::outb;
 use x86_64::instructions::hlt;
 
 use crate::{ACPI_TABLE, GET_VAR_FN, SET_VAR_FN, TIME_FN};
-
+#[allow(unused)]
 pub unsafe fn reset() -> ! {
     let fadt_ptr = unsafe { get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap() };
     let fadt = unsafe { &*fadt_ptr };
@@ -30,6 +29,7 @@ pub unsafe fn reset() -> ! {
         hlt();
     }
 }
+#[allow(unused)]
 pub unsafe fn poweroff() -> ! {
     use x86_64::instructions::port::Port;
     let fadt_ptr = unsafe { get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap() };
@@ -43,15 +43,15 @@ pub unsafe fn poweroff() -> ! {
 
     let mut s5_types = None;
 
-    if let Some(types) = find_sleep_type(b"_S5_", dsdt.aml_bytes()) {
+    if let Some(types) = find_sleep_type(b"_S5_", unsafe {dsdt.aml_bytes()}) {
         s5_types = Some(types);
     }
 
     if s5_types.is_none() {
-        for ssdt_ptr in get_tables::<SdtHeader>(ACPI_TABLE.unwrap(), b"SSDT") {
-            let ssdt = &*(ssdt_ptr as *const Ssdt);
+        for ssdt_ptr in unsafe {get_tables::<SdtHeader>(ACPI_TABLE.unwrap(), b"SSDT")} {
+            let ssdt = unsafe {&*(ssdt_ptr as *const Ssdt)};
 
-            if let Some(types) = find_sleep_type(b"_S5_", ssdt.aml_bytes()) {
+            if let Some(types) = find_sleep_type(b"_S5_", unsafe {ssdt.aml_bytes()}) {
                 s5_types = Some(types);
                 break;
             }
@@ -69,10 +69,11 @@ pub unsafe fn poweroff() -> ! {
         hlt();
     }
 }
-
+#[allow(unused)]
 pub fn get_time() -> Result<(Time,TimeCapabilities), uefi::Error> {
     unsafe { TIME_FN.unwrap()() }
 }
+#[allow(unused)]
 pub fn set_uefi_var(
     name: &uefi::CStr16,
     vendor: &uefi::runtime::VariableVendor,
@@ -81,6 +82,7 @@ pub fn set_uefi_var(
 ) -> Result<(), uefi::Error> {
     unsafe { SET_VAR_FN.unwrap()(name, vendor, attributes, data) }
 }
+#[allow(unused)]
 pub fn get_uefi_var<'buf>(
     name: &uefi::CStr16,
     vendor: &uefi::runtime::VariableVendor,

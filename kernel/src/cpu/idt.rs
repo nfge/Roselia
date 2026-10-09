@@ -1,6 +1,5 @@
 use core::{
     hint::spin_loop,
-    ops::{Deref, Index},
 };
 
 use acpi::get::get_table;
@@ -8,15 +7,13 @@ use kernel_api::acpi_tables::fadt::Fadt;
 use lazy_static::lazy_static;
 use x86::io::{inw, outw};
 use x86_64::{
-    PhysAddr, VirtAddr,
     structures::{
         idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
-        paging::{Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB},
     },
 };
 
 use crate::{
-    ACPI_TABLE, MAPPER, MULTI_ALLOCATOR, cpu, func::{poweroff, reset}, keyboard, kprintln, log, log_fail, log_info, timer,
+    ACPI_TABLE, cpu, func::{poweroff}, keyboard, log, log_info, timer,
 };
 use utils::serial_println;
 
@@ -115,9 +112,6 @@ extern "x86-interrupt" fn pagefault_handler(
         err_code,
         Cr2::read()
     );
-    loop {
-        spin_loop();
-    }
 }
 
 extern "x86-interrupt" fn sci_handler(_stack: InterruptStackFrame) {

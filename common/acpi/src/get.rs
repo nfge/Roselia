@@ -49,7 +49,7 @@ pub unsafe fn get_ptr_table(
 }
 
 pub unsafe fn get_table<T>(acpi_table: *const c_void, signature: &[u8; 4]) -> Option<*const T> {
-    let ptr = if let Some(ptr) = get_ptr_table(acpi_table, signature) {
+    let ptr = if let Some(ptr) = unsafe {get_ptr_table(acpi_table, signature)} {
         ptr
     } else {
         return None

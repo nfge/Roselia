@@ -8,7 +8,7 @@ use utils::serial_println;
 use x86_64::{
     PhysAddr, VirtAddr,
     structures::paging::{
-        FrameAllocator, Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB,
+        Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB,
         mapper::MapToError,
     },
 };
@@ -175,7 +175,7 @@ impl<'a> MultiAllocator<'a> {
         let physaddr = self.alloc_frames(count)?;
         let mut maped: usize = 0;
         let guard = MAPPER.lock();
-        let mut mapper = unsafe { (*guard.get()).as_mut().unwrap() };
+        let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
         for i in 0..count {
             let addr = physaddr + (i as u64) * Size4KiB::SIZE;
             let frame = PhysFrame::containing_address(addr);

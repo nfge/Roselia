@@ -59,15 +59,15 @@ pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
 
     for bus in 0..=255u8 {
         for device in 0..32u8 {
-            let value = read_u32(bus, device, 0, 0);
+            let value = unsafe {read_u32(bus, device, 0, 0)};
 
             let vendor_id = (value & 0xFFFF) as u16;
-            let device_id = (value >> 16) as u16;
+            let _device_id = (value >> 16) as u16;
 
             if vendor_id == 0xFFFF {
                 continue;
             }
-            let header = read_header_legacy(bus, device, 0);
+            let header = unsafe {read_header_legacy(bus, device, 0)};
 
             devices.push(PciDevice {
                 bus,
@@ -78,14 +78,14 @@ pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
 
             if header.header_type & 0x80 != 0 {
                 for function in 1..8u8 {
-                    let value = read_u32(bus, device, function, 0);
+                    let value = unsafe {read_u32(bus, device, function, 0)};
 
                     let vendor_id = (value & 0xFFFF) as u16;
                     if vendor_id == 0xFFFF {
                         continue;
                     }
 
-                    let header = read_header_legacy(bus, device, function);
+                    let header = unsafe {read_header_legacy(bus, device, function)};
 
                     devices.push(PciDevice {
                         bus,

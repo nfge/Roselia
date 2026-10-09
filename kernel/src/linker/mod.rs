@@ -11,7 +11,6 @@ use kernel_api::{
         elf64sym::{Elf64Sym, SHN_ABS, SHN_UNDEF, sym_name},
     },
     module::raw::RawModule,
-    symbol::{KernelSymbol, SymAddr},
 };
 
 use utils::serial_println;
@@ -21,8 +20,8 @@ use x86_64::{
 };
 
 use crate::{
-    kprintln, linker::error::RelocateError, log_debug, log_fail, log_info, module::KERNEL_EXPORTS,
-    ramfs::read_file, terminal::export::kprintln,
+    linker::error::RelocateError, log_fail, log_info,
+    ramfs::read_file
 };
 
 pub mod error;
@@ -59,11 +58,11 @@ impl Linker {
         let (mut jmprel_vaddr, mut jmprel_size) = (None, 0usize);
         for d in dyn_entries {
             match d.d_tag {
-                DT_RELA => rela_vaddr = Some(d.d_un.d_val),
-                DT_RELASZ => rela_size = d.d_un.d_val as usize,
-                DT_RELAENT => rela_ent = d.d_un.d_val as usize,
-                DT_JMPREL => jmprel_vaddr = Some(d.d_un.d_val),
-                DT_PLTRELSZ => jmprel_size = d.d_un.d_val as usize,
+                DT_RELA => rela_vaddr = Some(unsafe {d.d_un.d_val}),
+                DT_RELASZ => rela_size = unsafe {d.d_un.d_val as usize},
+                DT_RELAENT => rela_ent = unsafe {d.d_un.d_val as usize},
+                DT_JMPREL => jmprel_vaddr = Some(unsafe {d.d_un.d_val}),
+                DT_PLTRELSZ => jmprel_size = unsafe {d.d_un.d_val as usize},
                 DT_NULL => break,
                 _ => {}
             }

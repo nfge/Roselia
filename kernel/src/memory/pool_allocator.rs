@@ -1,8 +1,8 @@
 use x86_64::{
-    PhysAddr, VirtAddr, structures::paging::{FrameAllocator, PhysFrame, Size4KiB},
+    PhysAddr,structures::paging::{FrameAllocator, PhysFrame, Size4KiB},
 };
 
-use crate::memory::multi_allocator::{alloc_frames, map};
+use crate::memory::multi_allocator::{alloc_frames};
 
 #[repr(C)]
 pub struct Chunk {
@@ -46,7 +46,7 @@ impl PoolAllocator {
 
     pub fn alloc_frames(&mut self, count: usize) -> Option<u64> {
         if self.remaining < (count * 4096) {
-            let c = (count + 1);
+            let c = count + 1;
             let addr = alloc_frames(c)?.as_u64();
             self.add_chunk(addr, c);
 

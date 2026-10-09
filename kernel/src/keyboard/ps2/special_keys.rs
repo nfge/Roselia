@@ -1,3 +1,4 @@
+#[allow(unused)]
 pub fn check_special(c: char) -> Option<char> {
     match c {
         '\'' => Some('"'),

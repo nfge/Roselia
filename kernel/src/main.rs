@@ -20,17 +20,10 @@ mod timer;
 
 // mod uart;
 use crate::{
-    func::reset,
-    gop::{color::Color, graphics::Graphics},
-    lock::{CurrentThreadId, RawSpinMutex},
-    memory::{
-        multi_allocator::{MultiAllocator, alloc_frame, alloc_frames, map},
+    func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, RawSpinMutex}, memory::{
+        multi_allocator::{MultiAllocator, alloc_frames, map},
         pool_allocator::PoolAllocator,
-    },
-    module::{export::init_exports, load_module},
-    ramfs::{RamFs, init_ramfs},
-    terminal::Terminal,
-    timer::sleep::spin_sleep,
+    }, module::{export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, timer::sleep::spin_sleep,
 };
 
 use acpi::get::get_table;
@@ -38,30 +31,30 @@ use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,
     reset::ResetFn,
-    time::{GetTimeFn, OriginalGetTimeFn},
+    time::{OriginalGetTimeFn},
     variable::{GetVar, SetVar},
 };
 use core::{
-    cell::{RefCell, UnsafeCell},
+    cell::{UnsafeCell},
     ffi::c_void,
     panic::PanicInfo,
 };
 use kernel_api::{
-    acpi_tables::{mcfg::Mcfg, rsdp::Rsdp},
+    acpi_tables::{mcfg::Mcfg},
     module::{
         Module,
         raw::{RawModule, RawModules},
     },
 };
-use lock_api::{RawMutex, ReentrantMutex};
-use uefi::{boot::MemoryType, mem::memory_map::MemoryMap, proto::console::serial};
+use lock_api::{ReentrantMutex};
+use uefi::{boot::MemoryType, mem::memory_map::MemoryMap};
 use utils::serial_println;
 use x86::io::outb;
 use x86_64::{
     PhysAddr, VirtAddr,
-    registers::control::{Cr3, Cr3Flags},
+    registers::control::{Cr3},
     structures::paging::{
-        Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PhysFrame, Size4KiB,
+        OffsetPageTable, PageTable, PageTableFlags, PhysFrame,
     },
 };
 
@@ -316,12 +309,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             let module = unsafe {
                 match load_module(&rawmodule) {
                     Ok(m) => m,
-                    Err(e) => {
-                        log_fail!(
-                            "Failed to load module 0x{:016x} with {:?}\n",
-                            rawmodule.address,
-                            e
-                        );
+                    Err(_) => {
                         continue;
                     }
                 }

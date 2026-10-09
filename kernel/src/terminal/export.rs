@@ -1,5 +1,4 @@
 use kernel_api::keyboard::keyevent::KeyEvent;
-use core::fmt::Write;
 use crate::TERMINAL;
 
 pub extern "Rust" fn kprint(s: &str) {

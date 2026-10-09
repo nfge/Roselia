@@ -1,5 +1,6 @@
 use raw_cpuid::CpuId;
 
+#[allow(unused)]
 pub fn hardware_random() -> Option<u64> {
     let mut value: u64;
     let mut success: u8;
