@@ -1,6 +1,6 @@
 [package]
 name = "kernel"
-version = "0.7.2"
+version = "0.7.3"
 edition = "2024"
 authors = ["nfge Github: <https://github.com/nfge>"]
 
@@ -14,6 +14,8 @@ lock_api = "=0.4.14"
 spin = "0.12.2"
 jiff = { version = "0.2.37", default-features = false, features = ["alloc"] }
 lazy_static = {version = "1.5.0", features = ["spin_no_std"]}
+linked_list_allocator = "0.10.6"
+bitflags = "2.13.2"
 
 kernel_api={path = "../kernel_api", features = ["module_api", "alloc"]}
 
@@ -21,7 +23,6 @@ bootinfo={path = "../common/bootinfo"}
 acpi = {path = "../common/acpi"}
 pci={path = "../common/pci"}
 utils={path = "../utils"}
-linked_list_allocator = "0.10.6"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 x86 = "0.52.0"

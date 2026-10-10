@@ -23,7 +23,7 @@ use uefi::{
     table::cfg::ConfigTableEntry,
 };
 
-use crate::init::{get_kernel, init_gop::init_gop, load_modules};
+use crate::init::{get_kernel, init_gop::init_gop, modules::load_modules};
 
 const PT_LOAD: u32 = 1;
 

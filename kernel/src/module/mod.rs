@@ -7,7 +7,7 @@ use kernel_api::{
         elf64phdr::{Elf64Phdr, PF_X, PT_LOAD},
         elf64shdr::Elf64Shdr,
     },
-    module::{Module, ModuleInfo, raw::RawModule},
+    module::{Module, ModuleFlags, ModuleInfo, raw::RawModule},
     symbol::KernelSymbol,
 };
 
@@ -83,23 +83,28 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
     let guard = MAPPER.lock();
     let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
     unsafe { Linker::protect_module(module, mapper) };
-
-    let entry_addr = (module.load_bias + ehdr.e_entry as i64) as u64;
-
-    if !is_in_executable_segment(module, entry_addr) {
-        log_fail!(
-            "Failed to load module {} with {:?}\n",
-            core::str::from_utf8(
-                &info.name[..info
-                    .name
-                    .iter()
-                    .position(|&c| c == 0)
-                    .unwrap_or(info.name.len())]
-            )
-            .unwrap(),
-            LoadError::EntryNotExecutable
-        );
-        return Err(LoadError::EntryNotExecutable);
+    let flags = ModuleFlags::from_bits(info.flags).ok_or(LoadError::InvalidFlags)?;
+    let entry_addr = if flags.contains(ModuleFlags::NO_ENTRY) || ehdr.e_entry == 0 {
+        None
+    } else {
+        Some((module.load_bias + ehdr.e_entry as i64) as u64)
+    };
+    if !entry_addr.is_none() {
+        if !is_in_executable_segment(module, entry_addr.unwrap()) {
+            log_fail!(
+                "Failed to load module {} with {:?}\n",
+                core::str::from_utf8(
+                    &info.name[..info
+                        .name
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(info.name.len())]
+                )
+                .unwrap(),
+                LoadError::EntryNotExecutable
+            );
+            return Err(LoadError::EntryNotExecutable);
+        }
     }
     log_info!(
         "Successful loaded module {} 0x{:016x}\n",
@@ -113,11 +118,19 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
         .unwrap(),
         module.address
     );
-    Ok(Module {
-        entry_fn: entry_addr as *const (),
-        address: module.address,
-        info,
-    })
+    if !entry_addr.is_none() {
+        Ok(Module {
+            entry_fn: Some(entry_addr.unwrap() as *const ()),
+            address: module.address,
+            info,
+        })
+    } else {
+        Ok(Module {
+            entry_fn: None,
+            address: module.address,
+            info,
+        })
+    }
 }
 
 fn is_in_executable_segment(module: &RawModule, addr: u64) -> bool {

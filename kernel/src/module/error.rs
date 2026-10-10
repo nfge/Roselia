@@ -5,6 +5,7 @@ pub enum LoadError {
     EntryNotExecutable,
     InvalidMagic,
     InvalidAbiVersion,
+    InvalidFlags,
     RelocateError(RelocateError)
 }
 

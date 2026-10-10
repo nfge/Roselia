@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 uefi="0.41.0"
+bitflags = "2.13.2"
 
 [features]
 module_api = []

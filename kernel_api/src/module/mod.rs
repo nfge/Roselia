@@ -5,12 +5,17 @@ use alloc::vec::Vec;
 
 pub mod raw;
 
-
-pub const ACCEPT_ARGS: u32 = 1 << 0;
+bitflags::bitflags! {
+    #[derive(Debug)]
+    pub struct ModuleFlags: u32 {
+        const ACCEPT_ARGS = 1 << 0;
+        const NO_ENTRY = 1 << 1;
+    }
+}
 
 #[repr(C)]
 pub struct Module {
-    pub entry_fn: *const (),
+    pub entry_fn: Option<*const ()>,
     pub address: u64,
     pub info: ModuleInfo
 }

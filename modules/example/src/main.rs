@@ -5,7 +5,7 @@ extern crate alloc;
 
 use core::{alloc::{GlobalAlloc, Layout}, ptr::NonNull};
 
-use kernel_api::module::{ACCEPT_ARGS, ModuleInfo};
+use kernel_api::module::{ModuleInfo};
 
 pub struct ModuleAllocator;
 

@@ -1,5 +1,15 @@
 use crate::{
-    ACPI_TABLE, MODULES, cpu::{self}, func::{get_time, poweroff, reset}, gop::{color::Color, fonts::VGA_FONT, graphics::Graphics}, keyboard::KeyBoard, kprint, log_fail, memory::{get_heap_free, get_heap_used}, module::CURRENT_MODULE_RSP, ramfs::{check_directory, is_valid,read_file}, terminal::{command::Command}, timer::sleep::sleep,
+    ACPI_TABLE, MODULES,
+    cpu::{self},
+    func::{get_time, poweroff, reset},
+    gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
+    keyboard::KeyBoard,
+    kprint, log_fail,
+    memory::{get_heap_free, get_heap_used},
+    module::CURRENT_MODULE_RSP,
+    ramfs::{check_directory, is_valid, read_file},
+    terminal::command::Command,
+    timer::sleep::sleep,
 };
 use acpi::get::get_table;
 use alloc::{
@@ -7,7 +17,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{fmt::{Arguments, Write}};
+use core::fmt::{Arguments, Write};
 use jiff::SignedDuration;
 use kernel_api::{
     acpi_tables::mcfg::Mcfg,
@@ -15,7 +25,7 @@ use kernel_api::{
         keycode::{KeyCode, key_event_to_char},
         keyevent::KeyEvent,
     },
-    module::{ACCEPT_ARGS, ModuleArgs},
+    module::{ModuleArgs, ModuleFlags},
 };
 
 mod command;
@@ -261,7 +271,9 @@ impl Terminal {
                     let _ = self.print_fmt(format_args!("Temp: {}\n", cpu_therm.unwrap_or(0)));
                     kprint!(
                         "Freq:\n Bus: {}\n Base: {}\n Max: {}\n",
-                        cpu_freq.0, cpu_freq.1, cpu_freq.2
+                        cpu_freq.0,
+                        cpu_freq.1,
+                        cpu_freq.2
                     );
                 }
             }
@@ -451,7 +463,10 @@ impl Terminal {
                 let rows = self.rows;
                 kprint!(
                     "Width: {}. Height: {} ({}x{} chars)",
-                    width, height, cols, rows
+                    width,
+                    height,
+                    cols,
+                    rows
                 );
                 self.new_line();
             }
@@ -476,7 +491,9 @@ impl Terminal {
                                         );
                                         kprint!(
                                             "{}:{}.{}\n",
-                                            device.bus, device.device, device.function
+                                            device.bus,
+                                            device.device,
+                                            device.function
                                         );
                                         kprint!(
                                             "{:04x} {}\n{:04x} {}\n\n",
@@ -496,7 +513,9 @@ impl Terminal {
                                         );
                                         kprint!(
                                             "{}:{}.{}\n",
-                                            device.bus, device.device, device.function
+                                            device.bus,
+                                            device.device,
+                                            device.function
                                         );
                                         kprint!(
                                             "{:04x} {}\n{:04x} {}\n\n",
@@ -525,7 +544,9 @@ impl Terminal {
                                                 pci::check(vendor_id, device_id);
                                             kprint!(
                                                 "{}:{}.{}\n",
-                                                device.bus, device.device, device.function
+                                                device.bus,
+                                                device.device,
+                                                device.function
                                             );
                                             kprint!(
                                                 "{:04x} {}\n{:04x} {}\n\n",
@@ -568,12 +589,12 @@ impl Terminal {
                             .unwrap();
                             if name == s.as_str() {
                                 kprint!(
-                                    "Name: {}\nModule version: {}\nAbi version: {}\nMagic: {}\nFlags: {}\n",
+                                    "Name: {}\nModule version: {}\nAbi version: {}\nMagic: {}\nFlags: {:?}\n",
                                     name,
                                     module.info.module_version,
                                     module.info.abi_version,
                                     module.info.magic,
-                                    module.info.flags
+                                    ModuleFlags::from_bits(module.info.flags).unwrap()
                                 );
                                 return;
                             }
@@ -582,7 +603,7 @@ impl Terminal {
                     }
                 },
                 None => self.print_string_ln("Usage modinfo [module name]"),
-            }
+            },
             _ => {
                 let name = command.name.as_str();
                 if let Some(modules) = unsafe { &*core::ptr::addr_of_mut!(MODULES) } {
@@ -596,9 +617,14 @@ impl Terminal {
                             .unwrap_or(module.info.name.len());
 
                         if core::str::from_utf8(&module.info.name[..end]).unwrap() == name {
-                            if module.info.flags & ACCEPT_ARGS != 0 {
+                            let flags = ModuleFlags::from_bits_truncate(module.info.flags);
+                            if flags.contains(ModuleFlags::ACCEPT_ARGS) {
+                                if module.entry_fn.is_none() {
+                                    kprint!("Command not found\n");
+                                    return
+                                }
                                 let init: extern "C" fn(*const ModuleArgs) -> i32 =
-                                    unsafe { core::mem::transmute(module.entry_fn) };
+                                    unsafe { core::mem::transmute(module.entry_fn.unwrap()) };
                                 let raw_argv: Vec<Vec<u8>> = command
                                     .args
                                     .iter()
@@ -639,9 +665,14 @@ impl Terminal {
                                     kprint!("Module exited with error code {}\n", result);
                                     break;
                                 }
-                            } else {
+                            }
+                            if flags.is_empty() {
+                                if module.entry_fn.is_none() {
+                                    kprint!("Command not found\n");
+                                    return
+                                }
                                 let init: extern "C" fn() -> i32 =
-                                    unsafe { core::mem::transmute(module.entry_fn) };
+                                    unsafe { core::mem::transmute(module.entry_fn.unwrap()) };
                                 let result: i32;
                                 unsafe {
                                     core::arch::asm!(
@@ -669,7 +700,7 @@ impl Terminal {
                     }
 
                     if !found {
-                        self.print_string_ln("Command not found");
+                        kprint!("Command not found\n");
                         return;
                     }
                 }
