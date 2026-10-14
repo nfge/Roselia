@@ -20,10 +20,17 @@ mod timer;
 
 // mod uart;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, RawSpinMutex}, memory::{
+    func::reset,
+    gop::{color::Color, graphics::Graphics},
+    lock::{CurrentThreadId, RawSpinMutex},
+    memory::{
         multi_allocator::{MultiAllocator, alloc_frames, map},
-        pool_allocator::PoolAllocator,
-    }, module::{export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, timer::sleep::spin_sleep,
+        pool_allocator::{POOL_GROW_COST, PoolAllocator},
+    },
+    module::{export::init_exports, load_module},
+    ramfs::{RamFs, init_ramfs},
+    terminal::Terminal,
+    timer::sleep::spin_sleep,
 };
 
 use acpi::get::get_table;
@@ -31,31 +38,25 @@ use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,
     reset::ResetFn,
-    time::{OriginalGetTimeFn},
+    time::OriginalGetTimeFn,
     variable::{GetVar, SetVar},
 };
-use core::{
-    cell::{UnsafeCell},
-    ffi::c_void,
-    panic::PanicInfo,
-};
+use core::{cell::UnsafeCell, ffi::c_void, panic::PanicInfo};
 use kernel_api::{
-    acpi_tables::{mcfg::Mcfg},
+    acpi_tables::mcfg::Mcfg,
     module::{
         Module,
         raw::{RawModule, RawModules},
     },
 };
-use lock_api::{ReentrantMutex};
+use lock_api::ReentrantMutex;
 use uefi::{boot::MemoryType, mem::memory_map::MemoryMap};
 use utils::serial_println;
 use x86::io::outb;
 use x86_64::{
     PhysAddr, VirtAddr,
-    registers::control::{Cr3},
-    structures::paging::{
-        OffsetPageTable, PageTable, PageTableFlags, PhysFrame,
-    },
+    registers::control::Cr3,
+    structures::paging::{OffsetPageTable, PageTable, PageTableFlags, PhysFrame},
 };
 
 static mut FB_PTR: Option<*mut u32> = None;
@@ -116,16 +117,31 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let addr = alloc_frames(1024).unwrap();
         let mut allocator = PoolAllocator::new(addr.as_u64(), 1024, 0);
+        
         let pml4_frame =
-            PhysFrame::containing_address(PhysAddr::new(allocator.alloc_frames(1).unwrap()));
+        PhysFrame::containing_address(PhysAddr::new(allocator.alloc_frames(1).unwrap()));
+        
+        allocator.set_reserved(POOL_GROW_COST);
+        
         unsafe {
             PAGETABLE_POOL_ALLOCATOR = Some(allocator);
         }
+
         let pml4_virt = VirtAddr::new(0 + pml4_frame.start_address().as_u64());
         let pml4: &mut PageTable = unsafe { &mut *pml4_virt.as_mut_ptr() };
         pml4.zero();
+
         let mapper = unsafe { OffsetPageTable::new(pml4, VirtAddr::new(0)) };
+
         unsafe { *MAPPER.lock().get() = Some(mapper) };
+
+        let _ = map(
+            addr,
+            VirtAddr::new(addr.as_u64()),
+            1024,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        )
+        .unwrap();
         let _ = map(
             PhysAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
             VirtAddr::new(info.kernel_info.stack_info.stack_ptr.as_ptr() as u64),
@@ -279,16 +295,16 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             )
             .unwrap();
         }
-        if let Some(alloc) = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) } {
-            for chunk in alloc.chunks() {
-                let _ = map(
-                    PhysAddr::new(chunk.start),
-                    VirtAddr::new(chunk.start),
-                    chunk.count,
-                    PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                );
-            }
-        }
+        // if let Some(alloc) = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) } {
+        //     for chunk in alloc.chunks() {
+        //         let _ = map(
+        //             PhysAddr::new(chunk.start),
+        //             VirtAddr::new(chunk.start),
+        //             chunk.count,
+        //             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        //         );
+        //     }
+        // }
         unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
         if cfg!(debug_assertions) {
             serial_println!("Cr3 load successful");
