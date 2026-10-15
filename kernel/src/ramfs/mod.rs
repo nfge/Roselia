@@ -283,7 +283,7 @@ pub fn init_ramfs() {
                 ptableused += c.count;
             }
             
-            format!("mem total: {}KB\nmem free: {}KB\nmem used: {}KB\nheap total: {}KB\nheap free: {}KB\nheap used: {}KB\nptableused: {}KB\n", memtotal, memfree, memused, heaptotal, heapfree,heapused, ptableused).into_bytes()
+            format!("mem total: {}KB\nmem free: {}KB\nmem used: {}KB\nheap total: {}KB\nheap free: {}KB\nheap used: {}KB\nptableused: {}KB\n", memtotal, memfree, memused, heaptotal, heapfree,heapused, ptableused * 4 as usize).into_bytes()
         }),
     ).unwrap();
     let _ = create_file(
