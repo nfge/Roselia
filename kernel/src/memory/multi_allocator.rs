@@ -55,6 +55,7 @@ impl<'a> MultiAllocator<'a> {
             kernel_info.stack_info.stack_ptr.as_ptr() as usize,
             kernel_info.stack_info.stack_pages,
         );
+        self.reserve_pages(kernel_info.stack_info.stack_ptr.as_ptr() as usize - 4096, 1);
         self.reserve_pages(
             info as *const BootInfo as usize,
             core::mem::size_of::<BootInfo>().div_ceil(4096),
@@ -132,8 +133,12 @@ impl<'a> MultiAllocator<'a> {
             Page::<Size4KiB>::containing_address(VirtAddr::new(frame.start_address().as_u64()));
         let guard = MAPPER.lock();
         let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
-        if !ensure_pool_reserve(mapper) {
+        if let Err(e) = ensure_pool_reserve(mapper) {
             self.free_frame(frame);
+            log_err!("Failed to grow page with e: {:#?}", e);
+            if cfg!(debug_assertions) {
+                serial_println!("Failed to grow page with e: {:#?}", e);
+            }
             return None;
         }
         let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
@@ -187,8 +192,8 @@ impl<'a> MultiAllocator<'a> {
             let frame = PhysFrame::containing_address(addr);
             let page = Page::<Size4KiB>::containing_address(VirtAddr::new(addr.as_u64()));
 
-            let result = if ensure_pool_reserve(mapper) {
-                let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
+            let result = match ensure_pool_reserve(mapper) {
+                Ok(()) => {let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
                     .as_mut()
                     .unwrap();
                 unsafe {
@@ -198,9 +203,8 @@ impl<'a> MultiAllocator<'a> {
                         PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
                         alloc,
                     )
-                }
-            } else {
-                Err(MapToError::FrameAllocationFailed)
+                }}
+                Err(e) => Err(e)
             };
             match result {
                 Ok(f) => {
@@ -331,9 +335,8 @@ pub fn map(
     let guard = MAPPER.lock();
     let mut mapper = unsafe { (*guard.get()).as_mut().unwrap() };
     for p in 0..count {
-        if !ensure_pool_reserve(mapper) {
-            return Err(MapToError::FrameAllocationFailed);
-        }
+        ensure_pool_reserve(mapper)?;
+
         let addr = addr.as_u64() as usize + p * Size4KiB::SIZE as usize;
         let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
         let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr as u64));

@@ -1,8 +1,6 @@
 use x86_64::{
-    PhysAddr, VirtAddr,
-    structures::paging::{
-        FrameAllocator, Mapper, OffsetPageTable, Page, PageSize, PageTableFlags, PhysFrame,
-        Size4KiB,
+    PhysAddr, VirtAddr, structures::paging::{
+        FrameAllocator, Mapper, OffsetPageTable, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB, mapper::MapToError,
     },
 };
 
@@ -106,16 +104,17 @@ unsafe impl FrameAllocator<Size4KiB> for PoolAllocator {
     }
 }
 
-pub fn ensure_pool_reserve(mapper: &mut OffsetPageTable<'static>) -> bool {
+pub fn ensure_pool_reserve(mapper: &mut OffsetPageTable<'static>) -> Result<(), MapToError<Size4KiB>> {
     let pool = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
         .as_mut()
         .unwrap();
     if pool.free() >= POOL_RESERVE {
-        return true;
+        return Ok(())
     }
     let Some(start) = alloc_frames(POOL_GROW_PAGES) else {
-        return false;
+        return Err(MapToError::FrameAllocationFailed);
     };
+    let mut no = [false; POOL_GROW_PAGES];
     for i in 0..POOL_GROW_PAGES {
         let addr = start + (i as u64) * Size4KiB::SIZE;
         let frame = PhysFrame::<Size4KiB>::containing_address(addr);
@@ -129,7 +128,10 @@ pub fn ensure_pool_reserve(mapper: &mut OffsetPageTable<'static>) -> bool {
             )
         };
         match result {
-            Ok(f) => f.flush(),
+            Ok(f) => {f.flush();no[i] = true;},
+            Err(MapToError::PageAlreadyMapped(p)) => {
+                if p == frame {}
+            }
             Err(e) => {
                 log_err!(
                     "Failed to map pool page {}/{}. e: {:#?}",
@@ -138,6 +140,9 @@ pub fn ensure_pool_reserve(mapper: &mut OffsetPageTable<'static>) -> bool {
                     e
                 );
                 for j in 0..i {
+                    if !no[j] {
+                        continue;
+                    }
                     let a = start + (j as u64) * Size4KiB::SIZE;
                     let p = Page::<Size4KiB>::containing_address(VirtAddr::new(a.as_u64()));
                     if let Ok((_, f)) = mapper.unmap(p) {
@@ -145,10 +150,10 @@ pub fn ensure_pool_reserve(mapper: &mut OffsetPageTable<'static>) -> bool {
                     }
                 }
                 free_frames(start, POOL_GROW_PAGES);
-                return false;
+                return Err(e)
             }
         }
     }
     pool.add_chunk(start.as_u64(), POOL_GROW_PAGES);
-    true
+    Ok(())
 }
