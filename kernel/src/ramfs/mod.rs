@@ -277,13 +277,15 @@ pub fn init_ramfs() {
             let heapfree = get_heap_free();
             let heapused = get_heap_used();
             
-            let mut ptableused: usize = 0;
-
-            for c in unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }.as_mut().unwrap().chunks() {
-                ptableused += c.count;
-            }
             
-            format!("mem total: {}KB\nmem free: {}KB\nmem used: {}KB\nheap total: {}KB\nheap free: {}KB\nheap used: {}KB\nptableused: {}KB\n", memtotal, memfree, memused, heaptotal, heapfree,heapused, ptableused * 4 as usize).into_bytes()
+            let (ptabletotal,ptablefree,ptableused) = {
+                let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
+                    .as_mut()
+                    .unwrap();
+                (alloc.chunks().map(|c| c.count).sum::<usize>() * 4, alloc.free() * 4, ((alloc.chunks().map(|c| c.count).sum::<usize>()) - alloc.free()) * 4)
+            };
+            
+            format!("mem total: {}KB\nmem free: {}KB\nmem used: {}KB\nheap total: {}KB\nheap free: {}KB\nheap used: {}KB\nptabletotal: {}KB\nptablefree: {}KB\nptableused: {}KB\n", memtotal, memfree, memused, heaptotal, heapfree,heapused, ptabletotal,ptablefree,ptableused).into_bytes()
         }),
     ).unwrap();
     let _ = create_file(

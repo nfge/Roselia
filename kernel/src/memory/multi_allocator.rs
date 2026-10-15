@@ -133,6 +133,7 @@ impl<'a> MultiAllocator<'a> {
         let guard = MAPPER.lock();
         let mapper = unsafe { (*guard.get()).as_mut().unwrap() };
         if !ensure_pool_reserve(mapper) {
+            self.free_frame(frame);
             return None;
         }
         let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
@@ -186,10 +187,10 @@ impl<'a> MultiAllocator<'a> {
             let frame = PhysFrame::containing_address(addr);
             let page = Page::<Size4KiB>::containing_address(VirtAddr::new(addr.as_u64()));
 
-            let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
-                .as_mut()
-                .unwrap();
             let result = if ensure_pool_reserve(mapper) {
+                let alloc = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }
+                    .as_mut()
+                    .unwrap();
                 unsafe {
                     mapper.map_to(
                         page,
@@ -331,7 +332,7 @@ pub fn map(
     let mut mapper = unsafe { (*guard.get()).as_mut().unwrap() };
     for p in 0..count {
         if !ensure_pool_reserve(mapper) {
-            return Err(MapToError::FrameAllocationFailed)
+            return Err(MapToError::FrameAllocationFailed);
         }
         let addr = addr.as_u64() as usize + p * Size4KiB::SIZE as usize;
         let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
