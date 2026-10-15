@@ -1,15 +1,5 @@
 use crate::{
-    ACPI_TABLE, MODULES,
-    cpu::{self},
-    func::{get_time, poweroff, reset},
-    gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
-    keyboard::KeyBoard,
-    kprint, log_fail,
-    memory::{get_heap_free, get_heap_used},
-    module::CURRENT_MODULE_RSP,
-    ramfs::{check_directory, is_valid, read_file},
-    terminal::command::Command,
-    timer::sleep::sleep,
+    ACPI_TABLE, MODULES, cpu::{self}, func::{get_time, poweroff, reset}, gop::{color::Color, fonts::VGA_FONT, graphics::Graphics}, keyboard::KeyBoard, kprint, log_fail, module::CURRENT_MODULE_RSP, ramfs::{check_directory, is_valid, read_file}, terminal::command::Command, timer::sleep::sleep,
 };
 use acpi::get::get_table;
 use alloc::{
@@ -434,20 +424,20 @@ impl Terminal {
                 let seconds = ticks / ticks_per_sec;
                 let dur = SignedDuration::from_secs(seconds as i64);
                 kprint!("{dur:#}\n");
-            }
-            "heap" => match command.args.first() {
-                Some(text) => match text.as_str() {
-                    "free" => {
-                        kprint!("Free memory: {}KB\n", get_heap_free() / 1024);
-                    }
-                    "used" => {
-                        kprint!("Used memory: {}KB\n", get_heap_used() / 1024);
-                    }
-                    _ => self.print_string_ln("Usage: heap [free || used]"),
-                },
-                None => self.print_string_ln("Usage: heap [free || used]"),
             },
-            "mem" => match read_file("/sys/memory") {
+            // "heap" => match command.args.first() {
+            //     Some(text) => match text.as_str() {
+            //         "free" => {
+            //             kprint!("Free memory: {}KB\n", get_heap_free() / 1024);
+            //         }
+            //         "used" => {
+            //             kprint!("Used memory: {}KB\n", get_heap_used() / 1024);
+            //         }
+            //         _ => self.print_string_ln("Usage: heap [free || used]"),
+            //     },
+            //     None => self.print_string_ln("Usage: heap [free || used]"),
+            // },
+            "mem" => match read_file("/proc/meminfo") {
                 Ok(data) => {
                     let s = core::str::from_utf8(&data).unwrap();
                     kprint!("{}", s);

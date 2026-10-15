@@ -20,10 +20,10 @@ pub fn init_heap() {
     };
 }
 pub fn get_heap_free() -> usize {
-    ALLOCATOR.lock().free()
+    ALLOCATOR.lock().free() / 1024
 }
 pub fn get_heap_used() -> usize {
-    ALLOCATOR.lock().used()
+    ALLOCATOR.lock().used() / 1024
 }
 
 pub fn kalloc(layout: Layout) -> Result<core::ptr::NonNull<u8>, ()> {

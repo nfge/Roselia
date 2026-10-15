@@ -8,10 +8,7 @@ use data::NodeData;
 use kernel_api::{ramfs::error::RamFSError};
 
 use crate::{
-    RAMFS,
-    memory::multi_allocator::{get_free_mem, get_total_memory, get_used_mem},
-    module::KERNEL_EXPORTS,
-    ramfs::{
+    PAGETABLE_POOL_ALLOCATOR, RAMFS, memory::{get_heap_free, get_heap_used, multi_allocator::{get_free_mem, get_total_memory, get_used_mem}}, module::KERNEL_EXPORTS, ramfs::{
         node::{Node, NodeId},
         types::NodeType,
     },
@@ -262,6 +259,7 @@ pub fn check_directory(path: &str) -> Result<Vec<&Node>, RamFSError> {
 pub fn init_ramfs() {
     let _ = mkdir("/kernel").unwrap();
     let _ = mkdir("/sys").unwrap();
+    let _ = mkdir("/proc").unwrap();
     let _ = mkdir("/dev").unwrap();
     let _ = create_file(
         "/kernel/log",
@@ -269,14 +267,25 @@ pub fn init_ramfs() {
     )
     .unwrap();
     let _ = create_file(
-        "/sys/memory",
+        "/proc/meminfo",
         crate::ramfs::data::NodeData::virtual_read(|| {
-            let used = get_used_mem();
-            let free = get_free_mem();
-            let total = get_total_memory();
-            format!("total: {}KB\nfree: {}KB\nused: {}KB\n", total, free, used).into_bytes()
+            let memused = get_used_mem();
+            let memfree = get_free_mem();
+            let memtotal = get_total_memory();
+
+            let heaptotal = get_heap_used() + get_heap_free();
+            let heapfree = get_heap_free();
+            let heapused = get_heap_used();
+            
+            let mut ptableused: usize = 0;
+
+            for c in unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) }.as_mut().unwrap().chunks() {
+                ptableused += c.count;
+            }
+            
+            format!("mem total: {}KB\nmem free: {}KB\nmem used: {}KB\nheap total: {}KB\nheap free: {}KB\nheap used: {}KB\nptableused: {}KB\n", memtotal, memfree, memused, heaptotal, heapfree,heapused, ptableused).into_bytes()
         }),
-    );
+    ).unwrap();
     let _ = create_file(
         "/kernel/info",
         crate::ramfs::data::NodeData::virtual_read(|| {
