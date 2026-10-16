@@ -1,5 +1,14 @@
 use crate::{
-    ACPI_TABLE, MODULES, cpu::{self}, func::{get_time, poweroff, reset}, gop::{color::Color, fonts::VGA_FONT, graphics::Graphics}, keyboard::KeyBoard, kprint, log_fail, module::CURRENT_MODULE_RSP, ramfs::{check_directory, is_valid, read_file}, terminal::command::Command, timer::sleep::sleep,
+    ACPI_TABLE, MODULES,
+    cpu::{self},
+    func::{get_time, poweroff, reset},
+    gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
+    keyboard::KeyBoard,
+    kprint, log_fail,
+    module::CURRENT_MODULE_RSP,
+    ramfs::{check_directory, is_valid, read_file},
+    terminal::command::Command,
+    timer::sleep::sleep,
 };
 use acpi::get::get_table;
 use alloc::{
@@ -424,7 +433,7 @@ impl Terminal {
                 let seconds = ticks / ticks_per_sec;
                 let dur = SignedDuration::from_secs(seconds as i64);
                 kprint!("{dur:#}\n");
-            },
+            }
             // "heap" => match command.args.first() {
             //     Some(text) => match text.as_str() {
             //         "free" => {
@@ -608,11 +617,11 @@ impl Terminal {
 
                         if core::str::from_utf8(&module.info.name[..end]).unwrap() == name {
                             let flags = ModuleFlags::from_bits_truncate(module.info.flags);
+                            if module.entry_fn.is_none() {
+                                kprint!("Command not found\n");
+                                return;
+                            }
                             if flags.contains(ModuleFlags::ACCEPT_ARGS) {
-                                if module.entry_fn.is_none() {
-                                    kprint!("Command not found\n");
-                                    return
-                                }
                                 let init: extern "C" fn(*const ModuleArgs) -> i32 =
                                     unsafe { core::mem::transmute(module.entry_fn.unwrap()) };
                                 let raw_argv: Vec<Vec<u8>> = command
@@ -631,16 +640,32 @@ impl Terminal {
                                     argv: argv.as_ptr(),
                                 };
                                 let result: i32;
+                                
                                 unsafe {
                                     core::arch::asm!(
+                                        "push rbx",
+                                        "push rbp",
+                                        "push r12",
+                                        "push r13",
+                                        "push r14",
+                                        "push r15",
+
                                         "mov [{saved_rsp}], rsp",
                                         "call {init}",
+
+                                        "pop r15",
+                                        "pop r14",
+                                        "pop r13",
+                                        "pop r12",
+                                        "pop rbp",
+                                        "pop rbx",
+
                                         saved_rsp = sym CURRENT_MODULE_RSP,
-                                        in("rdi") &args,
                                         init = in(reg) init,
+                                        in("rdi") &args,
                                         lateout("rax") result,
                                         clobber_abi("C"),
-                                    )
+                                    );
                                 }
                                 // let result = init(&args as *const ModuleArgs);
 
@@ -657,10 +682,6 @@ impl Terminal {
                                 }
                             }
                             if flags.is_empty() {
-                                if module.entry_fn.is_none() {
-                                    kprint!("Command not found\n");
-                                    return
-                                }
                                 let init: extern "C" fn() -> i32 =
                                     unsafe { core::mem::transmute(module.entry_fn.unwrap()) };
                                 let result: i32;
