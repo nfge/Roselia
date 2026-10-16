@@ -1,4 +1,8 @@
-use core::{ops::Add, slice};
+use core::{
+    ops::Add,
+    slice,
+    sync::atomic::AtomicU64,
+};
 
 use alloc::vec::Vec;
 use kernel_api::{
@@ -18,6 +22,8 @@ pub mod export;
 
 // temp
 pub static mut CURRENT_MODULE_RSP: u64 = 0;
+
+pub const MODULEIDS: Mutex<AtomicU64> = Mutex::new(AtomicU64::new(0));
 
 pub static KERNEL_EXPORTS: Mutex<Vec<KernelSymbol>> = Mutex::new(Vec::new());
 
@@ -118,19 +124,16 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
         .unwrap(),
         module.address
     );
-    if !entry_addr.is_none() {
-        Ok(Module {
-            entry_fn: Some(entry_addr.unwrap() as *const ()),
-            address: module.address,
-            info,
-        })
-    } else {
-        Ok(Module {
-            entry_fn: None,
-            address: module.address,
-            info,
-        })
-    }
+    Ok(Module {
+        id: MODULEIDS.lock().load(core::sync::atomic::Ordering::Relaxed) as usize,
+        entry_fn: if !entry_addr.is_none() {
+            Some(entry_addr.unwrap() as *const ())
+        } else {
+            None
+        },
+        address: module.address,
+        info,
+    })
 }
 
 fn is_in_executable_segment(module: &RawModule, addr: u64) -> bool {

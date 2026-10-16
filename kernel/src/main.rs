@@ -20,17 +20,10 @@ mod timer;
 
 // mod uart;
 use crate::{
-    func::reset,
-    gop::{color::Color, graphics::Graphics},
-    lock::{CurrentThreadId, RawSpinMutex},
-    memory::{
+    func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, RawSpinMutex}, memory::{
         multi_allocator::{MultiAllocator, alloc_frames, map},
         pool_allocator::{POOL_GROW_COST, PoolAllocator},
-    },
-    module::{export::init_exports, load_module},
-    ramfs::{RamFs, init_ramfs},
-    terminal::Terminal,
-    timer::sleep::spin_sleep,
+    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, timer::sleep::spin_sleep,
 };
 
 use acpi::get::get_table;
@@ -330,6 +323,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                     }
                 }
             };
+            MODULEIDS.lock().fetch_add(1, core::sync::atomic::Ordering::Relaxed);
             unsafe {
                 if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
                     modules.push(module);

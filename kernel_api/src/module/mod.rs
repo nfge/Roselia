@@ -13,8 +13,11 @@ bitflags::bitflags! {
     }
 }
 
+pub type ModuleId = usize;
+
 #[repr(C)]
 pub struct Module {
+    pub id: ModuleId,
     pub entry_fn: Option<*const ()>,
     pub address: u64,
     pub info: ModuleInfo
