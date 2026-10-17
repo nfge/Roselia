@@ -14,6 +14,8 @@ pub mod keyboard;
 #[cfg(feature = "module_api")]
 pub mod module;
 
+pub mod thread;
+
 pub mod symbol;
 pub mod ramfs;
 pub mod logger;

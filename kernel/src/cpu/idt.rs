@@ -1,5 +1,5 @@
 use core::{
-    hint::spin_loop,
+    arch::naked_asm, hint::spin_loop,
 };
 
 use acpi::get::get_table;
@@ -7,9 +7,7 @@ use kernel_api::acpi_tables::fadt::Fadt;
 use lazy_static::lazy_static;
 use x86::io::{inw, outw};
 use x86_64::{
-    structures::{
-        idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
-    },
+    VirtAddr, structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
 };
 
 use crate::{
@@ -23,7 +21,7 @@ lazy_static! {
 
         unsafe {
             idt[32]
-                .set_handler_fn(timer::irq::timer_handler)
+                .set_handler_addr(VirtAddr::new(timer_entry as *const () as u64))
                 .set_stack_index(0)
         };
         unsafe {
@@ -123,4 +121,45 @@ extern "x86-interrupt" fn sci_handler(_stack: InterruptStackFrame) {
         unsafe {poweroff()};
     }
     cpu::apic::send_eoi();
+}
+
+
+#[unsafe(naked)]
+unsafe extern "C" fn timer_entry() {
+    naked_asm!(
+        "push rax",
+        "push rbx",
+        "push rcx",
+        "push rdx",
+        "push rbp",
+        "push rsi",
+        "push rdi",
+        "push r8",
+        "push r9",
+        "push r10",
+        "push r11",
+        "push r12",
+        "push r13",
+        "push r14",
+        "push r15",
+        "mov rdi, rsp",
+        "call {timer}",
+        "pop rax",
+        "pop rbx",
+        "pop rcx",
+        "pop rdx",
+        "pop rbp",
+        "pop rsi",
+        "pop rdi",
+        "pop r8",
+        "pop r9",
+        "pop r10",
+        "pop r11",
+        "pop r12",
+        "pop r13",
+        "pop r14",
+        "pop r15",
+        "iretq",
+        timer = sym crate::timer::irq::timer_handler,
+    )
 }
