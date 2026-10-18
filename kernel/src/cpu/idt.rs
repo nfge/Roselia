@@ -21,7 +21,7 @@ lazy_static! {
 
         unsafe {
             idt[32]
-                .set_handler_addr(VirtAddr::new(timer_entry as *const () as u64))
+                .set_handler_fn(crate::timer::irq::timer_handler)
                 .set_stack_index(0)
         };
         unsafe {
