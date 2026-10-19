@@ -1,6 +1,9 @@
 use core::{num::NonZeroUsize, sync::atomic::AtomicBool};
 
-use lock_api::{GetThreadId, RawMutex};
+use lock_api::{GetThreadId,RawMutex};
+
+
+pub mod interruptlock;
 
 pub struct CurrentThreadId;
 pub struct RawSpinMutex {
@@ -34,3 +37,4 @@ unsafe impl GetThreadId for CurrentThreadId {
         NonZeroUsize::new(1).unwrap()
     }
 }
+
