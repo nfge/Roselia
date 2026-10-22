@@ -1,9 +1,6 @@
 use lazy_static::lazy_static;
 use x86_64::{
-    VirtAddr,
-    instructions::tables::load_tss,
-    registers::segmentation::{CS, DS, ES, FS, GS, SS, Segment},
-    structures::{
+    VirtAddr, instructions::tables::load_tss, registers::{control::{Cr4,Cr4Flags},segmentation::{CS, DS, ES, FS, GS, SS, Segment}}, structures::{
         gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector},
         tss::TaskStateSegment,
     },
@@ -57,6 +54,11 @@ lazy_static! {
 pub fn init() {
     GDT.0.load();
     unsafe {
+        
+        Cr4::update(|cr4| {
+            cr4.insert(Cr4Flags::FSGSBASE);
+        });
+
         CS::set_reg(GDT.1);
 
         SS::set_reg(GDT.2);

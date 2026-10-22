@@ -23,7 +23,7 @@ use crate::{
     func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, RawSpinMutex}, memory::{
         multi_allocator::{MultiAllocator, alloc_frames, map},
         pool_allocator::{POOL_GROW_COST, PoolAllocator},
-    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, timer::sleep::spin_sleep,
+    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, thread::tmanager::TaskManager, timer::sleep::spin_sleep,
 };
 
 use acpi::get::get_table;
@@ -64,6 +64,8 @@ static mut RAMFS: *mut RamFs = core::ptr::null_mut();
 static mut MULTI_ALLOCATOR: Option<MultiAllocator<'static>> = None;
 static mut PAGETABLE_POOL_ALLOCATOR: Option<PoolAllocator> = None;
 static mut MODULES: Option<Vec<Module>> = None;
+
+static mut TASK_MANAGER: Option<TaskManager> = None;
 
 // static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
 static MAPPER: ReentrantMutex<
@@ -288,16 +290,6 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
             )
             .unwrap();
         }
-        // if let Some(alloc) = unsafe { &mut *core::ptr::addr_of_mut!(PAGETABLE_POOL_ALLOCATOR) } {
-        //     for chunk in alloc.chunks() {
-        //         let _ = map(
-        //             PhysAddr::new(chunk.start),
-        //             VirtAddr::new(chunk.start),
-        //             chunk.count,
-        //             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        //         );
-        //     }
-        // }
         unsafe { Cr3::write(pml4_frame, Cr3::read().1) };
         if cfg!(debug_assertions) {
             serial_println!("Cr3 load successful");
@@ -310,7 +302,11 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     }
     init_ramfs();
     init_exports();
-    unsafe { MODULES = Some(Vec::new()) }
+    
+    unsafe {
+        TASK_MANAGER = Some(TaskManager::new());
+        MODULES = Some(Vec::new()) ;
+    }
     if info.modules.count != 0 {
         let raw_modules =
             unsafe { core::slice::from_raw_parts(info.modules.ptr, info.modules.count) };
