@@ -1,8 +1,10 @@
+use core::ptr::null;
+
 use alloc::{boxed::Box, collections::VecDeque};
 use kernel_api::thread::{Thread, ThreadContext, ThreadId};
-use x86_64::{VirtAddr, registers::segmentation::{GS, Segment64}, structures::paging::{PageSize, Size4KiB}};
+use x86_64::{PhysAddr, VirtAddr, registers::segmentation::{GS, Segment64}, structures::paging::{PageSize, PageTableFlags, Size4KiB}};
 
-use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::alloc_pages, thread::tmanager::TaskManager};
+use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::{alloc_pages, map}, thread::tmanager::TaskManager};
 
 pub struct Scheduler {
     ready: InterruptSpinLock<VecDeque<ThreadId>>,
@@ -12,18 +14,27 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    pub fn new() -> Self {
+    pub fn new() {
+        /// Create a new scheduler in current core
         let idle_id = unsafe {&*core::ptr::addr_of_mut!(TASK_MANAGER)}.as_ref().unwrap().new_id();
         let rsp = alloc_pages(32).unwrap().as_u64();
         let ctx = unsafe {
             core::ptr::read(rsp as *const ThreadContext)
         };
-        Self {
+        let base = Self {
             ready: InterruptSpinLock::new(VecDeque::new()),
             current: None,
             previous: None,
             idle: Box::new(Thread { id: idle_id, context: ctx, kernel_stack: kernel_api::thread::KernelThreadStack { ptr: rsp, len: 32, top: rsp.checked_add(32 * Size4KiB::SIZE).unwrap()  }, state: kernel_api::thread::ThreadState::Ready })
-        }
+        };
+        let ptr = &base as *const Scheduler;
+        map(PhysAddr::new(ptr as u64), VirtAddr::new(ptr as u64), (core::mem::size_of::<Scheduler>() + Size4KiB::SIZE as usize - 1) / Size4KiB::SIZE as usize, PageTableFlags::PRESENT | PageTableFlags::WRITABLE).unwrap();
+        unsafe {GS::write_base(VirtAddr::new(ptr as u64))};
+    }
+    pub fn current() -> Option<Self> {
+        let ptr = GS::read_base().as_u64();
+        if ptr == 0 {return None};
+        return Some(unsafe {core::ptr::read(ptr as *const Scheduler)})
     }
     pub fn push_ready(&self, tid: ThreadId) {
         self.ready.lock().push_back(tid);
