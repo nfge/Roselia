@@ -17,7 +17,18 @@ impl Lexer {
                         tokens.push(Token::Word(current.clone()));
                         current.clear();
                     }
-                }
+                },
+                '\\' if is_string => match chars.next() {
+                    Some('n') => current.push('\n'),
+                    Some('t') => current.push('\t'),
+                    Some('r') => current.push('\r'),
+                    Some('\\') => current.push('\\'),
+                    Some(other) => {
+                        current.push('\\');
+                        current.push(other);
+                    }
+                    None => current.push('\\'),
+                },
                 '"' => {
                     if is_string {
                         if !current.is_empty() {
