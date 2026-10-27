@@ -10,7 +10,7 @@ uefi = "0.41.0"
 raw-cpuid = "11.6.0"
 itoa = "1.0.18"
 heapless = "=0.9.3"
-lock_api = "=0.4.14"
+lock_api = "=0.5.0"
 spin = "0.12.2"
 jiff = { version = "0.2.37", default-features = false, features = ["alloc"] }
 lazy_static = {version = "1.5.0", features = ["spin_no_std"]}
