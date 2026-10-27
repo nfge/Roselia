@@ -15,8 +15,8 @@ unsafe impl RawMutex for RawInterruptSpinLock {
         locked: AtomicBool::new(false),
         interrupt: AtomicBool::new(false),
     };
-    type GuardMarker = GuardNoSend;
-    fn lock(&self) {
+    type Guard = GuardNoSend;
+    fn lock(&self) -> Self::Guard {
         let on = x86_64::instructions::interrupts::are_enabled();
         x86_64::instructions::interrupts::without_interrupts(|| {
             while self
@@ -27,9 +27,10 @@ unsafe impl RawMutex for RawInterruptSpinLock {
                 core::hint::spin_loop();
             }
             self.interrupt.store(on, Relaxed);
-        })
+        });
+        GuardNoSend::new()
     }
-    fn try_lock(&self) -> bool {
+    fn try_lock(&self) -> Option<Self::Guard> {
         let on = x86_64::instructions::interrupts::are_enabled();
         x86_64::instructions::interrupts::disable();
         if self
@@ -38,21 +39,22 @@ unsafe impl RawMutex for RawInterruptSpinLock {
             .is_ok()
         {
             self.interrupt.store(on, Relaxed);
-            true
+            Some(GuardNoSend::new())
         } else {
             if on {
                 x86_64::instructions::interrupts::enable();
             }
-            false
+            None
         }
     }
     fn is_locked(&self) -> bool {
         self.locked.load(Relaxed)
     }
-    unsafe fn unlock(&self) {
-        let on =self.locked.load(Relaxed);
+    unsafe fn unlock(&self, _guard: Self::Guard) {
+        let on = self.locked.load(Relaxed);
         self.locked.store(false, Relaxed);
         if on {x86_64::instructions::interrupts::enable();}
+        
     }
 }
 
