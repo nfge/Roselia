@@ -23,6 +23,7 @@ pub struct KernelThreadStack {
 }
 
 #[repr(C)]
+#[derive(Default,Debug)]
 pub struct ThreadContext {
     pub r15: u64,
     pub r14: u64,
