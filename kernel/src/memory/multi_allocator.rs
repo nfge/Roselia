@@ -6,9 +6,8 @@ use uefi::{
 };
 use utils::serial_println;
 use x86_64::{
-    PhysAddr, VirtAddr,
-    structures::paging::{
-        Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB, mapper::MapToError,
+    PhysAddr, VirtAddr, structures::paging::{
+        Mapper, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB, mapper::{FlagUpdateError, MapToError, UnmapError},
     },
 };
 
@@ -361,6 +360,49 @@ pub fn map(
     }
     Ok(())
 }
+
+#[allow(unused)]
+pub fn unmap(addr:PhysAddr, virt: VirtAddr,count: usize) -> Result<(),UnmapError> {
+    let guard = MAPPER.lock();
+    let mut mapper = unsafe { (*guard.get()).as_mut().unwrap() };
+    for p in 0..count {
+        let addr = addr.as_u64() as usize + p * Size4KiB::SIZE as usize;
+        let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
+        let frame = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr as u64));
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(vaddr as u64));
+
+        let res = mapper.unmap(page);
+        match res {
+            Ok((fr,f)) => {
+                if fr != frame {return Err(UnmapError::InvalidFrameAddress(PhysFrame::<Size4KiB>::start_address(fr)))}
+                f.flush();
+            }
+            Err(e) => {
+                return Err(e)
+            }
+        }
+    }
+    Ok(())
+}
+
+#[allow(unused)]
+pub fn change_flags(virt: VirtAddr,count: usize, new_flags: PageTableFlags) -> Result<(),FlagUpdateError> {
+    let guard = MAPPER.lock();
+    let mut mapper = unsafe { (*guard.get()).as_mut().unwrap() };
+    for p in 0..count {
+        let vaddr = virt.as_u64() as usize + p * Size4KiB::SIZE as usize;
+        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(vaddr as u64));
+        let res = unsafe {mapper.update_flags(page, new_flags)};
+        match res {
+            Ok(f) => {
+                f.flush();
+            }
+            Err(e) => return Err(e)
+        }
+    }
+    Ok(())
+}
+
 #[allow(dead_code)]
 pub fn get_total_memory() -> usize {
     let mut total = 0;
