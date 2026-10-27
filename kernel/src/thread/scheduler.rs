@@ -14,12 +14,12 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
+    /// Create a new scheduler in current core
     pub fn new() {
-        /// Create a new scheduler in current core
         let idle_id = unsafe {&*core::ptr::addr_of_mut!(TASK_MANAGER)}.as_ref().unwrap().new_id();
         let rsp = alloc_pages(32).unwrap().as_u64();
         let ctx = unsafe {
-            core::ptr::read(rsp as *const ThreadContext)
+            core::ptr::read(rsp as *const ThreadContext)    
         };
         let base = Self {
             ready: InterruptSpinLock::new(VecDeque::new()),
