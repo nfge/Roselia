@@ -62,12 +62,12 @@ build_release() {
 run_qemu() {
     qemu-system-x86_64 \
         -machine q35 \
-        -m 512 \
+        -m 1G \
         -drive if=pflash,format=raw,readonly=on,file=usr/share/OVMF/OVMF_CODE.fd \
         -drive if=pflash,format=raw,file=./os/OVMF/vars.fd \
         -drive format=raw,file=fat:rw:os/ \
         -rtc clock=host,base=utc \
-        -cpu qemu64,+x2apic \
+        -cpu max \
         -d int,cpu_reset,guest_errors \
         -D qemu.log
 }

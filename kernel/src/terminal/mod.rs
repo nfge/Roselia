@@ -16,8 +16,8 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::fmt::{Arguments, Write};
-use jiff::SignedDuration;
+use core::{fmt::{Arguments, Write}, time::Duration};
+use jiff::{SignedDuration, civil::date};
 use kernel_api::{
     acpi_tables::mcfg::Mcfg,
     keyboard::{
@@ -356,27 +356,10 @@ impl Terminal {
                 },
                 None => {}
             },
-            "time" => {
-                let t = get_time();
-                match t {
-                    Ok((time, _)) => {
-                        kprint!("{}:{}:{}\n", time.hour(), time.minute(), time.second());
-                    }
-                    Err(e) => {
-                        kprint!("Rtc err: {}\n", e);
-                    }
-                }
-            }
             "date" => {
-                let t = get_time();
-                match t {
-                    Ok((time, _)) => {
-                        kprint!("{}.{}.{}\n", time.day(), time.month(), time.year());
-                    }
-                    Err(e) => {
-                        kprint!("Rtc err: {}\n", e);
-                    }
-                }
+                let time = get_time().unwrap().0;
+                let date = date(time.year() as i16, time.month() as i8, time.day() as i8).at(time.hour() as i8, time.minute() as i8, time.second() as i8, Duration::from_nanos(time.nanosecond() as u64).subsec_nanos() as i32);
+                kprint!("{}\n", date);
             }
             "scale" => {
                 let scale = match command.args.first() {
