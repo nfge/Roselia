@@ -6,7 +6,7 @@ use crate::{
     keyboard::KeyBoard,
     kprint, log_fail,
     module::CURRENT_MODULE_RSP,
-    ramfs::{check_directory, is_valid, read_file},
+    ramfs::{check_directory, is_valid, read_file, types::NodeType},
     terminal::command::Command,
     timer::sleep::sleep,
 };
@@ -16,7 +16,10 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{fmt::{Arguments, Write}, time::Duration};
+use core::{
+    fmt::{Arguments, Write},
+    time::Duration,
+};
 use jiff::{SignedDuration, civil::date};
 use kernel_api::{
     acpi_tables::mcfg::Mcfg,
@@ -308,11 +311,11 @@ impl Terminal {
                                 }
                             },
                             Err(e) => {
-                                kprint!("{:#?}\n", e);
+                                kprint!("{}: {:#?}\n", target.as_str(), e);
                             }
                         },
                         Err(e) => {
-                            kprint!("{:#?}\n", e);
+                            kprint!("{}: {:#?}\n",target.as_str(), e);
                         }
                     }
                 }
@@ -324,11 +327,15 @@ impl Terminal {
                 Some(path) => match check_directory(path.as_str()) {
                     Ok(nodes) => {
                         for node in nodes {
-                            kprint!("{}\n", node.name.as_str());
+                            if node.node_type == NodeType::Directory {
+                                kprint!("{} [DIR]\n", node.name.as_str())
+                            } else {
+                                kprint!("{}\n", node.name.as_str());
+                            }
                         }
                     }
                     Err(e) => {
-                        kprint!("{:#?}\n", e);
+                        kprint!("{}: {:#?}\n", command.args.first().unwrap().as_str(), e);
                     }
                 },
                 None => {
@@ -336,11 +343,15 @@ impl Terminal {
                     match check_directory(&cpwd.as_str()) {
                         Ok(nodes) => {
                             for node in nodes {
-                                kprint!("{}\n", node.name.as_str());
+                                if node.node_type == NodeType::Directory {
+                                    kprint!("{} [DIR]\n", node.name.as_str())
+                                } else {
+                                    kprint!("{}\n", node.name.as_str());
+                                }
                             }
                         }
                         Err(e) => {
-                            kprint!("{:#?}\n", e);
+                            kprint!("{}: {:#?}\n", cpwd.as_str(), e);
                         }
                     }
                 }
@@ -351,14 +362,19 @@ impl Terminal {
                         self.pwd = s.to_string();
                     }
                     Err(e) => {
-                        kprint!("{:#?}\n", e);
+                        kprint!("{}: {:#?}\n", command.args.first().unwrap().as_str(), e);
                     }
                 },
                 None => {}
             },
             "date" => {
                 let time = get_time().unwrap().0;
-                let date = date(time.year() as i16, time.month() as i8, time.day() as i8).at(time.hour() as i8, time.minute() as i8, time.second() as i8, Duration::from_nanos(time.nanosecond() as u64).subsec_nanos() as i32);
+                let date = date(time.year() as i16, time.month() as i8, time.day() as i8).at(
+                    time.hour() as i8,
+                    time.minute() as i8,
+                    time.second() as i8,
+                    Duration::from_nanos(time.nanosecond() as u64).subsec_nanos() as i32,
+                );
                 kprint!("{}\n", date);
             }
             "scale" => {
@@ -623,7 +639,7 @@ impl Terminal {
                                     argv: argv.as_ptr(),
                                 };
                                 let result: i32;
-                                
+
                                 unsafe {
                                     core::arch::asm!(
                                         "push rbx",

@@ -1,7 +1,7 @@
 // mod file;
 pub mod data;
 mod node;
-mod types;
+pub mod types;
 
 use alloc::{format, vec::Vec};
 use data::NodeData;
