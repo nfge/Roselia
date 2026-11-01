@@ -6,9 +6,9 @@ use alloc::{
     vec::Vec,
 };
 use kernel_api::thread::{Thread, ThreadContext, ThreadId};
-use x86_64::registers::segmentation::{GS, Segment64};
+use x86_64::{VirtAddr, registers::segmentation::{GS, Segment64}};
 
-use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, thread::scheduler::Scheduler};
+use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::free_pages, thread::scheduler::Scheduler};
 
 pub struct TaskManager {
     threads: InterruptSpinLock<BTreeMap<ThreadId, Box<Thread>>>,
@@ -55,7 +55,8 @@ impl TaskManager {
         loop {
             let zombie_id = self.zombies.lock().pop();
             let Some(tid) = zombie_id else {return};
-            let thread = self.threads.lock().remove(&tid);
+            let thread = self.threads.lock().remove(&tid).unwrap();
+            free_pages(VirtAddr::new(thread.kernel_stack.ptr), thread.kernel_stack.len);
             drop(thread);
         }
     }

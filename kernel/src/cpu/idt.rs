@@ -1,24 +1,26 @@
-use core::{
-    arch::naked_asm, hint::spin_loop,
-};
+use core::{arch::naked_asm, hint::spin_loop};
 
 use acpi::get::get_table;
 use kernel_api::acpi_tables::fadt::Fadt;
 use lazy_static::lazy_static;
 use x86::io::{inw, outw};
 use x86_64::{
-    VirtAddr, structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+    VirtAddr,
+    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
 };
 
-use crate::{
-    ACPI_TABLE, cpu, func::{poweroff}, keyboard, log, log_info, timer,
-};
+use crate::{ACPI_TABLE, cpu, func::poweroff, keyboard, log, log_info, timer};
 use utils::serial_println;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
 
+        // unsafe {
+        //     idt[32]
+        //         .set_handler_addr(VirtAddr::new(timer_entry as *const () as u64))
+        //         .set_stack_index(0)
+        // };
         unsafe {
             idt[32]
                 .set_handler_fn(crate::timer::irq::timer_handler)
@@ -118,11 +120,10 @@ extern "x86-interrupt" fn sci_handler(_stack: InterruptStackFrame) {
     unsafe { outw(fadt.pm1a_event_block as u16, status) };
 
     if status & (1 << 8) != 0 {
-        unsafe {poweroff()};
+        unsafe { poweroff() };
     }
     cpu::apic::send_eoi();
 }
-
 
 #[unsafe(naked)]
 unsafe extern "C" fn timer_entry() {
@@ -144,21 +145,22 @@ unsafe extern "C" fn timer_entry() {
         "push r15",
         "mov rdi, rsp",
         "call {timer}",
-        "pop rax",
-        "pop rbx",
-        "pop rcx",
-        "pop rdx",
-        "pop rbp",
-        "pop rsi",
-        "pop rdi",
+        "mov rsp, rax",
+        "pop r15", 
+        "pop r14", 
+        "pop r13", 
+        "pop r12", 
+        "pop r11", 
+        "pop r10", 
+        "pop r9", 
         "pop r8",
-        "pop r9",
-        "pop r10",
-        "pop r11",
-        "pop r12",
-        "pop r13",
-        "pop r14",
-        "pop r15",
+        "pop rdi", 
+        "pop rsi", 
+        "pop rbp", 
+        "pop rdx", 
+        "pop rcx", 
+        "pop rbx", 
+        "pop rax",
         "iretq",
         timer = sym crate::timer::irq::timer_handler,
     )

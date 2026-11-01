@@ -51,7 +51,7 @@ unsafe impl RawMutex for RawInterruptSpinLock {
         self.locked.load(Relaxed)
     }
     unsafe fn unlock(&self, _guard: Self::Guard) {
-        let on = self.locked.load(Relaxed);
+        let on = self.interrupt.load(Relaxed);
         self.locked.store(false, Relaxed);
         if on {x86_64::instructions::interrupts::enable();}
         
