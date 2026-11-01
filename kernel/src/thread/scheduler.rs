@@ -1,29 +1,34 @@
 use core::ptr::null;
 
 use alloc::{boxed::Box, collections::VecDeque};
-use kernel_api::thread::{Thread, ThreadContext, ThreadId};
+use kernel_api::thread::{Thread, ThreadContext, ThreadId,ThreadState};
 use x86_64::{PhysAddr, VirtAddr, registers::segmentation::{GS, Segment64}, structures::paging::{PageSize, PageTableFlags, Size4KiB}};
 
-use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::{alloc_pages, map}, thread::tmanager::TaskManager};
+use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::{alloc_pages, map}, thread::tmanager::TaskManager, timer::TICKS};
+
+const TIME_MS: u64 = 8;
+
 
 pub struct Scheduler {
     ready: InterruptSpinLock<VecDeque<ThreadId>>,
     current: Option<ThreadId>,
     previous: Option<ThreadId>,
-    idle: Box<Thread>
+    pub idle: Box<Thread>,
+    pub remaining_time: u64
 }
 
 impl Scheduler {
     /// Create a new scheduler in current core
     pub fn new() {
-        let idle_id = unsafe {&*core::ptr::addr_of_mut!(TASK_MANAGER)}.as_ref().unwrap().new_id();
+        let idle_id = TASK_MANAGER.new_id();
         let rsp = alloc_pages(32).unwrap().as_u64();
         let ctx = ThreadContext::default();
         let base = Box::new(Self {
             ready: InterruptSpinLock::new(VecDeque::new()),
             current: None,
             previous: None,
-            idle: Box::new(Thread { id: idle_id, context: ctx, kernel_stack: kernel_api::thread::KernelThreadStack { ptr: rsp, len: 32, top: rsp.checked_add(32 * Size4KiB::SIZE).unwrap()  }, state: kernel_api::thread::ThreadState::Ready })
+            idle: Box::new(Thread { id: idle_id, context: ctx, kernel_stack: kernel_api::thread::KernelThreadStack { ptr: rsp, len: 32, top: rsp.checked_add(32 * Size4KiB::SIZE).unwrap()  }, state: kernel_api::thread::ThreadState::Ready }),
+            remaining_time: TIME_MS
         });
         let ptr = Box::into_raw(base);
         unsafe {GS::write_base(VirtAddr::from_ptr(ptr))};
@@ -40,5 +45,48 @@ impl Scheduler {
     }
     pub fn pop_ready(&self) -> Option<ThreadId> {
         self.ready.lock().pop_back()
+    }
+    pub fn ready_is_empty(&self) -> bool {
+        self.ready.lock().is_empty()
+    }
+    pub fn schedule(&mut self, ctx: *mut ThreadContext) -> *mut ThreadContext {
+        self.remaining_time = TIME_MS;
+
+        let task = &TASK_MANAGER;
+        
+        // if let Some(tid) = task.wake_sleeper(now) {
+        //     self.ready.lock().push_back(tid);
+        // }
+        let current_state = task.get_by_tid(self.current.unwrap(), |f| return f.state);
+        let next = match self.ready.lock().pop_front() {
+            Some(t) => t,
+            None => {
+                if current_state == Some(kernel_api::thread::ThreadState::Running) {
+                    return ctx
+                } else {
+                    self.idle.id
+                }
+            }
+        };
+        if next == self.current.unwrap() {
+            return ctx;
+        }
+        task.get_mut_by_tid(self.current.unwrap(), |t| t.context = unsafe {*ctx});
+        if current_state == Some(kernel_api::thread::ThreadState::Running) {
+            task.get_mut_by_tid(self.current.unwrap(), |t| t.state = kernel_api::thread::ThreadState::Ready);
+        }
+        self.previous = self.current;
+        self.current = Some(next);
+        let new_ctx: *mut ThreadContext = task.get_mut_by_tid(next, |t| return &raw mut t.context).unwrap();
+        new_ctx
+    }
+    pub fn switch_state(&mut self) {
+        let Some(prev) = self.previous.take() else {return};
+        if prev == self.idle.id {return};
+        match TASK_MANAGER.get_by_tid(prev, |t| return t.state) {
+            Some(ThreadState::Running) => self.push_ready(prev),
+            Some(ThreadState::Terminated) => TASK_MANAGER.push_zombie(prev),
+            _ => {}
+        }
     }
 }

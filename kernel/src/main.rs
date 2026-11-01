@@ -65,7 +65,7 @@ static mut MULTI_ALLOCATOR: Option<MultiAllocator<'static>> = None;
 static mut PAGETABLE_POOL_ALLOCATOR: Option<PoolAllocator> = None;
 static mut MODULES: Option<Vec<Module>> = None;
 
-static mut TASK_MANAGER: Option<TaskManager> = None;
+static TASK_MANAGER: TaskManager = TaskManager::new();
 
 // static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
 static MAPPER: ReentrantMutex<
@@ -304,7 +304,6 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     init_exports();
     
     unsafe {
-        TASK_MANAGER = Some(TaskManager::new());
         Scheduler::new();
         MODULES = Some(Vec::new()) ;
     }
