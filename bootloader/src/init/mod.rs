@@ -66,9 +66,7 @@ pub fn get_kernel(
         return Err(Status::LOAD_ERROR);
     }
 
-    let mut last_allocated_start = 0usize;
     let mut last_allocated_end = 0usize;
-    
     let mut kernel_min_start = usize::MAX;
     let mut kernel_max_end = 0usize;
 
@@ -78,7 +76,7 @@ pub fn get_kernel(
                 as *const Elf64Phdr)
         };
 
-        if phdr.p_type != PT_LOAD {
+        if phdr.p_type != PT_LOAD || phdr.p_memsz == 0 {
             continue;
         }
 
@@ -89,15 +87,14 @@ pub fn get_kernel(
         kernel_min_start = kernel_min_start.min(start_addr);
         kernel_max_end = kernel_max_end.max(end_addr);
 
-        if start_addr < last_allocated_start || start_addr >= last_allocated_end {
+        if end_addr > last_allocated_end {
+            let alloc_start = start_addr.max(last_allocated_end);
             let _ = boot::allocate_pages(
-                boot::AllocateType::Address(start_addr as u64),
+                boot::AllocateType::Address(alloc_start as u64),
                 boot::MemoryType::LOADER_DATA,
-                pages,
+                (end_addr - alloc_start) / 0x1000,
             )
             .expect("Failed to reserve memory!");
-
-            last_allocated_start = start_addr;
             last_allocated_end = end_addr;
         }
 
