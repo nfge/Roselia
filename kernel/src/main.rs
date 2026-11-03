@@ -166,7 +166,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         let _ = map(
             PhysAddr::new(info as *const BootInfo as u64),
             VirtAddr::new(info as *const BootInfo as u64),
-            core::mem::size_of::<BootInfo>(),
+            core::mem::size_of::<BootInfo>().div_ceil(4096),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )
         .unwrap();
@@ -227,7 +227,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         let _ = map(
             PhysAddr::new(info.memory_map.buffer().as_ptr() as u64),
             VirtAddr::new(info.memory_map.buffer().as_ptr() as u64),
-            info.memory_map.len().div_ceil(4096),
+            info.memory_map.buffer().len().div_ceil(4096),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )
         .unwrap();
