@@ -23,7 +23,7 @@ use crate::{
     func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, RawSpinMutex}, memory::{
         multi_allocator::{MultiAllocator, alloc_frames, map},
         pool_allocator::{POOL_GROW_COST, PoolAllocator},
-    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, thread::{scheduler::Scheduler, tmanager::TaskManager}, timer::sleep::spin_sleep,
+    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, thread::{scheduler::Scheduler, tmanager::TaskManager}, timer::{TSC_FREQ, sleep::spin_sleep},
 };
 
 use acpi::get::get_table;
@@ -94,6 +94,7 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::apic::init_ioapic();
     cpu::apic::init_lapic();
     cpu::sse::init_sse_and_avx();
+    TSC_FREQ.store(timer::calibrate_tsc(), core::sync::atomic::Ordering::Relaxed);
     x86_64::instructions::interrupts::enable();
     timer::calibrate();
     unsafe {
