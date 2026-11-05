@@ -76,6 +76,12 @@ unsafe fn acpi_pm_wait_ms(ms: u32) {
 pub fn calibrate() {
     let thz: u64 = 100;
     let cpuid = CpuId::new();
+    let fadt = unsafe { &*get_table::<Fadt>(ACPI_TABLE.unwrap(), b"FACP").unwrap() };
+    let mask = if (fadt.flags & 1 << 8) != 0 {
+        0xFFFF_FFFF
+    } else {
+        0x00FF_FFFF
+    };
     unsafe {
         wrmsr(IA32_X2APIC_LVT_TIMER, 1 << 16);
         wrmsr(IA32_X2APIC_DIV_CONF, 0x3);
@@ -96,13 +102,13 @@ pub fn calibrate() {
                         break;
                     }
                 }
-                count = rdmsr(IA32_X2APIC_CUR_COUNT) * 100 / thz;
                 _mm_lfence();
+                count = (0xFFFF_FFFF - (rdmsr(IA32_X2APIC_CUR_COUNT) & 0xFFFF_FFFF)) * 100 / thz;
             }
             false => {
                 let start = read_acpi_pm();
                 for _ in 0..1_000_000 {
-                    if read_acpi_pm().wrapping_sub(start) & 0xFF_FFFF
+                    if read_acpi_pm().wrapping_sub(start) & mask
                         >= (ACPI_PM_TIMER_FREQ / 100) as u32
                     {
                         break;
