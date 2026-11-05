@@ -5,7 +5,7 @@ use core::{arch::x86_64::_rdtsc, sync::atomic::AtomicU64};
 
 use acpi::get::get_table;
 use kernel_api::acpi_tables::fadt::Fadt;
-use raw_cpuid::CpuId;
+use x86::msr::{IA32_X2APIC_CUR_COUNT, IA32_X2APIC_DIV_CONF, IA32_X2APIC_INIT_COUNT, IA32_X2APIC_LVT_TIMER, rdmsr, wrmsr};
 
 use crate::ACPI_TABLE;
 
@@ -69,43 +69,25 @@ unsafe fn acpi_pm_wait_ms(ms: u32) {
     }
 }
 
-unsafe fn tsc_wait_ms(ms: u32) {
-    let cpuid = CpuId::new();
-    let mut freq: u64;
-    match cpuid.get_tsc_info() {
-        Some(info) => match info.tsc_frequency() {
-            Some(f) => freq = f,
-            None => {
-                freq = TSC_FREQ.load(core::sync::atomic::Ordering::Relaxed);
-            }
-        },
-        None => {
-            freq = TSC_FREQ.load(core::sync::atomic::Ordering::Relaxed);
-        }
-    }
-
-    let count = (freq * ms as u64 / 1000) as u32;
-
-    let start = unsafe { _rdtsc() };
-
-    while unsafe { _rdtsc().wrapping_sub(start) < count as u64 } {
-        core::hint::spin_loop();
-    }
-}
-
 pub fn calibrate() {
-    let ms: u32 = 50;
-
-    let s = TICKS.load(core::sync::atomic::Ordering::Relaxed);
+    let thz:u64 = 100;
     unsafe {
-        tsc_wait_ms(ms);
+        wrmsr(IA32_X2APIC_LVT_TIMER, 1 << 16);
+        wrmsr(IA32_X2APIC_DIV_CONF, 0x3); 
+        wrmsr(IA32_X2APIC_INIT_COUNT, 0xFFFF_FFFF); 
+
+        let start = read_acpi_pm();
+        for _ in 0..1_000_000 {
+            if read_acpi_pm().wrapping_sub(start) & 0xFF_FFFF >= (ACPI_PM_TIMER_FREQ / 100) as u32 {
+                break;
+            }
+        }
+        let count = (0xFFFF_FFFF - (rdmsr(IA32_X2APIC_CUR_COUNT) & 0xFFFF_FFFF)) * 100 / thz;
+
+        wrmsr(IA32_X2APIC_LVT_TIMER, (1 << 17) | 0x20);
+        wrmsr(IA32_X2APIC_INIT_COUNT, if count < 1000 { 1_000_000 } else { count });
     }
-    let e = TICKS.load(core::sync::atomic::Ordering::Relaxed);
-
-    let delta = e - s;
-    let ticks_per_sec = delta as u64 * 1000 / ms as u64;
-
-    TICKS_PER_SEC.store(ticks_per_sec, core::sync::atomic::Ordering::Relaxed);
+    TICKS_PER_SEC.store(thz, core::sync::atomic::Ordering::Relaxed);
 }
 
 pub fn calibrate_tsc() -> u64 {
