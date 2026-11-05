@@ -1,13 +1,17 @@
 // pub mod timer;
 pub mod irq;
 pub mod sleep;
-use core::{arch::x86_64::_rdtsc, sync::atomic::AtomicU64};
+use core::{arch::x86_64::{__rdtscp, _mm_lfence, _rdtsc}, ptr::null_mut, sync::atomic::AtomicU64};
 
 use acpi::get::get_table;
 use kernel_api::acpi_tables::fadt::Fadt;
-use x86::msr::{IA32_X2APIC_CUR_COUNT, IA32_X2APIC_DIV_CONF, IA32_X2APIC_INIT_COUNT, IA32_X2APIC_LVT_TIMER, rdmsr, wrmsr};
+use raw_cpuid::CpuId;
+use x86::msr::{
+    IA32_X2APIC_CUR_COUNT, IA32_X2APIC_DIV_CONF, IA32_X2APIC_INIT_COUNT, IA32_X2APIC_LVT_TIMER,
+    rdmsr, wrmsr,
+};
 
-use crate::ACPI_TABLE;
+use crate::{ACPI_TABLE, cpu};
 
 pub static TICKS: AtomicU64 = AtomicU64::new(0);
 pub static TICKS_PER_SEC: AtomicU64 = AtomicU64::new(0);
@@ -70,22 +74,49 @@ unsafe fn acpi_pm_wait_ms(ms: u32) {
 }
 
 pub fn calibrate() {
-    let thz:u64 = 100;
+    let thz: u64 = 100;
+    let cpuid = CpuId::new();
     unsafe {
         wrmsr(IA32_X2APIC_LVT_TIMER, 1 << 16);
-        wrmsr(IA32_X2APIC_DIV_CONF, 0x3); 
-        wrmsr(IA32_X2APIC_INIT_COUNT, 0xFFFF_FFFF); 
-
-        let start = read_acpi_pm();
-        for _ in 0..1_000_000 {
-            if read_acpi_pm().wrapping_sub(start) & 0xFF_FFFF >= (ACPI_PM_TIMER_FREQ / 100) as u32 {
-                break;
+        wrmsr(IA32_X2APIC_DIV_CONF, 0x3);
+        wrmsr(IA32_X2APIC_INIT_COUNT, 0xFFFF_FFFF);
+        let count :u64;
+        match cpuid
+            .get_advanced_power_mgmt_info()
+            .unwrap()
+            .has_invariant_tsc()
+        {
+            true => {
+                let aux: *mut u32 = null_mut();
+                _mm_lfence();
+                let start = __rdtscp(aux);
+                _mm_lfence();
+                for _ in 0..1_000_000 {
+                    if __rdtscp(aux).wrapping_sub(start) >= (TSC_FREQ.load(core::sync::atomic::Ordering::Relaxed) / 100) {
+                        break;
+                    }
+                }
+                count = rdmsr(IA32_X2APIC_CUR_COUNT) * 100 / thz;
+                _mm_lfence();
+            }
+            false => {
+                let start = read_acpi_pm();
+                for _ in 0..1_000_000 {
+                    if read_acpi_pm().wrapping_sub(start) & 0xFF_FFFF
+                        >= (ACPI_PM_TIMER_FREQ / 100) as u32
+                    {
+                        break;
+                    }
+                }
+                count = (0xFFFF_FFFF - (rdmsr(IA32_X2APIC_CUR_COUNT) & 0xFFFF_FFFF)) * 100 / thz;
             }
         }
-        let count = (0xFFFF_FFFF - (rdmsr(IA32_X2APIC_CUR_COUNT) & 0xFFFF_FFFF)) * 100 / thz;
 
         wrmsr(IA32_X2APIC_LVT_TIMER, (1 << 17) | 0x20);
-        wrmsr(IA32_X2APIC_INIT_COUNT, if count < 1000 { 1_000_000 } else { count });
+        wrmsr(
+            IA32_X2APIC_INIT_COUNT,
+            if count < 1000 { 1_000_000 } else { count },
+        );
     }
     TICKS_PER_SEC.store(thz, core::sync::atomic::Ordering::Relaxed);
 }
