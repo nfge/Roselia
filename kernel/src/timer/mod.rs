@@ -93,12 +93,12 @@ pub fn calibrate() {
             .has_invariant_tsc()
         {
             true => {
-                let aux: *mut u32 = null_mut();
+                let mut aux: u32 = 0;
                 _mm_lfence();
-                let start = __rdtscp(aux);
+                let start = __rdtscp(&mut aux);
                 _mm_lfence();
                 for _ in 0..1_000_000 {
-                    if __rdtscp(aux).wrapping_sub(start) >= (TSC_FREQ.load(core::sync::atomic::Ordering::Relaxed) / 100) {
+                    if __rdtscp(&mut aux).wrapping_sub(start) >= (TSC_FREQ.load(core::sync::atomic::Ordering::Relaxed) / 100) {
                         break;
                     }
                 }
