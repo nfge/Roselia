@@ -118,7 +118,7 @@ impl Scheduler {
             });
         }
         let new_ctx: *mut ThreadContext = task
-            .get_mut_by_tid(next, |t| { t.state = ThreadState::Ready; return &raw mut t.context})
+            .get_mut_by_tid(next, |t| { t.state = ThreadState::Running; return &raw mut t.context})
             .unwrap();
 
         self.previous = self.current;
