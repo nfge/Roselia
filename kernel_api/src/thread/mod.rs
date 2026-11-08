@@ -1,10 +1,25 @@
+use core::mem::MaybeUninit;
+
 pub type ThreadId = u64;
 
 pub struct Thread {
     pub id: ThreadId,
     pub context: ThreadContext,
     pub kernel_stack: KernelThreadStack,
-    pub state: ThreadState
+    pub state: ThreadState, 
+    pub exit_code: MaybeUninit<i32>
+}
+
+impl Thread {
+    pub const fn new(id: ThreadId, ctx: ThreadContext, kernel_stack:KernelThreadStack, state:ThreadState) -> Self {
+        Self {
+            id: id,
+            context: ctx,
+            kernel_stack: kernel_stack,
+            state: state,
+            exit_code: MaybeUninit::uninit()
+        }
+    }
 }
 
 #[derive(Debug,Clone,Copy,PartialEq, Eq)]
@@ -20,6 +35,16 @@ pub struct KernelThreadStack {
     pub ptr: u64,
     pub len: usize,
     pub top: u64
+}
+
+impl KernelThreadStack {
+    pub const fn new(ptr: u64, len: usize, top: u64) -> Self {
+        Self {
+            ptr: ptr,
+            len: len,
+            top: top
+        }
+    }
 }
 
 

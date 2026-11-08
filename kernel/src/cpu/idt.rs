@@ -9,7 +9,7 @@ use x86_64::{
     structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
 };
 
-use crate::{ACPI_TABLE, cpu, func::poweroff, keyboard, log, log_info, timer};
+use crate::{ACPI_TABLE, cpu, func::poweroff, keyboard, log, log_info, thread::scheduler::Scheduler, timer};
 use utils::serial_println;
 
 lazy_static! {
@@ -53,6 +53,7 @@ lazy_static! {
         let fadt = unsafe { &*rfadt };
         idt[fadt.sci_interrupt as u8 + 32].set_handler_fn(sci_handler);
 
+        idt[0x80].set_handler_fn(sudden_schedule);
         idt
     };
 }
@@ -164,4 +165,7 @@ unsafe extern "C" fn timer_entry() {
         "iretq",
         timer = sym crate::timer::irq::timer_handler,
     )
+}
+
+extern "x86-interrupt" fn sudden_schedule(_frame: InterruptStackFrame) {
 }

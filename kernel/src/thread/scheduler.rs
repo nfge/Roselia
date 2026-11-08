@@ -1,7 +1,7 @@
 use core::{ptr::null, sync::atomic::AtomicBool};
 
 use alloc::{boxed::Box, collections::VecDeque};
-use kernel_api::thread::{Thread, ThreadContext, ThreadId,ThreadState};
+use kernel_api::thread::{KernelThreadStack, Thread, ThreadContext, ThreadId, ThreadState};
 use x86_64::{PhysAddr, VirtAddr, registers::segmentation::{GS, Segment64}, structures::paging::{PageSize, PageTableFlags, Size4KiB}};
 
 use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::{alloc_pages, map}, thread::tmanager::TaskManager, timer::TICKS};
@@ -29,7 +29,7 @@ impl Scheduler {
             ready: InterruptSpinLock::new(VecDeque::new()),
             current: None,
             previous: None,
-            idle: Box::new(Thread { id: idle_id, context: ctx, kernel_stack: kernel_api::thread::KernelThreadStack { ptr: rsp, len: 32, top: rsp.checked_add(32 * Size4KiB::SIZE).unwrap()  }, state: kernel_api::thread::ThreadState::Ready }),
+            idle: Box::new(Thread::new(idle_id, ctx, KernelThreadStack::new(rsp, 32, rsp.checked_add(32 * Size4KiB::SIZE).unwrap()), ThreadState::Ready)),
             remaining_time: TIME_MS
         });
         let ptr = Box::into_raw(base);

@@ -6,9 +6,15 @@ use alloc::{
     vec::Vec,
 };
 use kernel_api::thread::{Thread, ThreadContext, ThreadId};
-use x86_64::{VirtAddr, registers::segmentation::{GS, Segment64}};
+use x86_64::{
+    VirtAddr,
+    registers::segmentation::{GS, Segment64},
+};
 
-use crate::{TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::free_pages, thread::scheduler::Scheduler};
+use crate::{
+    TASK_MANAGER, lock::interruptlock::InterruptSpinLock, memory::multi_allocator::free_pages,
+    thread::scheduler::Scheduler,
+};
 
 pub struct TaskManager {
     threads: InterruptSpinLock<BTreeMap<ThreadId, Box<Thread>>>,
@@ -25,6 +31,9 @@ impl TaskManager {
             zombies: InterruptSpinLock::new(Vec::new()),
             id: InterruptSpinLock::new(AtomicU64::new(0)),
         }
+    }
+    pub fn push_thread(&self, thread: Box<Thread>) {
+        self.threads.lock().insert(thread.id, thread);
     }
     pub fn push_sleeper(&self, time: u64, thread: Box<Thread>) {
         let mut sleepers = self.sleepers.lock();
@@ -51,15 +60,6 @@ impl TaskManager {
     pub fn push_zombie(&self, id: ThreadId) {
         self.zombies.lock().push(id);
     }
-    pub fn reap(&self) {
-        loop {
-            let zombie_id = self.zombies.lock().pop();
-            let Some(tid) = zombie_id else {return};
-            let thread = self.threads.lock().remove(&tid).unwrap();
-            free_pages(VirtAddr::new(thread.kernel_stack.ptr), thread.kernel_stack.len);
-            drop(thread);
-        }
-    }
     pub fn get_by_tid<R>(&self, tid: ThreadId, f: impl FnOnce(&Thread) -> R) -> Option<R> {
         self.threads.lock().get(&tid).map(|t| f(t))
     }
@@ -70,5 +70,18 @@ impl TaskManager {
         self.id
             .lock()
             .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
+    }
+}
+
+pub fn reap() {
+    loop {
+        let zombie_id = TASK_MANAGER.zombies.lock().pop();
+        let Some(tid) = zombie_id else { return };
+        let thread = TASK_MANAGER.threads.lock().remove(&tid).unwrap();
+        free_pages(
+            VirtAddr::new(thread.kernel_stack.ptr),
+            thread.kernel_stack.len,
+        );
+        drop(thread);
     }
 }
