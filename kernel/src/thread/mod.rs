@@ -2,21 +2,29 @@ use core::mem::MaybeUninit;
 
 use alloc::boxed::Box;
 use kernel_api::thread::{KernelThreadStack, Thread, ThreadContext, ThreadId};
-use x86_64::structures::paging::{PageSize, Size4KiB};
+use x86_64::{registers::segmentation::{CS, SS, Segment}, structures::paging::{PageSize, Size4KiB}};
 
 use crate::{TASK_MANAGER, memory::multi_allocator::alloc_pages, thread::scheduler::Scheduler};
 
 pub mod scheduler;
 pub mod tmanager;
 
+fn new_ctx(entry: u64, arg: u64, stack_top: u64) -> ThreadContext {
+    let mut tc = ThreadContext::default();
+    tc.rip = entry;
+    tc.rdi = arg;
+    tc.cs = CS::get_reg().0 as u64;
+    tc.ss = SS::get_reg().0 as u64;
+    tc.rflags = 0x202;
+    tc.rsp = stack_top - 8;
+    tc
+}
+
 pub fn spawn(f: fn() -> i32) -> ThreadId {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let base = alloc_pages(32).unwrap().as_u64();
         let top = base.checked_add(32 * Size4KiB::SIZE).unwrap();
-        let mut threadctx = ThreadContext::default();
-
-        threadctx.rip = thread_trampoline as *const () as u64;
-        threadctx.rdi = f as u64;
+        let threadctx = new_ctx(thread_trampoline as *const () as u64, f as u64, top);
 
         let id = TASK_MANAGER.new_id();
 
@@ -48,5 +56,8 @@ pub fn thread_exit(exit_code: i32) {
                 t.exit_code = MaybeUninit::new(exit_code);
             })
             .unwrap();
-    })
+    });
+    loop {
+        x86_64::instructions::hlt();
+    }
 }

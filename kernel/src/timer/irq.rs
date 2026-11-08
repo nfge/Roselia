@@ -16,7 +16,7 @@ pub extern "C" fn timer_handler(ctx: *mut ThreadContext) -> *mut ThreadContext{
     scheduler.remaining_time = scheduler.remaining_time.saturating_sub(1);
     // let idle_run = scheduler.current_thread().unwrap() == scheduler.idle;
     let idle_run = match scheduler.current_thread() {
-        Some(t) => if t == scheduler.idle.id {true} else {false}
+        Some(t) => if t == scheduler.idle {true} else {false}
         None => false
     };
     if scheduler.remaining_time > 0 && !(idle_run && !scheduler.ready_is_empty()) {
