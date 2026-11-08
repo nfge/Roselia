@@ -43,7 +43,7 @@ impl Scheduler {
         )));
 
         let rsp = alloc_pages(32).unwrap().as_u64();
-        let top = rsp.checked_add(32).unwrap() * Size4KiB::SIZE;
+        let top = rsp.checked_add(32 * Size4KiB::SIZE).unwrap();
 
         TASK_MANAGER.push_thread(Box::new(Thread::new(
             idle_id,
@@ -118,7 +118,7 @@ impl Scheduler {
             });
         }
         let new_ctx: *mut ThreadContext = task
-            .get_mut_by_tid(next, |t| return &raw mut t.context)
+            .get_mut_by_tid(next, |t| { t.state = ThreadState::Ready; return &raw mut t.context})
             .unwrap();
 
         self.previous = self.current;
@@ -134,7 +134,7 @@ impl Scheduler {
             return;
         };
         match TASK_MANAGER.get_by_tid(prev, |t| return t.state) {
-            Some(ThreadState::Running) => self.push_ready(prev),
+            Some(ThreadState::Ready) => self.push_ready(prev),
             Some(ThreadState::Terminated) => TASK_MANAGER.push_zombie(prev),
             _ => {}
         }
