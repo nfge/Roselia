@@ -16,16 +16,16 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
 
-        // unsafe {
-        //     idt[32]
-        //         .set_handler_addr(VirtAddr::new(timer_entry as *const () as u64))
-        //         .set_stack_index(0)
-        // };
         unsafe {
             idt[32]
-                .set_handler_fn(crate::timer::irq::timer_handler)
+                .set_handler_addr(VirtAddr::new(timer_entry as *const () as u64))
                 .set_stack_index(0)
         };
+        // unsafe {
+        //     idt[32]
+        //         .set_handler_fn(crate::timer::irq::timer_handler)
+        //         .set_stack_index(0)
+        // };
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
