@@ -7,7 +7,7 @@ pub struct Thread {
     pub context: ThreadContext,
     pub kernel_stack: KernelThreadStack,
     pub state: ThreadState, 
-    pub exit_code: MaybeUninit<i32>
+    pub exit_code: Option<i32>
 }
 
 impl Thread {
@@ -17,7 +17,7 @@ impl Thread {
             context: ctx,
             kernel_stack: kernel_stack,
             state: state,
-            exit_code: MaybeUninit::uninit()
+            exit_code: None
         }
     }
 }

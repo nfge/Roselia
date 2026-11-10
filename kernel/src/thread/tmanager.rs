@@ -77,6 +77,9 @@ pub fn reap() {
     loop {
         let zombie_id = TASK_MANAGER.zombies.lock().pop();
         let Some(tid) = zombie_id else { return };
+        if TASK_MANAGER.get_by_tid(tid, |t| {return t.exit_code.is_some()}).unwrap() {
+            continue;
+        }
         let thread = TASK_MANAGER.threads.lock().remove(&tid).unwrap();
         free_pages(
             VirtAddr::new(thread.kernel_stack.ptr),

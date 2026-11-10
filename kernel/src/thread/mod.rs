@@ -53,7 +53,7 @@ pub fn thread_exit(exit_code: i32) {
         TASK_MANAGER
             .get_mut_by_tid(schd.current_thread().unwrap(), |t| {
                 t.state = kernel_api::thread::ThreadState::Terminated;
-                t.exit_code = MaybeUninit::new(exit_code);
+                t.exit_code = Some(exit_code);
             })
             .unwrap();
     });

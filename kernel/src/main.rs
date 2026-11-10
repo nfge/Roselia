@@ -20,10 +20,18 @@ mod timer;
 
 // mod uart;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, RawSpinMutex}, memory::{
+    func::reset,
+    gop::{color::Color, graphics::Graphics},
+    lock::{CurrentThreadId, RawSpinMutex},
+    memory::{
         multi_allocator::{MultiAllocator, alloc_frames, map},
         pool_allocator::{POOL_GROW_COST, PoolAllocator},
-    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, thread::{scheduler::Scheduler, tmanager::TaskManager}, timer::{TSC_FREQ, sleep::spin_sleep},
+    },
+    module::{MODULEIDS, export::init_exports, load_module},
+    ramfs::{RamFs, init_ramfs},
+    terminal::Terminal,
+    thread::{scheduler::Scheduler, spawn, tmanager::TaskManager},
+    timer::{TSC_FREQ, sleep::spin_sleep},
 };
 
 use acpi::get::get_table;
@@ -94,7 +102,10 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     cpu::apic::init_ioapic();
     cpu::apic::init_lapic();
     cpu::sse::init_sse_and_avx();
-    TSC_FREQ.store(timer::calibrate_tsc(), core::sync::atomic::Ordering::Relaxed);
+    TSC_FREQ.store(
+        timer::calibrate_tsc(),
+        core::sync::atomic::Ordering::Relaxed,
+    );
     x86_64::instructions::interrupts::enable();
     timer::calibrate();
     unsafe {
@@ -113,12 +124,12 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     x86_64::instructions::interrupts::without_interrupts(|| {
         let addr = alloc_frames(1024).unwrap();
         let mut allocator = PoolAllocator::new(addr.as_u64(), 1024, 0);
-        
+
         let pml4_frame =
-        PhysFrame::containing_address(PhysAddr::new(allocator.alloc_frames(1).unwrap()));
-        
+            PhysFrame::containing_address(PhysAddr::new(allocator.alloc_frames(1).unwrap()));
+
         allocator.set_reserved(POOL_GROW_COST);
-        
+
         unsafe {
             PAGETABLE_POOL_ALLOCATOR = Some(allocator);
         }
@@ -303,10 +314,10 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     }
     init_ramfs();
     init_exports();
-    
+
     unsafe {
         Scheduler::new();
-        MODULES = Some(Vec::new()) ;
+        MODULES = Some(Vec::new());
     }
     if info.modules.count != 0 {
         let raw_modules =
@@ -320,7 +331,9 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                     }
                 }
             };
-            MODULEIDS.lock().fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+            MODULEIDS
+                .lock()
+                .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
             unsafe {
                 if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
                     modules.push(module);
@@ -340,7 +353,15 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
     unsafe {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();
-            (*TERMINAL).run();
+            fn terminal_thread() -> i32 {
+                if let Some(term) = unsafe {TERMINAL.as_mut()} {
+                    term.run();
+                    return 0
+                } else {
+                    return 1
+                }
+            }
+            let id = spawn(terminal_thread);
         }
     }
 
