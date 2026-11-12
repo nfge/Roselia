@@ -4,20 +4,24 @@ pub type ThreadId = u64;
 
 pub struct Thread {
     pub id: ThreadId,
+    pub parent_id: Option<ThreadId>,
     pub context: ThreadContext,
     pub kernel_stack: KernelThreadStack,
     pub state: ThreadState, 
-    pub exit_code: Option<i32>
+    pub exit_code: Option<i32>,
+    pub reserved: bool
 }
 
 impl Thread {
     pub const fn new(id: ThreadId, ctx: ThreadContext, kernel_stack:KernelThreadStack, state:ThreadState) -> Self {
         Self {
             id: id,
+            parent_id: None,
             context: ctx,
             kernel_stack: kernel_stack,
             state: state,
-            exit_code: None
+            exit_code: None,
+            reserved: true
         }
     }
 }

@@ -71,20 +71,35 @@ impl TaskManager {
             .lock()
             .fetch_add(1, core::sync::atomic::Ordering::Relaxed)
     }
+    pub fn release(&self, tid: ThreadId) {
+        let Some(thread) = self.threads.lock().remove(&tid) else {
+            return;
+        };
+        if thread.kernel_stack.len != 0 {
+            free_pages(
+                VirtAddr::new(thread.kernel_stack.ptr),
+                thread.kernel_stack.len,
+            );
+        }
+        drop(thread);
+    }
 }
 
 pub fn reap() {
     loop {
         let zombie_id = TASK_MANAGER.zombies.lock().pop();
         let Some(tid) = zombie_id else { return };
-        if TASK_MANAGER.get_by_tid(tid, |t| {return t.exit_code.is_some()}).unwrap() {
-            continue;
-        }
-        let thread = TASK_MANAGER.threads.lock().remove(&tid).unwrap();
-        free_pages(
-            VirtAddr::new(thread.kernel_stack.ptr),
-            thread.kernel_stack.len,
-        );
-        drop(thread);
+        match TASK_MANAGER
+            .get_by_tid(tid, |t| {
+                if t.parent_id != None {
+                    return t.reserved
+                } else {
+                    false
+                }
+            }) {
+                Some(false) => TASK_MANAGER.release(tid),
+                _ => {}
+            }
+       
     }
 }
