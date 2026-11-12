@@ -5,7 +5,7 @@ use alloc::{
     collections::{BTreeMap, VecDeque},
     vec::Vec,
 };
-use kernel_api::thread::{Thread, ThreadContext, ThreadId};
+use kernel_api::thread::{Thread, ThreadContext, ThreadId, ThreadState};
 use x86_64::{
     VirtAddr,
     registers::segmentation::{GS, Segment64},
@@ -86,20 +86,28 @@ impl TaskManager {
 }
 
 pub fn reap() {
-    loop {
-        let zombie_id = TASK_MANAGER.zombies.lock().pop();
-        let Some(tid) = zombie_id else { return };
-        match TASK_MANAGER
-            .get_by_tid(tid, |t| {
-                if t.parent_id != None {
-                    return t.reserved
-                } else {
-                    false
-                }
-            }) {
-                Some(false) => TASK_MANAGER.release(tid),
-                _ => {}
+    let frame = core::mem::take(&mut *TASK_MANAGER.zombies.lock());
+
+    for tid in frame {
+        let parent = TASK_MANAGER.get_by_tid(tid, |t| t.parent_id);
+        let keep = match parent {
+            None => false,
+            Some(None) => {
+                TASK_MANAGER.release(tid);
+                false
             }
-       
+            Some(Some(p)) => {
+                match TASK_MANAGER.get_by_tid(p, |t| t.state != ThreadState::Terminated) {
+                    Some(true) => true,
+                    _ => {
+                        TASK_MANAGER.release(tid);
+                        false
+                    }
+                }
+            }
+        };
+        if keep {
+            TASK_MANAGER.push_zombie(tid);
+        }
     }
 }

@@ -20,18 +20,10 @@ mod timer;
 
 // mod uart;
 use crate::{
-    func::reset,
-    gop::{color::Color, graphics::Graphics},
-    lock::{CurrentThreadId, RawSpinMutex},
-    memory::{
+    func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, ThreadSpinMutex}, memory::{
         multi_allocator::{MultiAllocator, alloc_frames, map},
         pool_allocator::{POOL_GROW_COST, PoolAllocator},
-    },
-    module::{MODULEIDS, export::init_exports, load_module},
-    ramfs::{RamFs, init_ramfs},
-    terminal::Terminal,
-    thread::{scheduler::Scheduler, spawn, tmanager::TaskManager},
-    timer::{TSC_FREQ, sleep::spin_sleep},
+    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, thread::{scheduler::Scheduler, spawn, tmanager::TaskManager}, timer::{TSC_FREQ, sleep::spin_sleep},
 };
 
 use acpi::get::get_table;
@@ -77,7 +69,7 @@ static TASK_MANAGER: TaskManager = TaskManager::new();
 
 // static MAPPER: Mutex<Option<OffsetPageTable<'static>>> = Mutex::new(None);
 static MAPPER: ReentrantMutex<
-    RawSpinMutex,
+    ThreadSpinMutex,
     CurrentThreadId,
     UnsafeCell<Option<OffsetPageTable<'static>>>,
 > = ReentrantMutex::new(UnsafeCell::new(None));

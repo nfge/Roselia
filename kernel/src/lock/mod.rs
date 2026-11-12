@@ -2,15 +2,17 @@ use core::{num::NonZeroUsize, sync::atomic::AtomicBool};
 
 use lock_api::{GetThreadId, GuardSend, RawMutex};
 
+use crate::thread::scheduler::Scheduler;
+
 
 pub mod interruptlock;
 
 pub struct CurrentThreadId;
-pub struct RawSpinMutex {
+pub struct ThreadSpinMutex {
     locked: AtomicBool
 }
 
-unsafe impl RawMutex for RawSpinMutex {
+unsafe impl RawMutex for ThreadSpinMutex {
     const INIT: Self = Self {
         locked: AtomicBool::new(false),
     };
@@ -38,7 +40,7 @@ unsafe impl RawMutex for RawSpinMutex {
 unsafe impl GetThreadId for CurrentThreadId {
     const INIT: Self = Self;
     fn nonzero_thread_id(&self) -> core::num::NonZeroUsize {
-        NonZeroUsize::new(1).unwrap()
+        NonZeroUsize::new(Scheduler::current().and_then(|s| s.current_thread()).map_or(usize::MAX, |t| t as usize + 1)).unwrap()
     }
 }
 

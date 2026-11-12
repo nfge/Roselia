@@ -65,6 +65,9 @@ impl Scheduler {
     }
     pub fn current() -> Option<&'static Self> {
         let ptr = GS::read_base().as_u64() as *const Scheduler;
+        if ptr.is_null() {
+            return None
+        }
         unsafe { ptr.as_ref() }
     }
     pub fn current_mut() -> Option<&'static mut Self> {
