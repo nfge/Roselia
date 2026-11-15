@@ -23,11 +23,16 @@ fn new_ctx(entry: u64, arg: u64, stack_top: u64) -> ThreadContext {
     tc
 }
 
-pub fn spawn(f: fn() -> i32) -> ThreadId {
+pub fn spawn<F>(f: F) -> ThreadId
+where
+    F: FnOnce() -> i32 + Send + 'static {
+    
+    crate::thread::tmanager::reap();
+    let arg = Box::into_raw(Box::new(f)) as u64;
     x86_64::instructions::interrupts::without_interrupts(|| {
         let base = alloc_pages(32).unwrap().as_u64();
         let top = base.checked_add(32 * Size4KiB::SIZE).unwrap();
-        let threadctx = new_ctx(thread_trampoline as *const () as u64, f as u64, top);
+        let threadctx = new_ctx(thread_trampoline::<F> as *const () as u64, arg, top);
 
         let id = TASK_MANAGER.new_id();
         let parent = Scheduler::current().and_then(|s| s.current_thread());
@@ -45,8 +50,11 @@ pub fn spawn(f: fn() -> i32) -> ThreadId {
     })
 }
 
-pub fn thread_trampoline(f: fn() -> i32) {
-    let exit_code = f();
+extern "C" fn thread_trampoline<F: FnOnce() -> i32>(arg: *mut F) {
+    let exit_code = {
+        let f = unsafe { Box::from_raw(arg) };
+        (*f)()
+    };
 
     thread_exit(exit_code);
 }
