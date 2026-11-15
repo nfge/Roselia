@@ -60,6 +60,20 @@ impl TaskManager {
     pub fn push_zombie(&self, id: ThreadId) {
         self.zombies.lock().push(id);
     }
+    fn take_zombie(&self) -> Option<ThreadId> {
+        let mut zombies = self.zombies.lock();
+        let pos = zombies.iter().position(|&tid| self.is_zombie(tid))?;
+        Some(zombies.swap_remove(pos))
+    }
+    fn is_zombie(&self, tid: ThreadId) -> bool {
+        match self.get_by_tid(tid, |t| t.parent_id) {
+            None => true,
+            Some(None) => true,
+            Some(Some(p)) => self
+                .get_by_tid(p, |t| t.state == ThreadState::Terminated)
+                .unwrap_or(true),
+        }
+    }
     pub fn get_by_tid<R>(&self, tid: ThreadId, f: impl FnOnce(&Thread) -> R) -> Option<R> {
         self.threads.lock().get(&tid).map(|t| f(t))
     }
@@ -86,28 +100,7 @@ impl TaskManager {
 }
 
 pub fn reap() {
-    let frame = core::mem::take(&mut *TASK_MANAGER.zombies.lock());
-
-    for tid in frame {
-        let parent = TASK_MANAGER.get_by_tid(tid, |t| t.parent_id);
-        let keep = match parent {
-            None => false,
-            Some(None) => {
-                TASK_MANAGER.release(tid);
-                false
-            }
-            Some(Some(p)) => {
-                match TASK_MANAGER.get_by_tid(p, |t| t.state != ThreadState::Terminated) {
-                    Some(true) => true,
-                    _ => {
-                        TASK_MANAGER.release(tid);
-                        false
-                    }
-                }
-            }
-        };
-        if keep {
-            TASK_MANAGER.push_zombie(tid);
-        }
+    while let Some(tid) = TASK_MANAGER.take_zombie() {
+        TASK_MANAGER.release(tid);
     }
 }

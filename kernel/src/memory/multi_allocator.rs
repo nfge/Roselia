@@ -309,20 +309,20 @@ pub fn free_page(page: Page<Size4KiB>) {
 }
 #[allow(unused)]
 pub fn alloc_pages(count: usize) -> Option<VirtAddr> {
-    unsafe {
+    x86_64::instructions::interrupts::without_interrupts(|| unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             return allocator.alloc_pages(count);
         }
-    }
-    None
+        None
+    })
 }
 #[allow(unused)]
 pub fn free_pages(addr: VirtAddr, count: usize) {
-    unsafe {
+    x86_64::instructions::interrupts::without_interrupts(|| unsafe {
         if let Some(allocator) = &mut *core::ptr::addr_of_mut!(MULTI_ALLOCATOR) {
             allocator.free_pages(addr, count);
         }
-    }
+    })
 }
 #[allow(unused)]
 pub fn map(

@@ -60,9 +60,10 @@ pub fn thread_exit(exit_code: i32) {
                 t.exit_code = Some(exit_code);
             })
             .unwrap();
+        schd.remaining_time = 0;
     });
     loop {
-        x86_64::instructions::hlt();
+        x86_64::instructions::interrupts::enable_and_hlt();
     }
 }
 

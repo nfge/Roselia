@@ -353,10 +353,10 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                     return 1
                 }
             }
-            let id = spawn(terminal_thread);
+            let _id = spawn(terminal_thread);
         }
     }
-
+    crate::thread::thread_exit(0);
     loop {
         x86_64::instructions::hlt();
     }
