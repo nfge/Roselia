@@ -23,7 +23,35 @@ fn new_ctx(entry: u64, arg: u64, stack_top: u64) -> ThreadContext {
     tc
 }
 
+/// Spawn thread
 pub fn spawn<F>(f: F) -> ThreadId
+where
+    F: FnOnce() -> i32 + Send + 'static {
+    
+    crate::thread::tmanager::reap();
+    let arg = Box::into_raw(Box::new(f)) as u64;
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let base = alloc_pages(32).unwrap().as_u64();
+        let top = base.checked_add(32 * Size4KiB::SIZE).unwrap();
+        let threadctx = new_ctx(thread_trampoline::<F> as *const () as u64, arg, top);
+
+        let id = TASK_MANAGER.new_id();
+        let mut thread = Thread::new(
+            id,
+            threadctx,
+            KernelThreadStack::new(base, 32, top),
+            kernel_api::thread::ThreadState::Ready,
+        );
+        thread.parent_id = None;
+        TASK_MANAGER.push_thread(Box::new(thread));
+        Scheduler::current_mut().unwrap().push_ready(id);
+
+        id
+    })
+}
+
+/// Spawn child
+pub fn spawnc<F>(f: F) -> ThreadId
 where
     F: FnOnce() -> i32 + Send + 'static {
     
