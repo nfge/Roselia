@@ -1,10 +1,9 @@
-use core::{any::type_name_of_val, ffi::c_void};
+use core::{ffi::c_void};
 
 use acpi::get::{get_ptr_table};
-use alloc::borrow::ToOwned;
 use pci::{check, find_by_class, find_by_id};
 
-use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, module::CURRENT_MODULE_RSP, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}, thread::{spawn, spawn_box, spawnc, spawnc_box, thread_exit, wait}};
+use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}, thread::{kill, spawn, spawn_box, spawnc, spawnc_box, thread_exit, thread_sleep, wait}};
 
 
 pub fn init_exports() {
@@ -24,6 +23,8 @@ pub fn init_exports() {
     export_symbol!("spawn_box", spawn_box);
     export_symbol!("spawnc_box", spawnc_box);
     export_symbol!("wait", wait);
+    export_symbol!("kill", kill);
+    export_symbol!("thread_sleep", thread_sleep);
 
     export_symbol!("klog", log);
 

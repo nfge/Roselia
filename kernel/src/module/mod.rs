@@ -21,7 +21,7 @@ pub mod error;
 pub mod export;
 
 // temp
-pub static mut CURRENT_MODULE_RSP: u64 = 0;
+// pub static mut CURRENT_MODULE_RSP: u64 = 0;
 
 pub const MODULEIDS: Mutex<AtomicU64> = Mutex::new(AtomicU64::new(0));
 

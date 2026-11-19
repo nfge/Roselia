@@ -66,7 +66,7 @@ impl Scheduler {
     pub fn current() -> Option<&'static Self> {
         let ptr = GS::read_base().as_u64() as *const Scheduler;
         if ptr.is_null() {
-            return None
+            return None;
         }
         unsafe { ptr.as_ref() }
     }
@@ -100,11 +100,20 @@ impl Scheduler {
         // }
         let current = self.current.unwrap();
         let current_state = task.get_by_tid(self.current.unwrap(), |f| return f.state);
-        let nnext = self.ready.lock().pop_front();
+        let nnext = loop {
+            match self.ready.lock().pop_front() {
+                None => break None,
+                Some(t) if task.get_by_tid(t, |t| t.state) == Some(ThreadState::Ready) => {
+                    break Some(t);
+                }
+                Some(_) => continue,
+            }
+        };
+
         let next = match nnext {
             Some(t) => t,
             None => {
-                if current_state == Some(kernel_api::thread::ThreadState::Running) {
+                if current_state == Some(ThreadState::Running) {
                     return ctx;
                 } else {
                     self.idle
@@ -121,7 +130,10 @@ impl Scheduler {
             });
         }
         let new_ctx: *mut ThreadContext = task
-            .get_mut_by_tid(next, |t| { t.state = ThreadState::Running; return &raw mut t.context})
+            .get_mut_by_tid(next, |t| {
+                t.state = ThreadState::Running;
+                return &raw mut t.context;
+            })
             .unwrap();
 
         self.previous = self.current;

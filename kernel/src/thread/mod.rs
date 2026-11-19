@@ -7,7 +7,7 @@ use x86_64::{
     structures::paging::{PageSize, Size4KiB},
 };
 
-use crate::{TASK_MANAGER, memory::multi_allocator::alloc_pages, thread::scheduler::Scheduler};
+use crate::{TASK_MANAGER, memory::multi_allocator::alloc_pages, thread::scheduler::Scheduler, timer::{TICKS, TICKS_PER_SEC}};
 
 pub mod scheduler;
 pub mod tmanager;
@@ -26,8 +26,8 @@ fn new_ctx(entry: u64, arg: u64, stack_top: u64) -> ThreadContext {
 /// Spawn thread
 pub fn spawn<F>(f: F) -> ThreadId
 where
-    F: FnOnce() -> i32 + Send + 'static {
-    
+    F: FnOnce() -> i32 + Send + 'static,
+{
     crate::thread::tmanager::reap();
     let arg = Box::into_raw(Box::new(f)) as u64;
     x86_64::instructions::interrupts::without_interrupts(|| {
@@ -53,8 +53,8 @@ where
 /// Spawn child
 pub fn spawnc<F>(f: F) -> ThreadId
 where
-    F: FnOnce() -> i32 + Send + 'static {
-    
+    F: FnOnce() -> i32 + Send + 'static,
+{
     crate::thread::tmanager::reap();
     let arg = Box::into_raw(Box::new(f)) as u64;
     x86_64::instructions::interrupts::without_interrupts(|| {
@@ -108,27 +108,71 @@ pub fn wait(tid: ThreadId) -> Option<i32> {
     loop {
         let res = TASK_MANAGER.get_mut_by_tid(tid, |t| {
             if t.parent_id != Some(current) {
-                return Err(())
+                return Err(());
             }
             if t.state != ThreadState::Terminated {
-                return Ok(None)
+                return Ok(None);
             }
             t.parent_id = None;
-            return Ok(t.exit_code.take())
+            return Ok(t.exit_code.take());
         });
 
         match res {
             None | Some(Err(())) => return None,
             Some(Ok(Some(code))) => {
                 TASK_MANAGER.get_mut_by_tid(tid, |t| t.reserved = false);
-                return Some(code)
+                return Some(code);
             }
-            Some(Ok(None)) => x86_64::instructions::hlt(), 
+            Some(Ok(None)) => x86_64::instructions::hlt(),
         }
-        
     }
 }
 
+pub fn kill(tid: ThreadId) {
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let sch = Scheduler::current_mut().unwrap();
+        if tid == sch.idle {
+            return;
+        };
 
-pub fn spawn_box(f: Box<dyn FnOnce() -> i32 + Send + 'static>) -> ThreadId {spawn(f)}
-pub fn spawnc_box(f: Box<dyn FnOnce() -> i32 + Send + 'static>) -> ThreadId {spawnc(f)}
+        let was = TASK_MANAGER
+            .get_mut_by_tid(tid, |t| {
+                if t.state == ThreadState::Terminated {
+                    return false;
+                };
+                t.state = ThreadState::Terminated;
+                t.exit_code = Some(-9);
+                true
+            })
+            .unwrap_or(false);
+        if !was {
+            return;
+        };
+        if Some(tid) == sch.current_thread() {
+            sch.remaining_time = 0;
+        } else {
+            TASK_MANAGER.push_zombie(tid);
+        }
+    })
+}
+
+pub fn thread_sleep(time_ms: u64) {
+    let wake =
+        TICKS.load(core::sync::atomic::Ordering::Relaxed) + TICKS_PER_SEC.load(core::sync::atomic::Ordering::Relaxed) * time_ms / 1000;
+    let current = Scheduler::current().unwrap().current_thread().unwrap();
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        TASK_MANAGER.push_sleeper(wake, current); 
+        TASK_MANAGER.get_mut_by_tid(current, |t| t.state = ThreadState::Sleeping);
+        Scheduler::current_mut().unwrap().remaining_time = 0;
+    });
+    while TASK_MANAGER.get_by_tid(current, |t| t.state) == Some(ThreadState::Sleeping) {
+        x86_64::instructions::interrupts::enable_and_hlt();
+    }
+}
+
+pub fn spawn_box(f: Box<dyn FnOnce() -> i32 + Send + 'static>) -> ThreadId {
+    spawn(f)
+}
+pub fn spawnc_box(f: Box<dyn FnOnce() -> i32 + Send + 'static>) -> ThreadId {
+    spawnc(f)
+}

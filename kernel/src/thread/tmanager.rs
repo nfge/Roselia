@@ -35,10 +35,10 @@ impl TaskManager {
     pub fn push_thread(&self, thread: Box<Thread>) {
         self.threads.lock().insert(thread.id, thread);
     }
-    pub fn push_sleeper(&self, time: u64, thread: Box<Thread>) {
+    pub fn push_sleeper(&self, time: u64, id: ThreadId) {
         let mut sleepers = self.sleepers.lock();
         let i = sleepers.partition_point(|(w, _)| *w <= time);
-        sleepers.insert(i, (time, thread.id));
+        sleepers.insert(i, (time, id));
     }
     pub fn wake_sleeper(&self, time: u64) -> Option<ThreadId> {
         loop {
@@ -49,9 +49,14 @@ impl TaskManager {
                     _ => return None,
                 }
             };
-            if self
-                .get_mut_by_tid(id, |t| t.state = kernel_api::thread::ThreadState::Ready)
-                .is_some()
+            if self.get_mut_by_tid(id, |t| {
+                if t.state == ThreadState::Sleeping {
+                    t.state = ThreadState::Ready;
+                    true
+                } else {
+                    false
+                }
+            }) == Some(true)
             {
                 return Some(id);
             }

@@ -5,7 +5,6 @@ use crate::{
     gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
     keyboard::KeyBoard,
     kprint, log_fail,
-    module::CURRENT_MODULE_RSP,
     ramfs::{check_directory, is_valid, read_file, types::NodeType},
     terminal::command::Command,
     thread::{spawnc, wait},

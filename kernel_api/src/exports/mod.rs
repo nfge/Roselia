@@ -37,6 +37,9 @@ unsafe extern "Rust" {
     pub fn spawnc_box(f: Box<dyn FnOnce() -> i32 + Send + 'static>) -> ThreadId;
 
     pub fn wait(tid: ThreadId) -> Option<i32>;
+    pub fn kill(tid: ThreadId);
+    pub fn thread_sleep(time_ms: u64);
+
     pub fn klog(args: Arguments, level: LogLevel);
     pub fn get_acpi_table() -> *const c_void;
     pub fn get_ptr_table(
