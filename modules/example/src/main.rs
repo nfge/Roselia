@@ -11,11 +11,11 @@ pub struct ModuleAllocator;
 
 unsafe impl GlobalAlloc for ModuleAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let mut ptr = unsafe {kalloc(layout).unwrap()};
+        let mut ptr = unsafe {kernel_api::exports::kalloc(layout).unwrap()};
         unsafe {ptr.as_mut()}
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        unsafe {kfree(NonNull::new_unchecked(ptr), layout)};
+        unsafe {kernel_api::exports::kfree(NonNull::new_unchecked(ptr), layout)};
     }
 }
 
@@ -30,25 +30,24 @@ static MODULE_INFO: ModuleInfo = ModuleInfo {
 };
 
 
-unsafe extern "Rust" {
-    fn kprintf(args: core::fmt::Arguments);
-    fn kprintfln(args: core::fmt::Arguments);
-    fn kalloc(layout:Layout) -> Result<core::ptr::NonNull<u8>, ()>;
-    fn kfree(ptr: NonNull<u8>, layout:Layout);
-    fn module_panic() -> !;
-}
+// unsafe extern "Rust" {
+//     fn kprintf(args: core::fmt::Arguments);
+//     fn kprintfln(args: core::fmt::Arguments);
+//     fn kalloc(layout:Layout) -> Result<core::ptr::NonNull<u8>, ()>;
+//     fn kfree(ptr: NonNull<u8>, layout:Layout);
+//     fn module_panic() -> !;
+// }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn module_init() -> i32 {
     unsafe {
-        kprintf(format_args!("This is example module!\n"));
+        kernel_api::exports::kprintf(format_args!("This is example module!\n"));
     };
     return 0
 }
-
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
-    unsafe {module_panic()};
+    unsafe {kernel_api::exports::module_panic()};
 }
 
 

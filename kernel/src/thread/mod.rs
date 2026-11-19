@@ -128,3 +128,7 @@ pub fn wait(tid: ThreadId) -> Option<i32> {
         
     }
 }
+
+
+pub fn spawn_box(f: Box<dyn FnOnce() -> i32 + Send + 'static>) -> ThreadId {spawn(f)}
+pub fn spawnc_box(f: Box<dyn FnOnce() -> i32 + Send + 'static>) -> ThreadId {spawnc(f)}

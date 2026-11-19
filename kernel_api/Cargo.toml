@@ -10,3 +10,4 @@ bitflags = "2.13.2"
 [features]
 module_api = []
 alloc = []
+module_exports = []

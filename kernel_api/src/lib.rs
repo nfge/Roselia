@@ -14,6 +14,9 @@ pub mod keyboard;
 #[cfg(feature = "module_api")]
 pub mod module;
 
+#[cfg(feature = "module_exports")]
+pub mod exports;
+
 pub mod thread;
 
 pub mod symbol;

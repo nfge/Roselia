@@ -1,9 +1,10 @@
-use core::{ffi::c_void};
+use core::{any::type_name_of_val, ffi::c_void};
 
 use acpi::get::{get_ptr_table};
+use alloc::borrow::ToOwned;
 use pci::{check, find_by_class, find_by_id};
 
-use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, module::CURRENT_MODULE_RSP, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}};
+use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, module::CURRENT_MODULE_RSP, ramfs::{read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}, thread::{spawn, spawn_box, spawnc, spawnc_box, thread_exit, wait}};
 
 
 pub fn init_exports() {
@@ -19,6 +20,10 @@ pub fn init_exports() {
 
     export_symbol!("read", read_file);
     export_symbol!("write", write_file);
+
+    export_symbol!("spawn_box", spawn_box);
+    export_symbol!("spawnc_box", spawnc_box);
+    export_symbol!("wait", wait);
 
     export_symbol!("klog", log);
 
@@ -36,15 +41,17 @@ pub extern "Rust" fn get_acpi_table() -> *const c_void {
 }
 
 fn module_panic() -> ! {
-    unsafe {
-        core::arch::asm!(
-            "mov rsp, [{new_rsp}]",
-            "sub rsp, 8",
-            "mov eax, {status}",
-            "ret",
-            new_rsp = sym CURRENT_MODULE_RSP,
-            status = const -10i32,
-            options(noreturn)
-        )
-    }
+    // unsafe {
+    //     core::arch::asm!(
+    //         "mov rsp, [{new_rsp}]",
+    //         "sub rsp, 8",
+    //         "mov eax, {status}",
+    //         "ret",
+    //         new_rsp = sym CURRENT_MODULE_RSP,
+    //         status = const -10i32,
+    //         options(noreturn)
+    //     )
+    // }
+    thread_exit(-10);
+    loop {}
 }

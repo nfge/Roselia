@@ -8,6 +8,7 @@ use crate::{
     module::CURRENT_MODULE_RSP,
     ramfs::{check_directory, is_valid, read_file, types::NodeType},
     terminal::command::Command,
+    thread::{spawnc, wait},
     timer::sleep::sleep,
 };
 use acpi::get::get_table;
@@ -315,7 +316,7 @@ impl Terminal {
                             }
                         },
                         Err(e) => {
-                            kprint!("{}: {:#?}\n",target.as_str(), e);
+                            kprint!("{}: {:#?}\n", target.as_str(), e);
                         }
                     }
                 }
@@ -632,43 +633,48 @@ impl Terminal {
                                         bytes
                                     })
                                     .collect();
-                                let argv: Vec<*const u8> =
-                                    raw_argv.iter().map(|s| s.as_ptr()).collect();
-                                let args = ModuleArgs {
-                                    argc: argv.len() as u64,
-                                    argv: argv.as_ptr(),
-                                };
-                                let result: i32;
 
-                                unsafe {
-                                    core::arch::asm!(
-                                        "push rbx",
-                                        "push rbp",
-                                        "push r12",
-                                        "push r13",
-                                        "push r14",
-                                        "push r15",
+                                // let result: i32;
 
-                                        "mov [{saved_rsp}], rsp",
-                                        "call {init}",
+                                // unsafe {
+                                //     core::arch::asm!(
+                                //         "push rbx",
+                                //         "push rbp",
+                                //         "push r12",
+                                //         "push r13",
+                                //         "push r14",
+                                //         "push r15",
 
-                                        "pop r15",
-                                        "pop r14",
-                                        "pop r13",
-                                        "pop r12",
-                                        "pop rbp",
-                                        "pop rbx",
+                                //         "mov [{saved_rsp}], rsp",
+                                //         "call {init}",
 
-                                        saved_rsp = sym CURRENT_MODULE_RSP,
-                                        init = in(reg) init,
-                                        in("rdi") &args,
-                                        lateout("rax") result,
-                                        clobber_abi("C"),
-                                    );
-                                }
+                                //         "pop r15",
+                                //         "pop r14",
+                                //         "pop r13",
+                                //         "pop r12",
+                                //         "pop rbp",
+                                //         "pop rbx",
+
+                                //         saved_rsp = sym CURRENT_MODULE_RSP,
+                                //         init = in(reg) init,
+                                //         in("rdi") &args,
+                                //         lateout("rax") result,
+                                //         clobber_abi("C"),
+                                //     );
+                                // }
                                 // let result = init(&args as *const ModuleArgs);
 
                                 found = true;
+                                let tid = spawnc(move || {
+                                    let argv: Vec<*const u8> =
+                                        raw_argv.iter().map(|s| s.as_ptr()).collect();
+                                    let args = ModuleArgs {
+                                        argc: argv.len() as u64,
+                                        argv: argv.as_ptr(),
+                                    };
+                                    init(&args as *const ModuleArgs)
+                                });
+                                let result = wait(tid).unwrap();
                                 if result >= 0 {
                                     break;
                                 } else if result == -10 {
@@ -683,18 +689,20 @@ impl Terminal {
                             if flags.is_empty() {
                                 let init: extern "C" fn() -> i32 =
                                     unsafe { core::mem::transmute(module.entry_fn.unwrap()) };
-                                let result: i32;
-                                unsafe {
-                                    core::arch::asm!(
-                                        "mov [{saved_rsp}], rsp",
-                                        "call {init}",
-                                        saved_rsp = sym CURRENT_MODULE_RSP,
-                                        init = in(reg) init,
-                                        lateout("rax") result
-                                    );
-                                }
+                                // let result: i32;
+                                // unsafe {
+                                //     core::arch::asm!(
+                                //         "mov [{saved_rsp}], rsp",
+                                //         "call {init}",
+                                //         saved_rsp = sym CURRENT_MODULE_RSP,
+                                //         init = in(reg) init,
+                                //         lateout("rax") result
+                                //     );
+                                // }
                                 // let result = init();
                                 found = true;
+                                let tid = spawnc(move || init());
+                                let result = wait(tid).unwrap();
                                 if result >= 0 {
                                     break;
                                 } else if result == -10 {
