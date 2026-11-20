@@ -10,9 +10,7 @@ use kernel_api::{
         elf64ehdr::Elf64Ehdr,
         elf64phdr::{Elf64Phdr, PF_X, PT_LOAD},
         elf64shdr::Elf64Shdr,
-    },
-    module::{Module, ModuleFlags, ModuleInfo, raw::RawModule},
-    symbol::KernelSymbol,
+    }, module::{ABI_V1, MAGIC, Module, ModuleFlags, ModuleInfo, raw::RawModule}, symbol::KernelSymbol,
 };
 
 use crate::{MAPPER, linker::Linker, log_fail, log_info, module::error::LoadError};
@@ -34,7 +32,7 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
 
     let info = unsafe { read_module_info(module).unwrap() };
 
-    if info.magic != 0x524F_5345_4C49_4100 {
+    if info.magic != MAGIC {
         log_fail!(
             "Failed to load module {} with {:?}\n",
             core::str::from_utf8(
@@ -49,7 +47,7 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
         );
         return Err(LoadError::InvalidMagic);
     }
-    if info.abi_version != 1 {
+    if info.abi_version != ABI_V1 {
         log_fail!(
             "Failed to load module {} with {:?}\n",
             core::str::from_utf8(

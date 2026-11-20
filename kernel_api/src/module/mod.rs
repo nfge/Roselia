@@ -5,6 +5,10 @@ use alloc::vec::Vec;
 
 pub mod raw;
 
+
+pub const ABI_V1: u32 = 1;
+pub const MAGIC: u64 = 0x524F_5345_4C49_4100;
+
 bitflags::bitflags! {
     #[derive(Debug)]
     pub struct ModuleFlags: u32 {
@@ -33,7 +37,7 @@ unsafe impl Sync for Module {}
 pub struct ModuleInfo {
     pub name: [u8; 32],
 
-    pub module_version: u32,
+    pub module_version: f32,
     pub abi_version: u32,
 
     pub magic: u64,

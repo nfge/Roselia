@@ -5,7 +5,7 @@ extern crate alloc;
 
 use core::{alloc::{GlobalAlloc, Layout}, ptr::NonNull};
 
-use kernel_api::module::{ModuleInfo};
+use kernel_api::module::{ABI_V1, MAGIC, ModuleInfo};
 
 pub struct ModuleAllocator;
 
@@ -23,9 +23,9 @@ unsafe impl GlobalAlloc for ModuleAllocator {
 #[unsafe(link_section = ".module_info")]
 static MODULE_INFO: ModuleInfo = ModuleInfo {   
     name: *b"example\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0",
-    abi_version: 1,
-    module_version: 1,
-    magic: 0x524F_5345_4C49_4100,
+    abi_version: ABI_V1,
+    module_version: 1.0,
+    magic: MAGIC,
     flags: 0
 };
 
