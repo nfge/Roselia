@@ -12,6 +12,8 @@ use crate::logger::loglevel::LogLevel;
 use crate::pci::PciDevice;
 
 #[cfg(feature = "alloc")]
+use crate::ramfs::data::NodeData;
+#[cfg(feature = "alloc")]
 use crate::ramfs::error::RamFSError;
 
 use crate::thread::ThreadId;
@@ -23,6 +25,12 @@ unsafe extern "Rust" {
     pub fn kprintfln(arg: core::fmt::Arguments);
     pub fn kalloc(layout: Layout) -> Result<core::ptr::NonNull<u8>, ()>;
     pub fn kfree(ptr: core::ptr::NonNull<u8>, layout: Layout);
+
+    #[cfg(feature = "alloc")]
+    pub fn create(path: &str, data: NodeData) -> Result<(), RamFSError>;
+
+    #[cfg(feature = "alloc")]
+    pub fn mkdir(path: &str) -> Result<(), RamFSError>;
 
     #[cfg(feature = "alloc")]
     pub fn read(path: &str) -> Result<Vec<u8>, RamFSError>;
@@ -42,20 +50,32 @@ unsafe extern "Rust" {
 
     pub fn klog(args: Arguments, level: LogLevel);
     pub fn get_acpi_table() -> *const c_void;
-    pub fn get_ptr_table(
-        acpi_table: *const c_void,
-        signature: &[u8; 4],
-    ) -> Option<*const c_void>;
-    pub fn pci_check(vendor_id: u16, device_id: u16) -> (Option<&'static str>, Option<&'static str>);
-    pub fn pci_find_by_id(mcfg_entry: &McfgEntry, vendor_id: u16, device_id: u16) -> Option<PciDevice>;
+    pub fn get_ptr_table(acpi_table: *const c_void, signature: &[u8; 4]) -> Option<*const c_void>;
+    pub fn pci_check(
+        vendor_id: u16,
+        device_id: u16,
+    ) -> (Option<&'static str>, Option<&'static str>);
+    pub fn pci_find_by_id(
+        mcfg_entry: &McfgEntry,
+        vendor_id: u16,
+        device_id: u16,
+    ) -> Option<PciDevice>;
     pub fn pci_find_by_class(mcfg_entry: &McfgEntry, class: u8, subclass: u8) -> Option<PciDevice>;
     pub fn module_panic() -> !;
 }
 #[cfg(feature = "alloc")]
 pub fn spawn<F: FnOnce() -> i32 + Send + 'static>(f: F) -> ThreadId {
-    unsafe {spawn_box(Box::new(f))}
+    unsafe { spawn_box(Box::new(f)) }
 }
 #[cfg(feature = "alloc")]
 pub fn spawnc<F: FnOnce() -> i32 + Send + 'static>(f: F) -> ThreadId {
-    unsafe {spawnc_box(Box::new(f))}
+    unsafe { spawnc_box(Box::new(f)) }
+}
+
+pub macro kprint($($arg:tt)*) {
+    kprintf(format_args!($($arg)*));
+}
+
+pub macro kprintln($($arg:tt)*) {
+    kprintfln(format_args!($($arg)*));
 }

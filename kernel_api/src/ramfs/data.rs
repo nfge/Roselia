@@ -1,7 +1,9 @@
+#[cfg(feature = "alloc")]
 use alloc::{boxed::Box, vec::Vec};
 
-use kernel_api::ramfs::error::RamFSError;
+use crate::ramfs::error::RamFSError;
 
+#[cfg(feature = "alloc")]
 pub enum NodeData {
     Empty,
     File(Vec<u8>),
@@ -10,6 +12,7 @@ pub enum NodeData {
         write: Option<fn(&[u8]) -> Result<(), RamFSError>>
     }
 }
+#[cfg(feature = "alloc")]
 impl NodeData {
     pub fn virtual_read<F>(f: F) -> Self
     where F: Fn() -> Vec<u8> + Send + Sync + 'static {

@@ -1,16 +1,12 @@
-// mod file;
-pub mod data;
 mod node;
-pub mod types;
 
 use alloc::{format, vec::Vec};
-use data::NodeData;
+use kernel_api::ramfs::{data::NodeData, types::NodeType};
 use kernel_api::{ramfs::error::RamFSError};
 
 use crate::{
     PAGETABLE_POOL_ALLOCATOR, RAMFS, memory::{get_heap_free, get_heap_used, multi_allocator::{get_free_mem, get_total_memory, get_used_mem}}, module::KERNEL_EXPORTS, ramfs::{
         node::{Node, NodeId},
-        types::NodeType,
     },
 };
 
@@ -24,7 +20,7 @@ impl RamFs {
         let mut nodes = Vec::new();
         nodes.push(Node::new(
             "/",
-            types::NodeType::Directory,
+            kernel_api::ramfs::types::NodeType::Directory,
             None,
             NodeData::Empty,
         ));
@@ -263,12 +259,12 @@ pub fn init_ramfs() {
     let _ = mkdir("/dev").unwrap();
     let _ = create_file(
         "/kernel/log",
-        crate::ramfs::data::NodeData::File(Vec::new()),
+        kernel_api::ramfs::data::NodeData::File(Vec::new()),
     )
     .unwrap();
     let _ = create_file(
         "/proc/meminfo",
-        crate::ramfs::data::NodeData::virtual_read(|| {
+        kernel_api::ramfs::data::NodeData::virtual_read(|| {
             let memused = get_used_mem();
             let memfree = get_free_mem();
             let memtotal = get_total_memory();
@@ -290,7 +286,7 @@ pub fn init_ramfs() {
     ).unwrap();
     let _ = create_file(
         "/kernel/info",
-        crate::ramfs::data::NodeData::virtual_read(|| {
+        kernel_api::ramfs::data::NodeData::virtual_read(|| {
             let version = env!("CARGO_PKG_VERSION");
             let git_commit = option_env!("VERGEN_GIT_SHA").unwrap_or("unknown");
             let arch = if cfg!(target_arch = "x86_64") {

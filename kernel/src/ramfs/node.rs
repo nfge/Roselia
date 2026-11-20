@@ -1,8 +1,6 @@
-use core::ptr::null;
-
 use alloc::{string::{String, ToString}, vec::Vec};
 
-use crate::ramfs::{data::NodeData, types::NodeType};
+use kernel_api::ramfs::{data::NodeData, types::NodeType};
 
 pub type NodeId = usize;
 

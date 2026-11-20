@@ -41,7 +41,7 @@ static MODULE_INFO: ModuleInfo = ModuleInfo {
 #[unsafe(no_mangle)]
 pub extern "C" fn module_init() -> i32 {
     unsafe {
-        kernel_api::exports::kprintf(format_args!("This is example module!\n"));
+        kernel_api::exports::kprintln!("This is example module!");
     };
     return 0
 }

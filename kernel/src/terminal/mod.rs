@@ -5,7 +5,7 @@ use crate::{
     gop::{color::Color, fonts::VGA_FONT, graphics::Graphics},
     keyboard::KeyBoard,
     kprint, log_fail,
-    ramfs::{check_directory, is_valid, read_file, types::NodeType},
+    ramfs::{check_directory, is_valid, read_file},
     terminal::command::Command,
     thread::{spawnc, wait},
     timer::sleep::sleep,
@@ -28,6 +28,7 @@ use kernel_api::{
         keyevent::KeyEvent,
     },
     module::{ModuleArgs, ModuleFlags},
+    ramfs::types::NodeType
 };
 
 mod command;
