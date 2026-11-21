@@ -16,11 +16,12 @@ jiff = { version = "1.0.0", default-features = false, features = ["alloc"] }
 lazy_static = {version = "1.5.0", features = ["spin_no_std"]}
 linked_list_allocator = "0.10.6"
 bitflags = "2.13.2"
+aacpi = {package = "acpi", version = "6.1.1"}
 
 kernel_api={path = "../kernel_api", features = ["module_api", "alloc"]}
 
 bootinfo={path = "../common/bootinfo"}
-acpi = {path = "../common/acpi"}
+macpi = {path = "../common/acpi", package = "acpi"}
 pci={path = "../common/pci"}
 utils={path = "../utils"}
 

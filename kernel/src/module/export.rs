@@ -1,6 +1,6 @@
 use core::{ffi::c_void};
 
-use acpi::get::{get_ptr_table};
+use macpi::get::{get_ptr_table};
 use pci::{check, find_by_class, find_by_id};
 
 use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, ramfs::{create_file, mkdir, read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}, thread::{kill, spawn, spawn_box, spawnc, spawnc_box, thread_exit, thread_sleep, wait}};

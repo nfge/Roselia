@@ -3,7 +3,7 @@ use core::panic;
 use kernel_api::acpi_tables::{
     dsdt::Dsdt, fadt::Fadt,sdtheader::SdtHeader, ssdt::Ssdt,
 };
-use acpi::{get::{get_table,get_tables},func::{SLP_EN, SLP_TYP_SHIFT, find_sleep_type}};
+use macpi::{get::{get_table,get_tables},func::{SLP_EN, SLP_TYP_SHIFT, find_sleep_type}};
 
 use uefi::runtime::{Time, TimeCapabilities};
 use x86::io::outb;

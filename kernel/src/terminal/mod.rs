@@ -10,7 +10,7 @@ use crate::{
     thread::{spawnc, wait},
     timer::sleep::sleep,
 };
-use acpi::get::get_table;
+use macpi::get::get_table;
 use alloc::{
     string::{String, ToString},
     vec,

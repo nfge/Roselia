@@ -17,6 +17,7 @@ mod ramfs;
 mod terminal;
 mod thread;
 mod timer;
+mod acpi;
 
 // mod uart;
 use crate::{
@@ -26,7 +27,7 @@ use crate::{
     }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, thread::{scheduler::Scheduler, spawn, tmanager::TaskManager}, timer::{TSC_FREQ, sleep::spin_sleep},
 };
 
-use acpi::get::get_table;
+use macpi::get::get_table;
 use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,

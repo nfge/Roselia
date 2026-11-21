@@ -3,7 +3,7 @@ pub mod irq;
 pub mod sleep;
 use core::{arch::x86_64::{__rdtscp, _mm_lfence, _rdtsc}, ptr::null_mut, sync::atomic::AtomicU64};
 
-use acpi::get::get_table;
+use macpi::get::get_table;
 use kernel_api::acpi_tables::fadt::Fadt;
 use raw_cpuid::CpuId;
 use x86::msr::{

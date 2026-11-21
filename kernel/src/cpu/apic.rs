@@ -1,4 +1,4 @@
-use acpi::get::get_table;
+use macpi::get::get_table;
 use kernel_api::acpi_tables::{
     fadt::Fadt,
     madt::{Madt, MadtEntry},

@@ -1,6 +1,6 @@
 use core::{arch::naked_asm, hint::spin_loop};
 
-use acpi::get::get_table;
+use macpi::get::get_table;
 use kernel_api::acpi_tables::fadt::Fadt;
 use lazy_static::lazy_static;
 use x86::io::{inw, outw};
