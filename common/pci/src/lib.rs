@@ -19,6 +19,7 @@ pub fn find_by_id(mcfg_entry: &McfgEntry, vendor_id: u16, device_id: u16) -> Opt
     for device in devices {
         if device.header.vendor_id == vendor_id && device.header.device_id == device_id {
             return Some(PciDevice {
+                segment: device.segment,
                 bus: device.bus,
                 device: device.device,
                 function: device.function,
@@ -30,6 +31,7 @@ pub fn find_by_id(mcfg_entry: &McfgEntry, vendor_id: u16, device_id: u16) -> Opt
     for device in devices {
         if device.header.vendor_id == vendor_id && device.header.device_id == device_id {
             return Some(PciDevice {
+                segment: device.segment,
                 bus: device.bus,
                 device: device.device,
                 function: device.function,
@@ -44,6 +46,7 @@ pub fn find_by_class(mcfg_entry: &McfgEntry, class: u8, subclass: u8) -> Option<
     for device in devices {
         if device.header.class_code == class && device.header.subclass == subclass {
             return Some(PciDevice {
+                segment: device.segment,
                 bus: device.bus,
                 device: device.device,
                 function: device.function,
@@ -55,6 +58,7 @@ pub fn find_by_class(mcfg_entry: &McfgEntry, class: u8, subclass: u8) -> Option<
     for device in devices {
         if device.header.class_code == class && device.header.subclass == subclass {
             return Some(PciDevice {
+                segment: device.segment,
                 bus: device.bus,
                 device: device.device,
                 function: device.function,

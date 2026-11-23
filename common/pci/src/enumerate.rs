@@ -11,7 +11,7 @@ pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
     for bus in entry.start_bus..=entry.end_bus {
         for device in 0..32 {
             let addr = entry.base_address
-                + ((bus as u64) << 20)
+                + (((bus - entry.start_bus) as u64) << 20)
                 + ((device as u64) << 15)
                 + ((0u64) << 12);
 
@@ -22,6 +22,7 @@ pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
             }
 
             devices.push(PciDevice {
+                segment: entry.segment_group,
                 bus,
                 device,
                 function: 0,
@@ -31,7 +32,7 @@ pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
             if header.header_type & 0x80 != 0 {
                 for function in 1..8 {
                     let addr = entry.base_address
-                        + ((bus as u64) << 20)
+                        + (((bus - entry.start_bus) as u64) << 20)
                         + ((device as u64) << 15)
                         + ((function as u64) << 12);
 
@@ -40,8 +41,8 @@ pub unsafe fn enumerate_mcfg(entry: &McfgEntry) -> Vec<PciDevice> {
                     if header.vendor_id == 0xFFFF {
                         continue;
                     }
-
                     devices.push(PciDevice {
+                        segment: entry.segment_group,
                         bus,
                         device,
                         function,
@@ -70,6 +71,7 @@ pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
             let header = unsafe {read_header_legacy(bus, device, 0)};
 
             devices.push(PciDevice {
+                segment: 0,
                 bus,
                 device,
                 function: 0,
@@ -88,6 +90,7 @@ pub unsafe fn enumerate_legacy() -> Vec<PciDevice> {
                     let header = unsafe {read_header_legacy(bus, device, function)};
 
                     devices.push(PciDevice {
+                        segment: 0,
                         bus,
                         device,
                         function,
@@ -105,7 +108,7 @@ pub unsafe fn enumerate(entry: &McfgEntry) -> Vec<PciDevice> {
     let mut devices = unsafe {enumerate_mcfg(entry)};
     let legacy = unsafe { enumerate_legacy()};
     for device in legacy {
-        if !devices.iter().any(|x| x.bus == device.bus && x.device == device.device && x.function == device.function) {
+        if !devices.iter().any(|x| x.bus == device.bus && x.device == device.device && x.function == device.function && x.segment == device.segment) {
             devices.push(device);
         }
     }

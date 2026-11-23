@@ -23,6 +23,7 @@ pub struct PciHeader {
 }
 
 pub struct PciDevice {
+    pub segment: u16,
     pub bus: u8,
     pub device: u8,
     pub function: u8,
