@@ -68,13 +68,3 @@ impl ModuleArgs {
         return Some(argsv)
     } 
 }
-
-
-
-
-
-#[repr(C)]
-pub struct Buffer {
-    pub ptr: *mut u8,
-    pub len: usize
-}

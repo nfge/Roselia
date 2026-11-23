@@ -62,6 +62,8 @@ unsafe extern "Rust" {
     ) -> Option<PciDevice>;
     pub fn pci_find_by_class(mcfg_entry: &McfgEntry, class: u8, subclass: u8) -> Option<PciDevice>;
     pub fn module_panic() -> !;
+
+    pub fn export_symbol(name: &'static str, f: *const ());
 }
 #[cfg(feature = "alloc")]
 pub fn spawn<F: FnOnce() -> i32 + Send + 'static>(f: F) -> ThreadId {

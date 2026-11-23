@@ -10,7 +10,7 @@ use kernel_api::{
         elf64ehdr::Elf64Ehdr,
         elf64phdr::{Elf64Phdr, PF_X, PT_LOAD},
         elf64shdr::Elf64Shdr,
-    }, module::{ABI_V1, MAGIC, Module, ModuleFlags, ModuleInfo, raw::RawModule}, symbol::KernelSymbol,
+    }, module::{ABI_V1, MAGIC, Module, ModuleFlags, ModuleInfo, raw::RawModule}, symbol::{KernelSymbol, SymAddr},
 };
 
 use crate::{MAPPER, linker::Linker, log_fail, log_info, module::error::LoadError};
@@ -188,6 +188,10 @@ pub unsafe fn read_module_info(module: &RawModule) -> Option<ModuleInfo> {
         }
     }
     None
+}
+
+pub fn export_symbol(name: &'static str, f: *const ()) {
+    KERNEL_EXPORTS.lock().push(KernelSymbol { name, addr: SymAddr(f as usize) });
 }
 
 #[macro_export]

@@ -3,7 +3,7 @@ use core::{ffi::c_void};
 use macpi::get::{get_ptr_table};
 use pci::{check, find_by_class, find_by_id};
 
-use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, ramfs::{create_file, mkdir, read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}, thread::{kill, spawn, spawn_box, spawnc, spawnc_box, thread_exit, thread_sleep, wait}};
+use crate::{ACPI_TABLE, export_symbol, logger::export::log, memory::{kalloc, kfree}, module::export_symbol, ramfs::{create_file, mkdir, read_file, write_file}, terminal::export::{kprint, kprintf, kprintfln, kprintln}, thread::{kill, spawn, spawn_box, spawnc, spawnc_box, thread_exit, thread_sleep, wait}};
 
 
 pub fn init_exports() {
@@ -36,7 +36,10 @@ pub fn init_exports() {
     export_symbol!("pci_check", check);
     export_symbol!("pci_find_by_id", find_by_id);
     export_symbol!("pci_find_by_class", find_by_class);
-    export_symbol!("module_panic", module_panic)
+    export_symbol!("module_panic", module_panic);
+
+    // temp
+    export_symbol!("export_symbol", export_symbol);
 }
 
 pub extern "Rust" fn get_acpi_table() -> *const c_void {
