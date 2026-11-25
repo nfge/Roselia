@@ -248,7 +248,7 @@ pub fn resolve_export_table(module: &RawModule) -> Result<(), LoadError> {
         let name = &strtab[start_name..end_name];
         if name == b".module_exports" {
             let module_exports_ptr = unsafe {
-                (module.base + shdr.sh_addr) as *const ModuleExport
+                (module.load_bias as u64 + shdr.sh_addr) as *const ModuleExport
             };
             let count = shdr.sh_size / core::mem::size_of::<ModuleExport>() as u64;
             let exports =

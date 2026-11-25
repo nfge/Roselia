@@ -20,8 +20,7 @@ use x86_64::{
 };
 
 use crate::{
-    linker::error::RelocateError, log_fail, log_info,
-    ramfs::read_file
+    linker::error::RelocateError, log_fail, log_info, module::KERNEL_EXPORTS, ramfs::read_file
 };
 
 pub mod error;
@@ -241,11 +240,6 @@ impl Linker {
 }
 
 fn resolve_kernel_symbol(name: &str) -> Option<u64> {
-    // KERNEL_EXPORTS
-    //     .lock()
-    //     .iter()
-    //     .find(|s| s.name == name)
-    //     .map(|s| s.addr.0 as u64)
     let data = read_file("/symbols").unwrap();
     let text = core::str::from_utf8(&data).unwrap();
     for line in text.lines() {
