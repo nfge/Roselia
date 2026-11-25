@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+mod acpi;
 mod cpu;
 mod func;
 mod gop;
@@ -17,17 +18,23 @@ mod ramfs;
 mod terminal;
 mod thread;
 mod timer;
-mod acpi;
 
 // mod uart;
 use crate::{
-    func::reset, gop::{color::Color, graphics::Graphics}, lock::{CurrentThreadId, ThreadSpinMutex}, memory::{
+    func::reset,
+    gop::{color::Color, graphics::Graphics},
+    lock::{CurrentThreadId, ThreadSpinMutex},
+    memory::{
         multi_allocator::{MultiAllocator, alloc_frames, map},
         pool_allocator::{POOL_GROW_COST, PoolAllocator},
-    }, module::{MODULEIDS, export::init_exports, load_module}, ramfs::{RamFs, init_ramfs}, terminal::Terminal, thread::{scheduler::Scheduler, spawn, tmanager::TaskManager}, timer::{TSC_FREQ, sleep::spin_sleep},
+    },
+    module::{MODULEIDS, export::init_exports, load_module},
+    ramfs::{RamFs, init_ramfs},
+    terminal::Terminal,
+    thread::{scheduler::Scheduler, spawn, tmanager::TaskManager},
+    timer::{TSC_FREQ, sleep::spin_sleep},
 };
 
-use macpi::get::get_table;
 use alloc::{boxed::Box, vec::Vec};
 use bootinfo::{
     BootInfo,
@@ -39,11 +46,12 @@ use core::{cell::UnsafeCell, ffi::c_void, panic::PanicInfo};
 use kernel_api::{
     acpi_tables::mcfg::Mcfg,
     module::{
-        Module,
+        Module, ModuleArgs, ModuleType,
         raw::{RawModule, RawModules},
     },
 };
 use lock_api::ReentrantMutex;
+use macpi::get::get_table;
 use uefi::{boot::MemoryType, mem::memory_map::MemoryMap};
 use utils::serial_println;
 use x86::io::outb;
@@ -328,6 +336,11 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
                 .lock()
                 .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
             unsafe {
+                if module.info.mtype == ModuleType::Driver {
+                    let init: extern "C" fn() -> i32 =
+                        core::mem::transmute(module.entry_fn.unwrap());
+                    let _ = spawn(move || init());
+                }
                 if let Some(modules) = &mut *core::ptr::addr_of_mut!(MODULES) {
                     modules.push(module);
                 }
@@ -347,11 +360,11 @@ pub extern "sysv64" fn kernel_main(boot_ptr: *const BootInfo) -> ! {
         if !TERMINAL.is_null() {
             (*TERMINAL).flush_screen();
             fn terminal_thread() -> i32 {
-                if let Some(term) = unsafe {TERMINAL.as_mut()} {
+                if let Some(term) = unsafe { TERMINAL.as_mut() } {
                     term.run();
-                    return 0
+                    return 0;
                 } else {
-                    return 1
+                    return 1;
                 }
             }
             let _id = spawn(terminal_thread);

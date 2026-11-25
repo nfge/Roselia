@@ -63,7 +63,6 @@ unsafe extern "Rust" {
     pub fn pci_find_by_class(mcfg_entry: &McfgEntry, class: u8, subclass: u8) -> Option<PciDevice>;
     pub fn module_panic() -> !;
 
-    pub fn export_symbol(name: &'static str, f: *const ());
 }
 #[cfg(feature = "alloc")]
 pub fn spawn<F: FnOnce() -> i32 + Send + 'static>(f: F) -> ThreadId {
@@ -75,9 +74,21 @@ pub fn spawnc<F: FnOnce() -> i32 + Send + 'static>(f: F) -> ThreadId {
 }
 
 pub macro kprint($($arg:tt)*) {
-    kprintf(format_args!($($arg)*));
+    kprintf(format_args!($($arg)*))
 }
 
 pub macro kprintln($($arg:tt)*) {
-    kprintfln(format_args!($($arg)*));
+    kprintfln(format_args!($($arg)*))
+}
+
+pub macro export($name: literal, $f:path) {
+    const _: () = {
+        #[used]
+        #[unsafe(link_section = ".module_exports")]
+        static EXPORT: crate::module::ModuleExport = crate::module::ModuleExport {
+            name: concat!($name, "\0").as_ptr(),
+            nlen: $name.len(),
+            address: $f as *const ()
+        };
+    };
 }

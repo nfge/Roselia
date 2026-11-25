@@ -1,8 +1,4 @@
-use core::{
-    ops::Add,
-    slice,
-    sync::atomic::AtomicU64,
-};
+use core::{ops::Add, slice, sync::atomic::AtomicU64};
 
 use alloc::vec::Vec;
 use kernel_api::{
@@ -10,9 +6,12 @@ use kernel_api::{
         elf64ehdr::Elf64Ehdr,
         elf64phdr::{Elf64Phdr, PF_X, PT_LOAD},
         elf64shdr::Elf64Shdr,
-    }, module::{ABI_V1, MAGIC, Module, ModuleFlags, ModuleInfo, raw::RawModule}, symbol::{KernelSymbol, SymAddr},
+    },
+    module::{ABI_V1, MAGIC, Module, ModuleExport, ModuleFlags, ModuleInfo, raw::RawModule},
+    symbol::{KernelSymbol, SymAddr},
 };
 
+use crate::export_symbol;
 use crate::{MAPPER, linker::Linker, log_fail, log_info, module::error::LoadError};
 use spin::mutex::Mutex;
 pub mod error;
@@ -110,6 +109,36 @@ pub unsafe fn load_module(module: &RawModule) -> Result<Module, LoadError> {
             return Err(LoadError::EntryNotExecutable);
         }
     }
+    match resolve_export_table(module) {
+        Ok(_) => {
+            log_info!(
+                "Resolved export table in module {}",
+                core::str::from_utf8(
+                    &info.name[..info
+                        .name
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(info.name.len())]
+                )
+                .unwrap()
+            )
+        }
+        Err(e) => {
+            log_fail!(
+                "Failed to resolve export table in module {} with {:#?}",
+                core::str::from_utf8(
+                    &info.name[..info
+                        .name
+                        .iter()
+                        .position(|&c| c == 0)
+                        .unwrap_or(info.name.len())]
+                )
+                .unwrap(),
+                e
+            );
+            return Err(LoadError::FailedToResolveExports);
+        }
+    }
     log_info!(
         "Successful loaded module {} 0x{:016x}\n",
         core::str::from_utf8(
@@ -189,9 +218,56 @@ pub unsafe fn read_module_info(module: &RawModule) -> Option<ModuleInfo> {
     }
     None
 }
+pub fn resolve_export_table(module: &RawModule) -> Result<(), LoadError> {
+    let file =
+        unsafe { slice::from_raw_parts(module.raw_ptr as *const u8, module.raw_len as usize) };
+    let ehdr = unsafe { &*(file.as_ptr() as *const Elf64Ehdr) };
 
-pub fn export_symbol(name: &'static str, f: *const ()) {
-    KERNEL_EXPORTS.lock().push(KernelSymbol { name, addr: SymAddr(f as usize) });
+    let shdrs = unsafe {
+        core::slice::from_raw_parts(
+            module.raw_ptr.add(ehdr.e_shoff) as *const Elf64Shdr,
+            ehdr.e_shnum as usize,
+        )
+    };
+
+    let shstrtab = &shdrs[ehdr.e_shstrndx as usize];
+    let strtab: &[u8] = unsafe {
+        core::slice::from_raw_parts(
+            (module.raw_ptr as *const u8).add(shstrtab.sh_offset as usize),
+            shstrtab.sh_size as usize,
+        )
+    };
+
+    for shdr in shdrs {
+        let start_name = shdr.sh_name as usize;
+        let end_name = strtab[start_name..]
+            .iter()
+            .position(|&b| b == 0)
+            .map(|x| start_name + x)
+            .unwrap_or(strtab.len());
+        let name = &strtab[start_name..end_name];
+        if name == b".module_exports" {
+            let module_exports_ptr = unsafe {
+                (module.base + shdr.sh_addr) as *const ModuleExport
+            };
+            let count = shdr.sh_size / core::mem::size_of::<ModuleExport>() as u64;
+            let exports =
+                unsafe { core::slice::from_raw_parts(module_exports_ptr, count as usize) };
+            for export in exports {
+                assert!(!export.name.is_null());
+                assert!(export.nlen > 0);
+                let export_name = unsafe {
+                    core::str::from_utf8_unchecked(core::slice::from_raw_parts(
+                        export.name,
+                        export.nlen,
+                    ))
+                };
+
+                export_symbol!(export_name, export.address)
+            }
+        }
+    }
+    Ok(())
 }
 
 #[macro_export]

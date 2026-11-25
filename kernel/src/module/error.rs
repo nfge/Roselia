@@ -6,6 +6,7 @@ pub enum LoadError {
     InvalidMagic,
     InvalidAbiVersion,
     InvalidFlags,
+    FailedToResolveExports,
     RelocateError(RelocateError)
 }
 

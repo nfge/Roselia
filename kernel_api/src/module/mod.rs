@@ -3,6 +3,8 @@ use core::ffi::CStr;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+use crate::symbol::KernelSymbol;
+
 pub mod raw;
 
 
@@ -37,11 +39,20 @@ unsafe impl Sync for Module {}
 pub struct ModuleInfo {
     pub name: [u8; 32],
 
+    pub mtype: ModuleType,
+
     pub module_version: f32,
     pub abi_version: u32,
 
     pub magic: u64,
     pub flags: u32
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ModuleType {
+    Executable,
+    Driver
 }
 
 
@@ -68,3 +79,12 @@ impl ModuleArgs {
         return Some(argsv)
     } 
 }
+
+#[repr(C)]
+pub struct ModuleExport {
+    pub name: *const u8,
+    pub nlen: usize,
+    pub address: *const ()
+}
+
+unsafe impl Sync for ModuleExport {}
